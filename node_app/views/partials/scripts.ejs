@@ -1,0 +1,3580 @@
+<!-- Cleaned Scripts for EJS -->
+<script>
+
+  var userSelectedDate = false;
+  var currentFormulaPage = null;
+  var currentUserRole = null;
+  var filterState = {
+    activeColumns: ['lotno', 'owner', 'formulaname', 'weight', 'date', 'remarks'],
+    dropdownOpen: false
+  };
+  var clickOutsideHandler = null;
+  var currentView = 'list'; // 'list', 'grid', 'calendar'
+  var currentView = 'list'; // 'list', 'grid', 'calendar'
+  var currentPartLetter = 'A'; // Track current Part letter
+
+  function getFormulaTitle(page) {
+    switch (page) {
+      case 'cosmetic': return 'Cosmetic';
+      case 'perfume': return 'Perfume';
+      case 'foodsupplement': return 'Food Supplement';
+      case 'sample-cosmetic': return 'Sample - Cosmetic';
+      case 'sample-perfume': return 'Sample - Perfume';
+      case 'sample-foodsupplement': return 'Sample - Food Supplement';
+      default: return 'Formula';
+    }
+  }
+
+  function getFormulaIconHtml(page) {
+    if (page === 'cosmetic' || page === 'sample-cosmetic') {
+      return '<img src="https://lh3.googleusercontent.com/d/1bQDc07MnCr428_BtGwvHTfQqaRDpgZ9e" alt="Cosmetic" class="page-title-icon">';
+    }
+    if (page === 'perfume' || page === 'sample-perfume') {
+      return '<img src="https://cdn-icons-png.flaticon.com/512/1890/1890663.png" alt="Perfume" class="page-title-icon">';
+    }
+    if (page === 'foodsupplement' || page === 'sample-foodsupplement') {
+      return '<img src="https://cdn-icons-png.flaticon.com/512/647/647198.png" alt="Food Supplement" class="page-title-icon">';
+    }
+    return '';
+  }
+
+  // Update date and time
+  function updateDateTime() {
+    // Get current PC date and time
+    var now = new Date();
+
+    // Format date for date input (YYYY-MM-DD)
+    var year = now.getFullYear();
+    var month = String(now.getMonth() + 1).padStart(2, '0');
+    var day = String(now.getDate()).padStart(2, '0');
+    var dateValue = year + '-' + month + '-' + day;
+
+    // Format time parts
+    var hours = now.getHours();
+    var minutes = String(now.getMinutes()).padStart(2, '0');
+    var seconds = String(now.getSeconds()).padStart(2, '0');
+    var ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    hours = String(hours).padStart(2, '0');
+
+    // Update time elements
+    var timeValue = document.getElementById('timeValue');
+    var ampmValue = document.getElementById('ampmValue');
+    if (timeValue) timeValue.textContent = hours + ':' + minutes + ':' + seconds;
+    if (ampmValue) ampmValue.textContent = ampm;
+
+    // Format date for display: Day, DD Month YYYY
+    var weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    var displayDate = weekdays[now.getDay()] + ', ' + day + ' ' + months[now.getMonth()] + ' ' + year;
+
+    var dateText = document.getElementById('dateText');
+    var datePicker = document.getElementById('datePicker');
+
+    if (!userSelectedDate) {
+      if (datePicker) datePicker.value = dateValue;
+      if (dateText) dateText.textContent = displayDate;
+    }
+  }
+
+  // Date picker interactions
+  function setupDatePicker() {
+    var datePicker = document.getElementById('datePicker');
+    if (!datePicker) return;
+
+    datePicker.addEventListener('change', function () {
+      userSelectedDate = false;
+      updateDateTime();
+    });
+  }
+
+  // --- LOGIN & REGISTRATION LOGIC ---
+  function setupLoginLogic() {
+    const wrapper = document.querySelector('.wrapper');
+    const loginLink = document.querySelector('.login-link');
+    const registerLink = document.querySelector('.register-link');
+
+    if (registerLink) {
+      registerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        wrapper.classList.add('active');
+      });
+    }
+
+    if (loginLink) {
+      loginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        wrapper.classList.remove('active');
+      });
+    }
+  }
+
+  function handleLogin(e) {
+    if (e) e.preventDefault();
+
+    const loginPage = document.getElementById('loginPage');
+    const mainApp = document.getElementById('mainApp');
+    const wrapper = document.querySelector('.wrapper');
+
+    if (!wrapper) return;
+
+    // Zoom out animation
+    wrapper.style.transform = 'scale(0.8)';
+    wrapper.style.opacity = '0';
+    wrapper.style.transition = 'all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+
+    // Store session
+    sessionStorage.setItem('isLoggedIn', 'true');
+
+    setTimeout(() => {
+      loginPage.style.display = 'none';
+      mainApp.style.display = 'block';
+      mainApp.style.opacity = '0';
+
+      // Initialize the app logic
+      initialize();
+      setupInactivityTimer(); // Start timeout listener
+
+      // Fade in main app
+      setTimeout(() => {
+        mainApp.style.transition = 'opacity 0.8s ease-in-out';
+        mainApp.style.opacity = '1';
+      }, 50);
+    }, 600);
+  }
+
+  // Google Identity Services (GSI) Callback
+  window.handleGsiLogin = function (response) {
+    if (response.credential) {
+      console.log("GSI response received");
+      showToast('Authenticating with Google...', 'info');
+
+      google.script.run
+        .withSuccessHandler(function (response) {
+          const role = response.role;
+          const detectedEmail = response.email;
+
+          if (!role) {
+            alert('Access Denied.\n\nDetected Email: ' + detectedEmail + '\n\nYour account is not authorized in the system. Please ensure this email is added in the Settings page.' + (response.note || ""));
+            return;
+          }
+          handleLogin();
+        })
+        .withFailureHandler(function (error) {
+          showToast('Authentication Error: ' + error.message, 'error');
+        })
+        .getCurrentUserAuth();
+    }
+  };
+
+  function handleLogout() {
+    const loginPage = document.getElementById('loginPage');
+    const mainApp = document.getElementById('mainApp');
+    const wrapper = document.querySelector('.wrapper');
+
+    if (!wrapper) return;
+
+    // Fade out main app
+    mainApp.style.transition = 'opacity 0.5s ease-in-out';
+    mainApp.style.opacity = '0';
+
+    // Clear session
+    sessionStorage.removeItem('isLoggedIn');
+    if (window.inactivityTimeout) clearTimeout(window.inactivityTimeout);
+
+    setTimeout(() => {
+      loginPage.style.display = 'none';
+      loginPage.style.opacity = '1'; // Ensure visible
+      loginPage.style.display = 'flex';
+
+      // Reset wrapper state
+      wrapper.style.transform = 'scale(1)';
+      wrapper.style.opacity = '1';
+      wrapper.style.transition = 'all 0.5s ease';
+
+      // Reset navigation state
+      document.querySelector("#navigation").classList.remove("active");
+      document.querySelector("#mainContent").classList.remove("active");
+    }, 500);
+  }
+
+  // --- SESSION & INACTIVITY LOGIC ---
+  function setupInactivityTimer() {
+    function resetTimer() {
+      if (window.inactivityTimeout) clearTimeout(window.inactivityTimeout);
+
+      // Only start timer if logged in and timeout is not 0
+      var duration = window.systemSettings ? parseInt(window.systemSettings.screenTimeout) : 15000;
+
+      if (sessionStorage.getItem('isLoggedIn') === 'true' && duration > 0) {
+        window.inactivityTimeout = setTimeout(() => {
+          showToast('Session expired due to inactivity.', 'info');
+          handleLogout();
+        }, duration);
+      }
+    }
+
+    // List of events to track activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach(event => {
+      document.addEventListener(event, resetTimer, true);
+    });
+
+    // Initial start if already logged in
+    resetTimer();
+  }
+
+  function renderAdminRequestsPage() {
+    return `
+      <div class="settings-container" style="max-width: 1000px;">
+        <div class="settings-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3><ion-icon name="list-outline"></ion-icon> Boss Request Management</h3>
+            <button class="btn-primary" onclick="showBossRequestFormFromAdmin()" style="background: var(--gold); color: var(--navy); border: none; padding: 10px 20px;">+ Create New Request</button>
+          </div>
+          <p class="settings-desc">Review and manage all update and sample formulation requests submitted by BOSS.</p>
+          
+          <div class="roles-table-container">
+            <table class="roles-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Boss</th>
+                  <th>Type</th>
+                  <th>Product/Lot</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Attachment</th>
+                </tr>
+              </thead>
+              <tbody id="adminRequestsTableBody">
+                <tr><td colspan="7" style="text-align:center;">Loading requests...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  window.showBossRequestFormFromAdmin = function () {
+    var title = document.getElementById('pageTitle');
+    var content = document.getElementById('dashboardContent');
+    title.innerHTML = '<ion-icon name="document-text-outline" class="page-title-icon"></ion-icon> Request Formulation';
+    content.innerHTML = renderRequestFormPage();
+
+    // Add back button for Admin
+    if (currentUserRole === 'ADMIN') {
+      var card = content.querySelector('.settings-card');
+      if (card) {
+        var btn = document.createElement('button');
+        btn.innerHTML = '← Back to Management';
+        btn.className = 'btn-primary';
+        btn.style.cssText = 'background: #eee; color: #333; border: none; margin-bottom: 20px;';
+        btn.onclick = function () { loadPage('request'); };
+        card.prepend(btn);
+      }
+    }
+  }
+
+  function setupAdminRequestsLogic() {
+    google.script.run
+      .withSuccessHandler(function (requests) {
+        var tableBody = document.getElementById('adminRequestsTableBody');
+        if (!tableBody) return;
+
+        if (requests && requests.length > 0) {
+          var html = '';
+          requests.forEach(function (req) {
+            var statusClass = req.status.toLowerCase();
+            var priorityStyle = req.priority === 'URGENT' ? 'color: red; font-weight: bold;' : '';
+            var fileLink = '-';
+
+            if (req.fileData && req.fileName) {
+              fileLink = '<button onclick="downloadRequestFile(\'' + req.id + '\')" style="background:none; border:none; color:var(--accent-gold); cursor:pointer; text-decoration:underline;">' + req.fileName + '</button>';
+            }
+
+            html += '<tr>' +
+              '<td>' + new Date(req.timestamp).toLocaleDateString() + '</td>' +
+              '<td>' + req.bossEmail + '</td>' +
+              '<td>' + req.type + '</td>' +
+              '<td>' + req.product + '</td>' +
+              '<td style="' + priorityStyle + '">' + req.priority + '</td>' +
+              '<td><span class="status-badge ' + statusClass + '">' + req.status + '</span></td>' +
+              '<td>' + fileLink + '</td>' +
+              '</tr>';
+          });
+          tableBody.innerHTML = html;
+          // Store requests globally for download access
+          window._allRequests = requests;
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No requests found.</td></tr>';
+        }
+      })
+      .getAllRequests();
+  }
+
+  window.downloadRequestFile = function (requestId) {
+    if (!window._allRequests) return;
+    var req = window._allRequests.find(r => r.id === requestId);
+    if (!req || !req.fileData) return;
+
+    var link = document.createElement("a");
+    link.href = req.fileData;
+    link.download = req.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Downloading ' + req.fileName + '...', 'info');
+  }
+
+  // --- SIDEBAR & NAVIGATION LOGIC ---
+  function setupSidebarLogic() {
+    let list = document.querySelectorAll(".navigation li");
+    let toggle = document.querySelector("#menuToggle");
+    let navigation = document.querySelector("#navigation");
+    let main = document.querySelector("#mainContent");
+
+    // Add hovered class to selected list item
+    function activeLink() {
+      list.forEach((item) => {
+        item.classList.remove("hovered");
+      });
+      this.classList.add("hovered");
+    }
+
+    list.forEach((item) => {
+      item.addEventListener("mouseover", activeLink);
+    });
+
+    // Menu Toggle
+    if (toggle) {
+      toggle.onclick = function () {
+        navigation.classList.toggle("active");
+        main.classList.toggle("active");
+      };
+    }
+  }
+
+  // --- SETTINGS & ROLE MANAGEMENT UI ---
+  function renderRequestFormPage() {
+    return `
+      <div class="settings-container">
+        <div class="settings-card">
+          <h3><ion-icon name="document-text-outline"></ion-icon> Boss Request Form</h3>
+          <p class="settings-desc">Submit a request for an update or a new sample formulation.</p>
+          
+          <div class="request-form">
+            <div class="rf-row" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--navy);">Request Type</label>
+              <select id="rfType" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background: white;">
+                <option value="UPDATE">Update Formulation</option>
+                <option value="SAMPLE">Sample Formulation</option>
+              </select>
+            </div>
+            <div class="rf-row" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--navy);">Lot No / Target Label</label>
+              <input type="text" id="rfLotNo" placeholder="e.g. LOT-123 or Target Name" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+            </div>
+            <div class="rf-row" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--navy);">Priority</label>
+              <select id="rfPriority" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background: white;">
+                <option value="NORMAL">Normal</option>
+                <option value="URGENT">Urgent ⚡</option>
+              </select>
+            </div>
+            <div class="rf-row" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--navy);">Notes / Specification</label>
+              <textarea id="rfNotes" placeholder="Describe what needs to be changed..." rows="4" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ccc;"></textarea>
+            </div>
+            <div class="rf-row" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--navy);">Upload Attachment (Optional)</label>
+              <input type="file" id="rfFile" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background: #f9f9f9;">
+            </div>
+            <button class="btn-primary" onclick="submitBossRequest()" style="width:100%; margin-top:20px; background: var(--gold); color: var(--navy); border: none;">Submit Request</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  window.submitBossRequest = function () {
+    var type = document.getElementById('rfType').value;
+    var lotNo = document.getElementById('rfLotNo').value.trim();
+    var priority = document.getElementById('rfPriority').value;
+    var notes = document.getElementById('rfNotes').value.trim();
+    var fileInput = document.getElementById('rfFile');
+
+    if (!lotNo) {
+      showToast('Please enter Lot No or Target Label.', 'warning');
+      return;
+    }
+
+    function sendRequest(fileData, fileName) {
+      showToast('Submitting request...', 'info');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            showToast(res.message, 'success');
+            loadPage('dashboard');
+          } else {
+            showToast(res.message, 'error');
+          }
+        })
+        .saveRequest({
+          type: type,
+          product: lotNo, // Keep 'product' internal key for now
+          priority: priority,
+          notes: notes,
+          fileData: fileData || null,
+          fileName: fileName || null
+        });
+    }
+
+    if (fileInput.files.length > 0) {
+      var file = fileInput.files[0];
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        sendRequest(e.target.result, file.name);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      sendRequest();
+    }
+  }
+
+  function renderSettingsPage() {
+    var isAdmin = (currentUserRole === 'ADMIN' || currentUserRole === 'BOSS');
+    return `
+      <div class="settings-container">
+        <div class="settings-tabs">
+          <div class="settings-tab active" onclick="switchSettingsTab('account')">
+            <ion-icon name="person-outline"></ion-icon> Account
+          </div>
+          ${isAdmin ? `
+          <div class="settings-tab" onclick="switchSettingsTab('roles')">
+            <ion-icon name="people-outline"></ion-icon> User Roles
+          </div>
+          <div class="settings-tab" onclick="switchSettingsTab('system')">
+            <ion-icon name="settings-outline"></ion-icon> System
+          </div>
+          ` : ''}
+        </div>
+
+        <div id="settingsContent" class="settings-content">
+          <!-- Default tab (Account) content -->
+          ${renderAccountSettings()}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAccountSettings() {
+    var email = document.querySelector('.user-profile').getAttribute('data-email') || '...';
+    var name = document.querySelector('.user-name').innerText;
+    var photo = document.querySelector('.user-icon img') ? document.querySelector('.user-icon img').src : '';
+
+    return `
+      <div class="settings-account-card">
+        <div class="profile-header-large">
+          <div class="user-icon profile-img-large">
+            ${photo ? `<img src="${photo}" alt="Profile">` : `<ion-icon name="person-circle-outline" style="font-size: 80px;"></ion-icon>`}
+          </div>
+          <div class="profile-details-large">
+            <h2>${name}</h2>
+            <p>${email}</p>
+            <span class="role-badge ${currentUserRole.toLowerCase()}" style="margin-top:10px; display:inline-block;">${currentUserRole}</span>
+          </div>
+        </div>
+        
+        <div class="settings-card">
+          <h3><ion-icon name="shield-checkmark-outline"></ion-icon> SECURITY STATUS</h3>
+          <div class="security-status">
+            <div class="status-item">
+              <span>Authentication</span>
+              <span class="status-badge active">Google Only</span>
+            </div>
+            <div class="status-item">
+              <span>Data Encryption</span>
+              <span class="status-badge active">AES-256</span>
+            </div>
+            <div class="status-item">
+              <span>Session Tracking</span>
+              <span class="status-badge active">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderRolesSettings() {
+    return `
+      <div class="settings-card">
+        <h3><ion-icon name="people-outline"></ion-icon> User Role Management</h3>
+        <p class="settings-desc">Assign roles to Google accounts to restrict access and permissions.</p>
+        
+        <div class="role-add-form">
+          <input type="email" id="newUserEmail" placeholder="Enter user's Google email">
+          <select id="newUserRole">
+            <option value="VIEWER">VIEWER</option>
+            <option value="ENCODER">ENCODER</option>
+            <option value="BOSS">BOSS</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+          <button class="btn-primary" onclick="addUserRole()">Add User</button>
+          <button class="btn-primary" id="syncPermissionsBtn" onclick="syncPermissions()" style="background: #daa520; color: #1a2a40; margin-left: 5px;">Sync Permissions</button>
+        </div>
+
+        <div class="roles-table-container">
+          <table class="roles-table">
+            <thead>
+              <tr>
+                <th>Email Address</th>
+                <th>Assigned Role</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rolesTableBody">
+              <tr><td colspan="3" style="text-align:center;">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSystemSettings() {
+    var currentTimeout = window.systemSettings ? window.systemSettings.screenTimeout : '15000';
+    return `
+      <div class="settings-card">
+        <h3><ion-icon name="time-outline"></ion-icon> System Preferences</h3>
+        <p class="settings-desc">Control application-wide behaviors and security settings.</p>
+        
+        <div style="margin-top: 20px;">
+          <label style="display:block; margin-bottom:10px; font-weight:600; font-size:13px; color:var(--primary-navy);">AUTO-LOGOUT TIMEOUT</label>
+          <div style="display:flex; gap:10px;">
+            <select id="timeoutSetting" class="nf-input" style="flex:1;">
+              <option value="15000" ${currentTimeout === '15000' ? 'selected' : ''}>15 Seconds (Test)</option>
+              <option value="300000" ${currentTimeout === '300000' ? 'selected' : ''}>5 Minutes</option>
+              <option value="900000" ${currentTimeout === '900000' ? 'selected' : ''}>15 Minutes</option>
+              <option value="1800000" ${currentTimeout === '1800000' ? 'selected' : ''}>30 Minutes</option>
+              <option value="3600000" ${currentTimeout === '3600000' ? 'selected' : ''}>1 Hour</option>
+              <option value="0" ${currentTimeout === '0' ? 'selected' : ''}>Never (Disable Logout)</option>
+            </select>
+            <button class="btn-primary" onclick="updateTimeoutSetting()">Save Selection</button>
+          </div>
+          <p style="font-size: 11px; color: #666; margin-top: 10px;">Note: Changing this will affect all active sessions immediately after refresh.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  window.switchSettingsTab = function (tab) {
+    // UI Update
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    var content = document.getElementById('settingsContent');
+    if (tab === 'account') {
+      content.innerHTML = renderAccountSettings();
+    } else if (tab === 'roles') {
+      content.innerHTML = renderRolesSettings();
+      loadAllUserRoles();
+    } else if (tab === 'system') {
+      content.innerHTML = renderSystemSettings();
+    }
+  };
+
+  window.updateTimeoutSetting = function () {
+    var val = document.getElementById('timeoutSetting').value;
+    showToast('Saving setting...', 'info');
+    google.script.run
+      .withSuccessHandler(function () {
+        showToast('System timeout updated.', 'success');
+        window.systemSettings.screenTimeout = val;
+        // Re-setup timer
+        setupInactivityTimer();
+      })
+      .withFailureHandler(function (err) {
+        showToast('Save failed: ' + err, 'error');
+      })
+      .saveSystemSetting('SCREEN_TIMEOUT', val);
+  };
+
+  // --- GOOGLE-STYLE PROFILE LOGIC ---
+  function setupProfilePopover() {
+    const btn = document.getElementById('userProfileBtn');
+    const popover = document.getElementById('profilePopover');
+
+    if (!btn || !popover) return;
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      popover.classList.toggle('active');
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!popover.contains(e.target) && !btn.contains(e.target)) {
+        popover.classList.remove('active');
+      }
+    });
+
+    window.closePopover = function () {
+      popover.classList.remove('active');
+    };
+  }
+
+  function updateProfileUI(profile, role) {
+    const topbarAvatar = document.getElementById('topbarAvatar');
+    const popoverAvatar = document.getElementById('popoverAvatar');
+    const popoverName = document.getElementById('popoverName');
+    const popoverEmail = document.getElementById('popoverEmail');
+    const popoverRole = document.getElementById('popoverRole');
+
+    if (!topbarAvatar || !popoverAvatar) return;
+
+    popoverName.textContent = profile.name;
+    popoverEmail.textContent = profile.email;
+    popoverRole.textContent = role;
+    popoverRole.className = `popover-role-badge ${role.toLowerCase()}`;
+
+    const initial = (profile.name || "G").charAt(0).toUpperCase();
+    const colorClass = `avatar-${initial.toLowerCase()}`;
+
+    // Reset classes
+    topbarAvatar.className = 'user-icon';
+    popoverAvatar.className = 'popover-avatar';
+
+    if (profile.photo) {
+      const imgHtml = `<img src="${profile.photo}" alt="Profile">`;
+      topbarAvatar.innerHTML = imgHtml;
+      popoverAvatar.innerHTML = imgHtml;
+    } else {
+      // Use Letter Avatar
+      topbarAvatar.innerHTML = initial;
+      topbarAvatar.classList.add(colorClass);
+      popoverAvatar.innerHTML = initial;
+      popoverAvatar.classList.add(colorClass);
+    }
+  }
+
+  function setupSettingsLogic() {
+    loadAllUserRoles();
+  }
+
+  function loadAllUserRoles() {
+    google.script.run
+      .withSuccessHandler(function (roles) {
+        renderRolesTable(roles);
+      })
+      .withFailureHandler(function (err) {
+        showToast('Error loading roles: ' + err.message, 'error');
+      })
+      .getAllUserRoles();
+  }
+
+  function renderRolesTable(roles) {
+    var tbody = document.getElementById('rolesTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    var emails = Object.keys(roles);
+
+    if (emails.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No users found.</td></tr>';
+      return;
+    }
+
+    emails.forEach(function (email) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${email}</td>
+        <td><span class="role-badge ${roles[email].toLowerCase()}">${roles[email]}</span></td>
+        <td>
+          <button class="btn-icon-delete" onclick="removeUserRole('${email}')" title="Delete User">
+            <ion-icon name="trash-outline"></ion-icon>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Global functions for inline handlers
+  window.addUserRole = function () {
+    var email = document.getElementById('newUserEmail').value;
+    var role = document.getElementById('newUserRole').value;
+
+    email = email.trim();
+    if (!email) {
+      showToast('Please enter a valid email.', 'warning');
+      return;
+    }
+    if (!role) {
+      showToast('Please select a role.', 'warning');
+      return;
+    }
+
+    showToast('Adding ' + email + '...', 'info');
+    google.script.run
+      .withSuccessHandler(function () {
+        showToast('User added successfully.', 'success');
+        document.getElementById('newUserEmail').value = '';
+        loadAllUserRoles();
+      })
+      .withFailureHandler(function (err) {
+        showToast('Error: ' + err.message, 'error');
+      })
+      .saveUserRole(email, role);
+  };
+
+  window.syncPermissions = function () {
+    if (!confirm('This will synchronize Google Drive access for all whitelisted users. Continue?')) return;
+
+    var btn = document.getElementById('syncPermissionsBtn');
+    var originalText = btn.innerText;
+    btn.innerText = 'Syncing...';
+    btn.disabled = true;
+
+    showToast('Synchronizing Drive permissions...', 'info');
+    google.script.run
+      .withSuccessHandler(function (response) {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        showToast(response.message, 'success');
+      })
+      .withFailureHandler(function (err) {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        showToast('Sync failed: ' + err.message, 'error');
+      })
+      .syncUserPermissions();
+  };
+
+  window.removeUserRole = function (email) {
+    if (!confirm('Are you sure you want to remove access for ' + email + '?')) return;
+
+    showToast('Removing ' + email + '...', 'info');
+    google.script.run
+      .withSuccessHandler(function () {
+        showToast('User removed.', 'success');
+        loadAllUserRoles();
+      })
+      .withFailureHandler(function (err) {
+        showToast('Error: ' + err.message, 'error');
+      })
+      .deleteUserRole(email);
+  };
+
+  // Initialize
+  function initialize() {
+    updateDateTime();
+    // Update time every second
+    setInterval(updateDateTime, 1000);
+
+    // Setup sidebar and navigation
+    setupSidebarLogic();
+    setupNavigation();
+
+    // 1. Fetch System Settings (Timeout, etc)
+    google.script.run
+      .withSuccessHandler(function (settings) {
+        window.systemSettings = settings;
+        setupInactivityTimer();
+      })
+      .getSystemSettings();
+
+    // 2. Fetch User Profile & Role
+    google.script.run
+      .withSuccessHandler(function (profile) {
+        window.userProfile = profile; // Cache for other uses
+
+        google.script.run.withSuccessHandler(function (role) {
+          currentUserRole = role;
+
+          // Update New Interactive UI
+          updateProfileUI(profile, role);
+
+          // Update Watermark
+          const wm = document.getElementById('security-watermark');
+          if (wm) {
+            wm.style.backgroundImage = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><text x='20' y='60' font-size='16' fill='navy' font-family='Arial' font-weight='bold' transform='rotate(-25)' opacity='0.3'>CONFIDENTIAL PROPERTY</text><text x='20' y='90' font-size='11' fill='navy' font-family='Arial' transform='rotate(-25)' opacity='0.2'>FORMULATION PRO - ${profile.email}</text></svg>")`;
+          }
+        }).getCurrentUserRole();
+      })
+      .getGoogleProfileInfo();
+
+    setupProfilePopover();
+
+    // Setup date picker
+    setupDatePicker();
+
+    // Setup global context menu
+    setupWeightContextMenu();
+
+    // Load initial page (Dashboard)
+    loadPage('dashboard');
+  }
+
+  // Handle initial page load to check for existing session
+  window.addEventListener('load', function () {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+
+    if (isLoggedIn === 'true') {
+      // Bypass login if already logged in
+      const loginPage = document.getElementById('loginPage');
+      const mainApp = document.getElementById('mainApp');
+      if (loginPage) loginPage.style.display = 'none';
+      if (mainApp) {
+        mainApp.style.display = 'block';
+        mainApp.style.opacity = '1';
+      }
+      initialize();
+      setupInactivityTimer();
+    } else {
+      setupLoginLogic();
+    }
+  });
+
+  function toggleNavGroup(groupId, header) {
+    const items = document.querySelectorAll(`.group-${groupId}`);
+    const isCollapsed = header.classList.toggle('collapsed');
+
+    items.forEach(item => {
+      item.style.display = isCollapsed ? 'none' : 'block';
+    });
+  }
+
+  // Toggle formula category
+  function toggleCategory(element) {
+    var items = element.nextElementSibling;
+    var isExpanded = items.style.display === 'block';
+
+    items.style.display = isExpanded ? 'none' : 'block';
+    element.classList.toggle('expanded', !isExpanded);
+  }
+
+  // Setup navigation links
+  function setupNavigation() {
+    var navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        // Remove active class from all links
+        navLinks.forEach(function (l) {
+          l.classList.remove('active');
+        });
+
+        // Add active class to clicked link
+        this.classList.add('active');
+
+        // Load page content
+        var page = this.getAttribute('data-page');
+        if (page) {
+          loadPage(page);
+        }
+
+        // On mobile, close sidebar after clicking
+        if (window.innerWidth <= 480) {
+          document.querySelector("#navigation").classList.remove("active");
+          document.querySelector("#mainContent").classList.remove("active");
+        }
+      });
+    });
+
+    // Setup formula items navigation
+    var formulaItems = document.querySelectorAll('.formula-item');
+    formulaItems.forEach(function (item) {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        // Remove active class from all nav links
+        navLinks.forEach(function (l) {
+          l.classList.remove('active');
+        });
+
+        // Load page content
+        var page = this.getAttribute('data-page');
+        if (page) {
+          loadPage(page);
+        }
+      });
+    });
+  }
+
+  // Render Browse page
+  function renderBrowsePage() {
+    var html = '<div class="browse-page">' +
+      '<div class="browse-controls">' +
+      '<div class="search-container">' +
+      '<input type="text" class="search-input" placeholder="Search..." id="browseSearch">' +
+      '</div>' +
+      '<button class="filter-btn" id="browseFilterBtn">Filter</button>' +
+      '<div class="view-options">' +
+      '<button class="view-btn active" data-view="list" title="List View">' +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v1H2V3zm0 4h12v1H2V7zm0 4h12v1H2v-1z"/></svg>' +
+      '</button>' +
+      '<button class="view-btn" data-view="grid" title="Grid View">' +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>' +
+      '</button>' +
+      '<button class="view-btn" data-view="calendar" title="Calendar View">' +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h10a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zm1 2v9h8V4H4z"/></svg>' +
+      '</button>' +
+      '</div>' +
+      '</div>' +
+      '<div id="browseContent" class="browse-content">' +
+      '<p>Browse content will be displayed here based on selected view.</p>' +
+      '</div>' +
+      '</div>';
+    return html;
+  }
+
+  // Render Cosmetic page
+  function renderCosmeticPage() {
+    var html = '<div class="cosmetic-page">' +
+      '<div class="cosmetic-controls">' +
+      '<div class="search-container">' +
+      '<input type="text" class="search-input" placeholder="Search..." id="cosmeticSearch">' +
+      '</div>' +
+      '<div class="filter-container">' +
+      '<button class="filter-btn" id="filterBtn">Filter</button>' +
+      '<div class="filter-dropdown" id="filterDropdown" style="display: none;">' +
+      '<div class="filter-dropdown-header">Filter by Column</div>' +
+      '<div class="filter-checkbox-group">' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="lotno" checked> Lot NO.</label>' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="owner" checked> Owner</label>' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="status" checked> Status</label>' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="version" checked> Version</label>' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="formulaname" checked> Formula Name</label>' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="weight" checked> Weight</label>' +
+      '<label class="filter-checkbox-label"><input type="checkbox" class="filter-checkbox" value="date" checked> Date</label>' +
+      '</div>' +
+      '<div class="filter-dropdown-actions">' +
+      '<button class="filter-apply-btn" id="filterApplyBtn">Apply</button>' +
+      '<button class="filter-clear-btn" id="filterClearBtn">Clear</button>' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+      '<button class="new-formula-btn" id="newFormulaBtn">New Formula</button>' +
+      '<button class="filter-btn" onclick="loadSavedFormulas(currentFormulaPage)" title="Refresh Data" style="margin-left:5px;">↻</button>' +
+      '<div class="view-options">' +
+      '<button class="view-btn active" data-view="list" title="List View">' +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v1H2V3zm0 4h12v1H2V7zm0 4h12v1H2v-1z"/></svg>' +
+      '</button>' +
+      '<button class="view-btn" data-view="grid" title="Grid View">' +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>' +
+      '</button>' +
+      '<button class="view-btn" data-view="calendar" title="Calendar View">' +
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h10a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1zm1 2v9h8V4H4z"/></svg>' +
+      '</button>' +
+      '</div>' +
+      '</div>' +
+      '<div class="cosmetic-table-container">' +
+      '<table class="cosmetic-table">' +
+      '<thead>' +
+      '<tr>' +
+      '<th class="table-col-action"></th>' +
+      '<th>Lot NO.</th>' +
+      '<th>Owner</th>' +
+      '<th>Status</th>' +
+      '<th>Ver.</th>' +
+      '<th>Formula Name</th>' +
+      '<th>Weight</th>' +
+      '<th>Date</th>' +
+      '</tr>' +
+      '</thead>' +
+      '<tbody id="cosmeticTableBody">' +
+      '<tr><td colspan="8" style="text-align:center; padding: 20px;">Loading encrypted data...</td></tr>' +
+      '</tbody>' +
+      '</table>' +
+      '</div>' +
+      '</div>';
+    return html;
+  }
+
+
+  function renderRequestTable(id) {
+    var html =
+      '<div class="cosmetic-table-container">' +
+      '<table class="cosmetic-table">' +
+      '<thead>' +
+      '<tr>' +
+      '<th>Lot No.</th>' +
+      '<th>Note</th>' +
+      '<th>Uploaded File</th>' +
+      '<th style="text-align:center;">Download</th>' +
+      '</tr>' +
+      '</thead>' +
+      '<tbody id="' + id + 'Body">' +
+      '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #999;">No requests found.</td></tr>' +
+      '</tbody>' +
+      '</table>' +
+      '</div>';
+    return html;
+  }
+
+  function renderRequestPage() {
+    var html =
+      '<div class="request-page">' +
+      '<div class="tab-container">' +
+      '<button class="tab-btn active" data-tab="update-formulation">Update Formulation</button>' +
+      '<button class="tab-btn" data-tab="sample-formulation">Sample Formulation</button>' +
+      '</div>' +
+
+      '<div id="update-formulation" class="tab-content active">' +
+      renderRequestTable('updateFormulation') +
+      '</div>' +
+
+      '<div id="sample-formulation" class="tab-content">' +
+      renderRequestTable('sampleFormulation') +
+      '</div>' +
+      '</div>';
+    return html;
+  }
+
+  function setupRequestTabs() {
+    var tabs = document.querySelectorAll('.tab-btn');
+    var contents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        // Remove active class from all tabs and contents
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        contents.forEach(function (c) { c.classList.remove('active'); });
+
+        // Add active class to clicked tab
+        this.classList.add('active');
+
+        // Show corresponding content
+        var tabId = this.getAttribute('data-tab');
+        var content = document.getElementById(tabId);
+        if (content) {
+          content.classList.add('active');
+        }
+      });
+    });
+  }
+
+  function renderNewFormulaPage(page) {
+    var html =
+      '<div class="new-formula-page">' +
+      '<div class="new-formula-left">' +
+      '<div class="nf-header-actions">' +
+      '<img src="https://lh3.googleusercontent.com/d/1Cn5PNf9sxrok3b881TcUYRLwSSw-OXdh" class="nf-icon-btn" id="printFormulaIcon" title="Print/Preview" onerror="this.onerror=null; this.src=\'https://drive.google.com/uc?export=view&id=1Cn5PNf9sxrok3b881TcUYRLwSSw-OXdh\'">' +
+      '</div>' +
+      '<div class="nf-row"><label>Lot No</label><input class="nf-input" type="text" id="lotNoInput" placeholder="Required"></div>' +
+      '<div class="nf-row"><label>Owner</label><input class="nf-input" type="text" id="ownerInput"></div>' +
+      '<div class="nf-row"><label>Date</label><input class="nf-input" type="date" id="nfDateInput"></div>' +
+      '<div class="nf-row"><label>Product</label><input class="nf-input" type="text" id="productInput"></div>' +
+      '<div class="nf-row"><label>Weight</label><div class="nf-input-suffix-wrapper"><input class="nf-input" type="text" id="totalWeightInput" placeholder=" "><span class="nf-input-suffix">(g)</span></div></div>' +
+      '<div class="nf-row"><label>Bottle Type</label><input class="nf-input" type="text" id="bottleTypeInput"></div>' +
+      '<div class="nf-row"><label>Bottle Qty</label><input class="nf-input" type="text" id="bottleQtyInput" readonly></div>' +
+      '</div>' +
+      '<div class="nf-actions">' +
+      '<button class="nf-chip">Add</button>' +
+      '<button class="nf-chip">Part</button>' +
+      '<button class="nf-chip">Label</button>' +
+      '<button class="nf-chip nf-submit-btn">Submit</button>' +
+      '<button class="nf-chip nf-chip-clear">Clear</button>' +
+      '</div>' +
+      '<div class="nf-table" id="nfTable">' +
+      '<div class="nf-table-head">' +
+      '<div>Part</div>' +
+      '<div>Ingredient</div>' +
+      '<div>Percent%</div>' +
+      '<div>Weight</div>' +
+      '</div>' +
+      '<div class="nf-table-body" id="nfTableBody">' +
+      '<div class="nf-table-row" data-part="A">' +
+      '<div class="nf-part-cell">' +
+      '<div class="nf-part-menu-container">' +
+      '<span class="nf-part-menu">⋯</span>' +
+      '<div class="nf-part-menu-dropdown" style="display: none;">' +
+      '<div class="nf-menu-item" data-action="copy">Copy</div>' +
+      '<div class="nf-menu-item" data-action="paste">Paste</div>' +
+      '<div class="nf-menu-item" data-action="delete">Delete</div>' +
+      '</div>' +
+      '</div>' +
+      '<span class="nf-part-label">A</span>' +
+      '</div>' +
+      '<div><input class="nf-table-input" type="text" data-col="ingredient" placeholder=" "></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-percent-input" type="text" data-col="percent" placeholder=" "><span class="nf-table-input-suffix">%</span></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-weight-input" type="text" data-col="weight" readonly placeholder=" "><span class="nf-table-input-suffix">(g)</span></div>' +
+      '</div>' +
+      '</div>' + // end nf-table-body
+      '<div class="nf-table-foot">' +
+      '<div></div>' + // Part col placeholder
+      '<div style="text-align: right; padding-right: 10px; font-weight: bold;">TOTAL:</div>' +
+      '<div class="nf-table-input-wrapper">' +
+      '<input class="nf-table-input" id="totalPercentDisplay" readonly style="font-weight: bold; background: #f9f9f9;">' +
+      '<span class="nf-table-input-suffix">%</span>' +
+      '</div>' +
+      '<div class="nf-table-input-wrapper">' +
+      '<input class="nf-table-input" id="columnTotalWeightDisplay" readonly style="font-weight: bold; background: #f9f9f9;">' +
+      '<span class="nf-table-input-suffix">(g)</span>' +
+      '</div>' +
+      '</div>' + // end nf-table-foot
+      '</div>' + // end nf-table
+      '</div>' +
+      '</div>';
+    return html;
+  }
+
+  function initializeFormulaEditor() {
+    setupFormulaPageButtons();
+    setupPartMenuButtons();
+    setupWeightCalculation();
+    setupPasteHandling();
+    setupWeightContextMenu();
+    setupAutoFormatting();
+    setupBottleCalculation();
+
+    // Setup Submit Button
+    var submitBtn = document.querySelector('.nf-submit-btn');
+    if (submitBtn) {
+      submitBtn.onclick = function (e) {
+        e.preventDefault();
+        submitFormula();
+      };
+    }
+  }
+
+  function setupFormulaListActions() {
+    var btn = document.getElementById('newFormulaBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var content = document.getElementById('dashboardContent');
+      var titleEl = document.querySelector('.page-title');
+      if (!content || !titleEl) return;
+
+      var page = currentFormulaPage || 'cosmetic';
+      var formulaTitle = getFormulaTitle(page);
+
+      titleEl.innerHTML =
+        '<span class="back-link" id="backToList" title="Back">←</span>' +
+        getFormulaIconHtml(page) +
+        ' ' + formulaTitle;
+
+      content.innerHTML = renderNewFormulaPage(page);
+
+      // Reset current part letter when page loads
+      currentPartLetter = 'A';
+
+      var back = document.getElementById('backToList');
+      if (back) {
+        back.addEventListener('click', function () {
+          loadPage(page);
+        });
+      }
+
+      // Consolidate formula editor setup
+      initializeFormulaEditor();
+    });
+  }
+
+  // Setup weight calculation (auto-calculate Weight column based on Percent% and Total Weight)
+  function setupWeightCalculation() {
+    var totalWeightInput = document.getElementById('totalWeightInput');
+    if (!totalWeightInput) return;
+
+    // Format total weight input with commas as user types
+    totalWeightInput.addEventListener('input', function () {
+      formatNumberInput(this);
+      calculateAllWeights();
+    });
+
+    // Format percent input with commas and % suffix as user types
+    var tableBody = document.getElementById('nfTableBody');
+    if (tableBody) {
+      tableBody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('nf-percent-input')) {
+          formatPercentInput(e.target);
+          calculateRowWeight(e.target);
+        }
+      });
+    }
+  }
+
+  // Format number input with commas and support decimals
+  function formatNumberInput(input) {
+    var rawValue = input.value;
+    var value = rawValue.replace(/[^\d.]/g, ''); // Allow digits and dot
+
+    // Split into integer and decimal parts
+    var parts = value.split('.');
+    var integerPart = parts[0];
+    var decimalPart = parts.length > 1 ? '.' + parts[1].substring(0, 3) : ''; // Allow up to 3 decimals
+
+    if (parts.length > 2) {
+      // Multiple dots, ignore subsequent parts
+      decimalPart = '.' + parts[1].substring(0, 3);
+    }
+
+    // Format integer part with commas
+    if (integerPart) {
+      integerPart = parseInt(integerPart).toLocaleString('en-US');
+    } else if (parts.length > 1 && parts[0] === '') {
+      // Handle case ".123" -> optional: add leading zero "0.123" or keep ".123"
+      // keeping as typed usually feels better or adding 0
+      integerPart = ''; // user typed ".123"
+    }
+
+    // Special case check: if user just typed "." key?
+    // If rawValue endsWith '.', ensure we keep it.
+    // However, our split logic handles basic "123." -> integer="123", decimal="."
+
+    // Construct new value
+    var newValue = integerPart + decimalPart;
+
+    // Preserve "0" if user typed "0" or "0."
+    if (parts[0] === '0') {
+      newValue = '0' + decimalPart;
+    }
+
+    // Set value - careful not to disrupt if it hasn't changed effectively
+    if (input.value !== newValue) {
+      input.value = newValue;
+    }
+  }
+
+  // Format percent input with commas
+  // Format percent input with commas
+  function formatPercentInput(input) {
+    var rawValue = input.value;
+    // Remove non-digits except decimal
+    var value = rawValue.replace(/[^\d.]/g, '');
+
+    // Split into integer and decimal parts
+    var parts = value.split('.');
+    var integerPart = parts[0];
+    var decimalPart = parts.length > 1 ? '.' + parts[1].substring(0, 3) : ''; // Limit to 3 decimals
+
+    // Format integer part
+    if (integerPart !== '') {
+      integerPart = parseInt(integerPart).toLocaleString('en-US');
+    }
+
+    // Use "0" if explicit zero
+    if (parts[0] === '0') {
+      integerPart = '0';
+    }
+
+    // Reassemble
+    input.value = integerPart + decimalPart;
+  }
+
+  // Calculate weight for a single row
+  function calculateRowWeight(percentInput) {
+    var totalWeightInput = document.getElementById('totalWeightInput');
+    if (!totalWeightInput) return;
+
+    // Remove commas and parse
+    var totalWeight = parseFloat(totalWeightInput.value.replace(/,/g, '')) || 0;
+    var percent = parseFloat(percentInput.value.replace(/,/g, '')) || 0;
+
+    // Calculate: Weight = (Percent / 100) * Total Weight
+    var calculatedWeight = (percent / 100) * totalWeight;
+
+    // Find the weight input in the same row
+    var row = percentInput.closest('.nf-table-row');
+    if (row) {
+      var weightInput = row.querySelector('.nf-weight-input');
+      if (weightInput) {
+        if (calculatedWeight > 0 && !isNaN(calculatedWeight)) {
+          // Get settings for THIS input (default to 3 and round)
+          var precision = parseInt(weightInput.getAttribute('data-precision')) || 3;
+          if (weightInput.getAttribute('data-precision') === '0') precision = 0; // Handle 0 explicitly
+
+          var mode = weightInput.getAttribute('data-rounding') || 'round';
+
+          weightInput.value = formatWeight(calculatedWeight, precision, mode);
+        } else {
+          weightInput.value = '';
+        }
+      }
+    }
+  }
+
+  // Calculate weights for all rows
+  function calculateAllWeights() {
+    var totalWeightInput = document.getElementById('totalWeightInput');
+    if (!totalWeightInput) return;
+
+    // Remove commas and parse
+    var totalWeight = parseFloat(totalWeightInput.value.replace(/,/g, '')) || 0;
+    var tableBody = document.getElementById('nfTableBody');
+    if (!tableBody) return;
+
+    var rows = tableBody.querySelectorAll('.nf-table-row');
+    rows.forEach(function (row) {
+      var percentInput = row.querySelector('.nf-percent-input');
+      var weightInput = row.querySelector('.nf-weight-input');
+
+      if (percentInput && weightInput) {
+        // Remove commas and parse
+        var percent = parseFloat(percentInput.value.replace(/,/g, '')) || 0;
+        var calculatedWeight = (percent / 100) * totalWeight;
+
+        if (calculatedWeight > 0 && !isNaN(calculatedWeight)) {
+          var precision = parseInt(weightInput.getAttribute('data-precision')) || 3;
+          if (weightInput.getAttribute('data-precision') === '0') precision = 0;
+
+          var mode = weightInput.getAttribute('data-rounding') || 'round';
+
+          weightInput.value = formatWeight(calculatedWeight, precision, mode);
+        } else {
+          weightInput.value = '';
+        }
+      }
+    });
+
+    // Update footer totals
+    updateFooterTotals();
+  }
+
+
+
+  // Update Footer Totals (Percent and Weight)
+  function updateFooterTotals() {
+    // Calculate Total Percent
+    var percentInputs = document.querySelectorAll('.nf-percent-input');
+    var totalPercent = 0;
+    percentInputs.forEach(function (input) {
+      var val = parseFloat(input.value.replace(/,/g, ''));
+      if (!isNaN(val)) totalPercent += val;
+    });
+
+    var totalPercentDisplay = document.getElementById('totalPercentDisplay');
+    if (totalPercentDisplay) {
+      totalPercentDisplay.value = totalPercent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Calculate Column Total Weight
+    var weightInputs = document.querySelectorAll('.nf-weight-input');
+    var totalWeight = 0;
+    weightInputs.forEach(function (input) {
+      var val = parseFloat(input.value.replace(/,/g, ''));
+      if (!isNaN(val)) totalWeight += val;
+    });
+
+    var columnTotalWeightDisplay = document.getElementById('columnTotalWeightDisplay');
+    if (columnTotalWeightDisplay) {
+      columnTotalWeightDisplay.value = totalWeight.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+    }
+  }
+
+  // Format weight with per-row settings
+  function formatWeight(weight, precision, mode) {
+    if (precision === undefined) precision = 3;
+    if (mode === undefined) mode = 'round';
+
+    var val = weight;
+
+    // Apply Truncation if selected
+    if (mode === 'truncate') {
+      var factor = Math.pow(10, precision);
+      val = Math.floor(val * factor) / factor;
+    }
+
+    // Smart Formatting:
+    // minimumFractionDigits: 0 -> Removes trailing zeros (100.000 -> 100)
+    // maximumFractionDigits: precision -> Caps the decimals (100.123456 -> 100.123)
+    return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: precision });
+  }
+
+  // Setup Weight Context Menu (Right Click)
+  function setupWeightContextMenu() {
+    // Prevent multiple setups
+    if (window.isWeightMenuSetup) return;
+    window.isWeightMenuSetup = true;
+
+    var activeWeightInput = null; // Track which input triggered the menu
+
+    // Helper to render menu content based on ACTIVE input settings
+    function renderMenu() {
+      var menu = document.getElementById('weightContextMenu');
+      if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'weightContextMenu';
+        menu.className = 'custom-context-menu';
+        menu.style.display = 'none';
+        document.body.appendChild(menu);
+
+        // Interaction handler
+        menu.addEventListener('click', function (e) {
+          var item = e.target.closest('.ctx-item');
+          if (item && activeWeightInput) {
+            var action = item.getAttribute('data-action');
+            if (action === 'set-precision') {
+              activeWeightInput.setAttribute('data-precision', item.getAttribute('data-val'));
+            } else if (action === 'set-mode') {
+              activeWeightInput.setAttribute('data-rounding', item.getAttribute('data-val'));
+            }
+
+            // Recalculate ONLY for this active input's row
+            var row = activeWeightInput.closest('.nf-table-row');
+            if (row) {
+              var percentInput = row.querySelector('.nf-percent-input');
+              if (percentInput) calculateRowWeight(percentInput);
+            } else if (activeWeightInput.id === 'totalWeightInput') {
+              var val = parseFloat(activeWeightInput.value.replace(/,/g, ''));
+              if (!isNaN(val)) {
+                var p = parseInt(activeWeightInput.getAttribute('data-precision')) || 3;
+                if (activeWeightInput.getAttribute('data-precision') === '0') p = 0;
+                var m = activeWeightInput.getAttribute('data-rounding') || 'round';
+                activeWeightInput.value = formatWeight(val, p, m);
+              }
+            }
+
+            menu.style.display = 'none';
+          }
+        });
+
+        // Close on click outside
+        document.addEventListener('click', function (e) {
+          if (!menu.contains(e.target)) {
+            menu.style.display = 'none';
+          }
+        });
+      }
+
+      // Dynamic HTML generation to show checkmarks FOR THIS ROW
+      if (!activeWeightInput) return menu;
+
+      // Get settings for this SPECIFIC input
+      var currentP = parseInt(activeWeightInput.getAttribute('data-precision'));
+      if (isNaN(currentP)) currentP = 3; // Default
+      var currentM = activeWeightInput.getAttribute('data-rounding') || 'round'; // Default
+
+      var html = '<div class="ctx-header">Rounding Mode (This Row)</div>';
+
+      var modes = [
+        { val: 'round', label: 'Round (Standard)' },
+        { val: 'truncate', label: 'Truncate (Cut)' }
+      ];
+
+      modes.forEach(function (m) {
+        var checked = currentM === m.val ? ' checked' : '';
+        html += '<div class="ctx-item' + checked + '" data-action="set-mode" data-val="' + m.val + '">' + m.label + '</div>';
+      });
+
+      html += '<div class="ctx-separator"></div>';
+      html += '<div class="ctx-header">Decimal Places (This Row)</div>';
+
+      for (var i = 0; i <= 5; i++) {
+        var checked = currentP === i ? ' checked' : '';
+        var label = i + ' Decimal' + (i !== 1 ? 's' : '');
+        if (i === 0) label += '';
+        else if (i === 1) label += ' (.0)';
+        else if (i === 2) label += ' (.00)';
+
+        html += '<div class="ctx-item' + checked + '" data-action="set-precision" data-val="' + i + '">' + label + '</div>';
+      }
+
+      menu.innerHTML = html;
+      return menu;
+    }
+
+    // Attach Global Right Click listener to Document (Capture Phase)
+    document.addEventListener('contextmenu', function (e) {
+      var target = e.target;
+      var weightInput = target.closest('.nf-weight-input') || target.closest('#totalWeightInput');
+
+      if (!weightInput) {
+        var wrapper = target.closest('.nf-table-input-wrapper') || target.closest('.nf-input-suffix-wrapper');
+        if (wrapper) {
+          weightInput = wrapper.querySelector('.nf-weight-input') || wrapper.querySelector('#totalWeightInput');
+        }
+      }
+
+      if (weightInput) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        activeWeightInput = weightInput; // Store reference
+        var menu = renderMenu(); // Render menu for THIS input
+
+        var x = e.clientX;
+        var y = e.clientY;
+
+        if (x + 180 > window.innerWidth) x = window.innerWidth - 190;
+        if (y + 300 > window.innerHeight) y = window.innerHeight - 310;
+
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.style.display = 'block';
+      } else {
+        var menu = document.getElementById('weightContextMenu');
+        if (menu && menu.style.display === 'block') {
+          menu.style.display = 'none';
+        }
+      }
+    }, true);
+  }
+
+  // Setup Auto Formatting (Title Case)
+  function setupAutoFormatting() {
+    var inputs = ['ownerInput', 'productInput'];
+
+    inputs.forEach(function (id) {
+      var input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('blur', function () {
+          var text = this.value;
+          if (!text) return;
+
+          // Title Case Logic: Capitalize first letter of each word
+          var formatted = text.toLowerCase().split(' ').map(function (word) {
+            return word.charAt(0).toUpperCase() + word.slice(1);
+          }).join(' ');
+
+          this.value = formatted;
+        });
+      }
+    });
+  }
+
+  // Setup Bottle Qty Calculation
+  function setupBottleCalculation() {
+    var totalWeightInput = document.getElementById('totalWeightInput');
+    var bottleTypeInput = document.getElementById('bottleTypeInput');
+    var bottleQtyInput = document.getElementById('bottleQtyInput');
+
+    if (!totalWeightInput || !bottleTypeInput || !bottleQtyInput) return;
+
+    function calculateQty() {
+      var weightStr = totalWeightInput.value.replace(/,/g, '');
+      var totalWeight = parseFloat(weightStr);
+
+      var typeStr = bottleTypeInput.value;
+      // Extract number from Bottle Type (e.g. "100ml" -> 100, "50g" -> 50)
+      var typeMatch = typeStr.match(/(\d+(\.\d+)?)/);
+      var bottleSize = typeMatch ? parseFloat(typeMatch[0]) : 0;
+
+      if (!isNaN(totalWeight) && bottleSize > 0) {
+        var qty = totalWeight / bottleSize;
+        // Auto Rounding as requested ("Auto Rounding it")
+        var roundedQty = Math.round(qty);
+        bottleQtyInput.value = roundedQty;
+      } else {
+        bottleQtyInput.value = '';
+      }
+    }
+
+    totalWeightInput.addEventListener('input', calculateQty);
+    bottleTypeInput.addEventListener('input', calculateQty);
+  }
+
+  // Setup Paste Handling (Excel to WebApp)
+  function setupPasteHandling() {
+    var tableBody = document.getElementById('nfTableBody');
+    if (!tableBody) return;
+
+    tableBody.addEventListener('paste', function (e) {
+      // Only handle if inside an input
+      if (e.target.tagName !== 'INPUT') return;
+
+      e.preventDefault();
+      var clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+      if (!clipboardData) return;
+
+      var rows = clipboardData.split(/\r\n|\n|\r/);
+      // Remove trailing empty line often added by Excel copy
+      if (rows.length > 0 && rows[rows.length - 1].trim() === '') {
+        rows.pop();
+      }
+
+      var currentRowEntry = e.target.closest('.nf-table-row');
+      // If no valid row found, default to last row
+      if (!currentRowEntry) {
+        var allRows = tableBody.querySelectorAll('.nf-table-row');
+        if (allRows.length > 0) currentRowEntry = allRows[allRows.length - 1];
+        else return;
+      }
+
+      // Start processing from 0
+      for (var i = 0; i < rows.length; i++) {
+        var line = rows[i];
+
+        // CHECK FOR BLANK ROW -> NEW PART
+        // Excel blank row might be empty string or just tabs
+        if (line.trim() === '') {
+          addPartRow();
+          // After adding part row, our "current" row becomes this new part row
+          var allRows = tableBody.querySelectorAll('.nf-table-row');
+          currentRowEntry = allRows[allRows.length - 1];
+          continue; // Done with this line (it was just a separator)
+        }
+
+        // If we are NOT on the first iteration, or if the current row already has data (optional check),
+        // we might need to create a new generic row if we are out of rows.
+        // However, standard flow: user pastes into specific row -> that row gets filled.
+        // Next Excel row -> requires Next WebApp row.
+
+        if (i > 0) {
+          // We need a new row for the next line of data
+          // But check if we just made a new PART (which makes a row).
+          // If the previous action was addPartRow(), currentRowEntry is that new empty part row.
+          // So we can use it.
+          // If the previous action was filling a row, we need a NEW row now.
+
+          // Simple check: is the current row "full" or "used" by the previous iteration?
+          // Actually, simpler logic: 
+          // On iteration i=0, we use the target row.
+          // On i>0, if we didn't just create a part, we add a simple row.
+          // If we JUST created a part (line before was blank), we use that fresh part row.
+
+          var prevLineWasBlank = (i > 0 && rows[i - 1].trim() === '');
+
+          if (!prevLineWasBlank) {
+            addRow(); // Add standard row
+            var allRows = tableBody.querySelectorAll('.nf-table-row');
+            currentRowEntry = allRows[allRows.length - 1];
+          }
+        }
+
+        // Parse columns (Tab separated)
+        var cells = line.split('\t');
+        var ingredient = cells[0] || '';
+        var percent = cells[1] || '';
+
+        // Fill inputs in the current row
+        var ingInput = currentRowEntry.querySelector('input[data-col="ingredient"]');
+        var pctInput = currentRowEntry.querySelector('input[data-col="percent"]');
+
+        if (ingInput) ingInput.value = ingredient;
+        if (pctInput) {
+          pctInput.value = percent;
+          // Manually trigger formatter since we set value programmatically
+          formatPercentInput(pctInput);
+          // Manually trigger calc
+          calculateRowWeight(pctInput);
+        }
+      }
+    });
+  }
+
+  // --- Print & Preview Logic ---
+
+  function gatherFormulaData() {
+    var data = {
+      lotNo: document.getElementById('lotNoInput') ? document.getElementById('lotNoInput').value : '',
+      owner: document.getElementById('ownerInput') ? document.getElementById('ownerInput').value : '',
+      product: document.getElementById('productInput') ? document.getElementById('productInput').value : '',
+      totalWeight: document.getElementById('totalWeightInput') ? document.getElementById('totalWeightInput').value : '0',
+      bottleType: document.getElementById('bottleTypeInput') ? document.getElementById('bottleTypeInput').value : '',
+      bottleQty: document.getElementById('bottleQtyInput') ? document.getElementById('bottleQtyInput').value : '',
+      date: document.getElementById('dateDisplay') ? document.getElementById('dateDisplay').value : new Date().toLocaleDateString(),
+      ingredients: []
+    };
+
+    var rows = document.querySelectorAll('.nf-table-row');
+    rows.forEach(function (row) {
+      if (row.classList.contains('nf-table-head')) return;
+      if (row.classList.contains('nf-table-foot')) return;
+
+      // Check if it's a label row
+      var isLabel = row.classList.contains('nf-label-row');
+      var part = row.getAttribute('data-part') || '';
+      var ingredient = '';
+
+      if (isLabel) {
+        ingredient = row.querySelector('.nf-label-input') ? row.querySelector('.nf-label-input').value : '';
+      } else {
+        ingredient = row.querySelector('input[data-col="ingredient"]') ? row.querySelector('input[data-col="ingredient"]').value : '';
+      }
+
+      var percent = row.querySelector('input[data-col="percent"]') ? row.querySelector('input[data-col="percent"]').value : '';
+      var weight = row.querySelector('input[data-col="weight"]') ? row.querySelector('input[data-col="weight"]').value : '';
+
+      data.ingredients.push({
+        part: part,
+        ingredient: ingredient,
+        percent: percent,
+        weight: weight,
+        isLabel: isLabel
+      });
+    });
+
+    return data;
+  }
+
+  function renderReportHTML(data) {
+    var ingredientsRowsHTML = '';
+    var lastPart = '';
+    data.ingredients.forEach(function (ing, index) {
+      // Logic for adding Part Headers and Spacing
+      if (!ing.isLabel && ing.part && ing.part !== lastPart) {
+        // Add a small spacer if not the first part
+        if (index > 0) {
+          ingredientsRowsHTML += '<tr><td colspan="3" style="height: 12px; border: none;"></td></tr>';
+        }
+        // Add the Part Header row
+        ingredientsRowsHTML +=
+          '<tr>' +
+          '<td colspan="3" style="background: #f0f0f0; font-weight: 800; text-align: left; padding: 4px 8px; border: 1px solid #000;">PART ' + ing.part + '</td>' +
+          '</tr>';
+        lastPart = ing.part;
+      }
+
+      if (ing.isLabel) {
+        ingredientsRowsHTML +=
+          '<tr>' +
+          '<td colspan="3" style="background: #eee; font-weight: 800; text-align: left; padding: 4px 8px;">' + (ing.ingredient || '') + '</td>' +
+          '</tr>';
+        // Reset lastPart on label so next ingredient under it gets a part header if applicable
+        // lastPart = ''; 
+      } else {
+        ingredientsRowsHTML +=
+          '<tr>' +
+          '<td>' + (ing.ingredient || '') + '</td>' +
+          '<td style="text-align: right;">' + (ing.weight || '0.00') + 'g</td>' +
+          '<td style="text-align: center;"><span class="report-check-box">[ ]</span></td>' +
+          '</tr>';
+      }
+    });
+
+    var logoUrl = "https://lh3.googleusercontent.com/d/1MA6qn-VjEdF_JWD81KTnygmsjLH_nyDK";
+
+    var html =
+      '<div class="report-sheet-split">' +
+      '<div class="report-divider"></div>' +
+
+      // LEFT COLUMN: FORMULATION
+      '<div class="report-column">' +
+      '<div class="report-header-top">' +
+      '<div class="report-logo-section"><img src="' + logoUrl + '" class="report-logo-img" onerror="this.src=\'https://drive.google.com/uc?export=view&id=1MA6qn-VjEdF_JWD81KTnygmsjLH_nyDK\'"></div>' +
+      '<div class="report-serial-section">' +
+      '<div class="report-serial-label">DOCUMENT SERIAL NO.</div>' +
+      '<div class="report-barcode-container">' +
+      '<img class="report-barcode-img" src="https://barcode.tec-it.com/barcode.ashx?data=' + encodeURIComponent(data.lotNo || '0000') + '&code=Code128&translate-esc=on" alt="Barcode">' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+
+      '<div class="report-field-row"><div class="report-field-label">Customer Name</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.owner || '') + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Product</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.product || '') + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Weight</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.totalWeight || '0') + 'g</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Bottle Qty</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.bottleQty || '0') + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Batch No.</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Date Printed</div><div class="report-field-colon">:</div><div class="report-field-value">' + data.date + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Compounded Date</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Time Start</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">Time Complete</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+
+      '<table class="report-traveler-table">' +
+      '<thead><tr><th>Name</th><th style="width: 80px; text-align: right;">Weight</th><th style="width: 50px; text-align: center;">Check</th></tr></thead>' +
+      '<tbody>' +
+      ingredientsRowsHTML +
+      '<tr style="background: #f9f9f9;"><td style="font-weight: 800;">Total</td><td style="font-weight: 800; text-align: right;">' + (data.totalWeight || '0') + 'g</td><td></td></tr>' +
+      '</tbody>' +
+      '</table>' +
+
+      '<div class="report-footer-signatures">' +
+      '<div class="report-sig-row"><div class="report-sig-label">Compounded By</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label">QA</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label">Production</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '</div>' +
+      '</div>' +
+
+      // RIGHT COLUMN: PRODUCTION AND QC LOT TRAVELER
+      '<div class="report-column">' +
+      '<div class="report-header-top">' +
+      '<div class="report-logo-section"><img src="' + logoUrl + '" class="report-logo-img" onerror="this.src=\'https://drive.google.com/uc?export=view&id=1MA6qn-VjEdF_JWD81KTnygmsjLH_nyDK\'"></div>' +
+      '<div class="report-serial-section">' +
+      '<div class="report-serial-label">DOCUMENT SERIAL NO.</div>' +
+      '<div class="report-barcode-container">' +
+      '<img class="report-barcode-img" src="https://barcode.tec-it.com/barcode.ashx?data=' + encodeURIComponent(data.lotNo || '0000') + '&code=Code128&translate-esc=on" alt="Barcode">' +
+      '</div>' +
+      '</div>' +
+      '</div>' +
+
+      '<div class="report-traveler-title">PRODUCTION AND QC LOT TRAVELER</div>' +
+
+      '<div class="report-field-row"><div class="report-field-label">CUSTOMER</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.owner || '') + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">DATE</div><div class="report-field-colon">:</div><div class="report-field-value">' + data.date + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">PRODUCT NAME</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.product || '') + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">BATCH NO.</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">PACKAGING</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">WEIGHT RECEIVED</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">REFILL DATE</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">TIME START</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">TIME END</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">TARGET NO. OF BOTTLE QTY</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.bottleQty || '0') + '</div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">ACTUAL NO. OF BOTTLE PRODUCED</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">WEIGHT LEFT</div><div class="report-field-colon">:</div><div class="report-field-value"></div></div>' +
+      '<div class="report-field-row"><div class="report-field-label">TOTAL</div><div class="report-field-colon">:</div><div class="report-field-value">' + (data.totalWeight || '0.00') + 'g</div></div>' +
+
+      '<div class="report-section-header">BATCHING REQUIREMENT</div>' +
+
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;">Compounded Date</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;">Compounded by</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;">QA checked and approved by</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;">Accepted by Production Supervisor</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;">Operators</div><div class="report-field-colon">:</div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;"></div><div class="report-field-colon"></div><div class="report-sig-line"></div></div>' +
+      '<div class="report-sig-row"><div class="report-sig-label" style="width: 200px;"></div><div class="report-field-colon"></div><div class="report-sig-line"></div></div>' +
+      '</div>' +
+
+      '</div>';
+
+    return html;
+  }
+
+  function showPrintPreview() {
+    var data = gatherFormulaData();
+    var reportHTML = renderReportHTML(data);
+
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'printPreviewOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    overlay.style.zIndex = '100000';
+    overlay.style.display = 'block';
+    overlay.style.overflowY = 'scroll'; // Force scrollbar to ensure it works
+    overlay.style.padding = '40px 20px';
+    overlay.style.boxSizing = 'border-box';
+
+    var actions = document.createElement('div');
+    actions.style.marginBottom = '20px';
+    actions.style.display = 'flex';
+    actions.style.justifyContent = 'center';
+    actions.style.gap = '15px';
+    actions.classList.add('no-print'); // Hide from actual print
+
+    var printBtn = document.createElement('button');
+    printBtn.textContent = 'Print Document';
+    printBtn.style.padding = '10px 25px';
+    printBtn.style.backgroundColor = '#4285f4';
+    printBtn.style.color = 'white';
+    printBtn.style.border = 'none';
+    printBtn.style.borderRadius = '4px';
+    printBtn.style.cursor = 'pointer';
+    printBtn.style.fontWeight = '700';
+    printBtn.onclick = function () {
+      window.print();
+    };
+
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close Preview';
+    closeBtn.style.padding = '10px 25px';
+    closeBtn.style.backgroundColor = 'white';
+    closeBtn.style.color = '#333';
+    closeBtn.style.border = '1px solid #ddd';
+    closeBtn.style.borderRadius = '4px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontWeight = '700';
+    closeBtn.onclick = function () {
+      document.body.removeChild(overlay);
+      document.body.style.overflow = ''; // Unlock body scroll
+    };
+
+    actions.appendChild(printBtn);
+    actions.appendChild(closeBtn);
+    overlay.appendChild(actions);
+
+    var sheetWrapper = document.createElement('div');
+    sheetWrapper.innerHTML = reportHTML;
+    sheetWrapper.style.width = '100%';
+    sheetWrapper.style.maxWidth = '95%';
+    sheetWrapper.style.margin = '0 auto'; // Center horizontally
+    overlay.appendChild(sheetWrapper);
+
+    document.body.appendChild(overlay);
+  }
+
+
+  // Setup formula page buttons (Part, Add, Label, Clear)
+  function setupFormulaPageButtons() {
+    // Setup buttons
+    var buttons = document.querySelectorAll('.nf-chip');
+    buttons.forEach(function (btn) {
+      var btnText = btn.textContent.trim();
+
+      if (btnText === 'Part') {
+        btn.onclick = function (e) {
+          e.preventDefault();
+          addPartRow();
+        };
+      } else if (btnText === 'Add') {
+        btn.onclick = function (e) {
+          e.preventDefault();
+          addRow();
+        };
+      } else if (btnText === 'Label') {
+        btn.onclick = function (e) {
+          e.preventDefault();
+          addLabelRow();
+        };
+      } else if (btnText === 'Clear') {
+        btn.onclick = function (e) {
+          e.preventDefault();
+          clearFormula();
+        };
+      }
+    });
+
+    // Setup Print Icon button separately
+    var printBtn = document.getElementById('printFormulaIcon');
+    if (printBtn) {
+      printBtn.onclick = function (e) {
+        e.preventDefault();
+        showPrintPreview();
+      };
+    }
+  }
+
+  // Add new row (for Add button - adds row with current part letter)
+  function addRow() {
+    var tableBody = document.getElementById('nfTableBody');
+    if (!tableBody) return;
+
+    // Use current part letter (starts at 'A', changes when Part button is clicked)
+    var letterToUse = currentPartLetter;
+
+    // Create new row with current part letter
+    var newRow = document.createElement('div');
+    newRow.className = 'nf-table-row';
+    newRow.setAttribute('data-part', letterToUse);
+    newRow.innerHTML =
+      '<div class="nf-part-cell">' +
+      '<div class="nf-part-menu-container">' +
+      '<span class="nf-part-menu">⋯</span>' +
+      '<div class="nf-part-menu-dropdown" style="display: none;">' +
+      '<div class="nf-menu-item" data-action="copy">Copy</div>' +
+      '<div class="nf-menu-item" data-action="paste">Paste</div>' +
+      '<div class="nf-menu-item" data-action="delete">Delete</div>' +
+      '</div>' +
+      '</div>' +
+      '<span class="nf-part-label">' + letterToUse + '</span>' +
+      '</div>' +
+      '<div><input class="nf-table-input" type="text" data-col="ingredient" placeholder=" "></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-percent-input" type="text" data-col="percent" placeholder=" "><span class="nf-table-input-suffix">%</span></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-weight-input" type="text" data-col="weight" readonly placeholder=" "><span class="nf-table-input-suffix">(g)</span></div>';
+
+    tableBody.appendChild(newRow);
+    setupPartMenuButtons();
+  }
+
+  // Add new Part row (for Part button - advances to next letter and adds row)
+  function addPartRow() {
+    var tableBody = document.getElementById('nfTableBody');
+    if (!tableBody) return;
+
+    // Advance to next letter (A -> B -> C -> D, etc.)
+    var currentCharCode = currentPartLetter.charCodeAt(0);
+    currentPartLetter = String.fromCharCode(currentCharCode + 1);
+
+    // Create new row with new part letter
+    var newRow = document.createElement('div');
+    newRow.className = 'nf-table-row';
+    newRow.setAttribute('data-part', currentPartLetter);
+    newRow.innerHTML =
+      '<div class="nf-part-cell">' +
+      '<div class="nf-part-menu-container">' +
+      '<span class="nf-part-menu">⋯</span>' +
+      '<div class="nf-part-menu-dropdown" style="display: none;">' +
+      '<div class="nf-menu-item" data-action="copy">Copy</div>' +
+      '<div class="nf-menu-item" data-action="paste">Paste</div>' +
+      '<div class="nf-menu-item" data-action="delete">Delete</div>' +
+      '</div>' +
+      '</div>' +
+      '<span class="nf-part-label">' + currentPartLetter + '</span>' +
+      '</div>' +
+      '<div><input class="nf-table-input" type="text" data-col="ingredient" placeholder=" "></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-percent-input" type="text" data-col="percent" placeholder=" "><span class="nf-table-input-suffix">%</span></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-weight-input" type="text" data-col="weight" readonly placeholder=" "><span class="nf-table-input-suffix">(g)</span></div>';
+
+    tableBody.appendChild(newRow);
+    setupPartMenuButtons();
+  }
+
+  // Add Label row (for Label button - adds row with single textbox spanning all columns)
+  function addLabelRow() {
+    var tableBody = document.getElementById('nfTableBody');
+    if (!tableBody) return;
+
+    // Create label row with single textbox
+    var newRow = document.createElement('div');
+    newRow.className = 'nf-table-row nf-label-row';
+    newRow.setAttribute('data-part', '');
+    newRow.innerHTML =
+      '<div class="nf-part-label"></div>' +
+      '<div class="nf-label-input-wrapper">' +
+      '<input class="nf-table-input nf-label-input" type="text" placeholder="Enter label text...">' +
+      '</div>';
+
+    tableBody.appendChild(newRow);
+  }
+
+  // Clear formula (for Clear button - resets to original state)
+  function clearFormula() {
+    var tableBody = document.getElementById('nfTableBody');
+    if (!tableBody) return;
+
+    // Reset current part letter
+    currentPartLetter = 'A';
+
+    // Clear all rows and reset to original (single row with Part A)
+    tableBody.innerHTML =
+      '<div class="nf-table-row" data-part="A">' +
+      '<div class="nf-part-cell">' +
+      '<div class="nf-part-menu-container">' +
+      '<span class="nf-part-menu">⋯</span>' +
+      '<div class="nf-part-menu-dropdown" style="display: none;">' +
+      '<div class="nf-menu-item" data-action="copy">Copy</div>' +
+      '<div class="nf-menu-item" data-action="paste">Paste</div>' +
+      '<div class="nf-menu-item" data-action="delete">Delete</div>' +
+      '</div>' +
+      '</div>' +
+      '<span class="nf-part-label">A</span>' +
+      '</div>' +
+      '<div><input class="nf-table-input" type="text" data-col="ingredient" placeholder=" "></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-percent-input" type="text" data-col="percent" placeholder=" "><span class="nf-table-input-suffix">%</span></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-weight-input" type="text" data-col="weight" readonly placeholder=" "><span class="nf-table-input-suffix">(g)</span></div>' +
+      '</div>';
+
+    // Clear all input fields in the form
+    var inputs = document.querySelectorAll('.nf-input');
+    inputs.forEach(function (input) {
+      input.value = '';
+    });
+
+    // Setup menu buttons after clearing
+    setupPartMenuButtons();
+    // Setup weight calculation after clearing
+    setupWeightCalculation();
+  }
+
+  // Setup three dots menu buttons for Part labels
+  var copiedRowData = null; // Store copied row data globally
+
+  function setupPartMenuButtons() {
+    var menuButtons = document.querySelectorAll('.nf-part-menu');
+
+    menuButtons.forEach(function (btn) {
+      // Close all menus when clicking a menu button
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Close all other menus
+        var allMenus = document.querySelectorAll('.nf-part-menu-dropdown');
+        allMenus.forEach(function (menu) {
+          var container = menu.closest('.nf-part-menu-container');
+          if (container && !container.contains(btn)) {
+            menu.style.display = 'none';
+          }
+        });
+
+        // Toggle current menu
+        var dropdown = btn.parentNode.querySelector('.nf-part-menu-dropdown');
+        if (dropdown) {
+          dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+      };
+    });
+
+    // Setup menu items (Copy, Paste, Delete) - use event delegation
+    document.addEventListener('click', function (e) {
+      var menuItem = e.target.closest('.nf-menu-item');
+      if (!menuItem) {
+        // Close all menus if clicking outside
+        if (!e.target.closest('.nf-part-menu-container')) {
+          var allMenus = document.querySelectorAll('.nf-part-menu-dropdown');
+          allMenus.forEach(function (menu) {
+            menu.style.display = 'none';
+          });
+        }
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      var action = menuItem.getAttribute('data-action');
+      var dropdown = menuItem.closest('.nf-part-menu-dropdown');
+      var menuContainer = dropdown ? dropdown.closest('.nf-part-menu-container') : null;
+      var row = menuContainer ? menuContainer.closest('.nf-table-row') : null;
+
+      if (!row) return;
+
+      // Close menu
+      dropdown.style.display = 'none';
+
+      switch (action) {
+        case 'copy':
+          // Copy row data
+          copiedRowData = {
+            part: row.getAttribute('data-part'),
+            inputs: []
+          };
+          var inputs = row.querySelectorAll('.nf-table-input');
+          inputs.forEach(function (input) {
+            copiedRowData.inputs.push(input.value);
+          });
+          break;
+
+        case 'paste':
+          // Paste row data
+          if (copiedRowData) {
+            var pasteInputs = row.querySelectorAll('.nf-table-input');
+            pasteInputs.forEach(function (input, index) {
+              if (copiedRowData.inputs[index] !== undefined) {
+                input.value = copiedRowData.inputs[index];
+              }
+            });
+          }
+          break;
+
+        case 'delete':
+          // Delete row (but keep at least one row)
+          var tableBody = document.getElementById('nfTableBody');
+          if (tableBody && tableBody.querySelectorAll('.nf-table-row').length > 1) {
+            row.remove();
+            // Re-setup menu buttons after deletion
+            setupPartMenuButtons();
+          }
+          break;
+      }
+    }, true);
+  }
+
+  // Load page content
+  function loadPage(page) {
+    var content = document.getElementById('dashboardContent');
+    var title = document.getElementById('pageTitle');
+    var welcomeMsg = document.getElementById('welcomeMsg');
+
+    switch (page) {
+      case 'home':
+        title.textContent = 'Home';
+        if (welcomeMsg) welcomeMsg.style.display = 'block';
+        content.innerHTML = '<p>Welcome to Formulation Pro Home</p>';
+        break;
+      case 'dashboard':
+        title.innerHTML = '<i class="nav-icon fas fa-tachometer-alt"></i> Dashboard';
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = '<div id="dashboardContainer"></div>';
+        renderDashboard();
+        break;
+      case 'request':
+        if (currentUserRole === null) {
+          title.innerHTML = '<ion-icon name="sync-outline" class="page-title-icon"></ion-icon> Loading...';
+          content.innerHTML = '<div style="padding: 50px; text-align: center; color: #666;">Verifying user permissions, please wait a moment...</div>';
+          // Retry loading page after a short delay
+          setTimeout(function () { loadPage('request'); }, 500);
+          return;
+        }
+
+        if (currentUserRole === 'ADMIN') {
+          title.innerHTML = '<ion-icon name="list-outline" class="page-title-icon"></ion-icon> Request Management';
+          content.innerHTML = renderAdminRequestsPage();
+          setupAdminRequestsLogic();
+        } else if (currentUserRole === 'BOSS') {
+          title.innerHTML = '<ion-icon name="document-text-outline" class="page-title-icon"></ion-icon> Request Formulation';
+          content.innerHTML = renderRequestFormPage();
+        } else {
+          title.innerHTML = '<ion-icon name="lock-closed-outline" class="page-title-icon"></ion-icon> Access Denied';
+          content.innerHTML = '<div style="padding: 50px; text-align: center; color: #666;">Only BOSS or ADMIN can access the request system. You are currently logged in as: ' + (currentUserRole || 'GUEST') + '</div>';
+        }
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        break;
+      case 'cosmetic':
+        currentFormulaPage = 'cosmetic';
+        title.innerHTML = '<img src="https://lh3.googleusercontent.com/d/1bQDc07MnCr428_BtGwvHTfQqaRDpgZ9e" alt="Cosmetic" class="page-title-icon" onerror="this.onerror=null; this.src=\'https://drive.google.com/uc?export=view&id=1bQDc07MnCr428_BtGwvHTfQqaRDpgZ9e\'"> Cosmetic';
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderCosmeticPage();
+        setupBrowseViewOptions();
+        setupFormulaListActions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas('cosmetic');
+        break;
+      case 'perfume':
+        currentFormulaPage = 'perfume';
+        title.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1890/1890663.png" alt="Perfume" class="page-title-icon"> Perfume';
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderCosmeticPage();
+        setupBrowseViewOptions();
+        setupFormulaListActions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas('perfume');
+        break;
+      case 'foodsupplement':
+        currentFormulaPage = 'foodsupplement';
+        title.innerHTML = getFormulaIconHtml(currentFormulaPage) + ' ' + getFormulaTitle(currentFormulaPage);
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderCosmeticPage();
+        setupBrowseViewOptions();
+        setupFormulaListActions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas('foodsupplement');
+        break;
+      case 'sample-cosmetic':
+        currentFormulaPage = 'sample-cosmetic';
+        title.innerHTML = getFormulaIconHtml(currentFormulaPage) + ' ' + getFormulaTitle(currentFormulaPage);
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderCosmeticPage();
+        setupBrowseViewOptions();
+        setupFormulaListActions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas('sample-cosmetic');
+        break;
+      case 'sample-perfume':
+        currentFormulaPage = 'sample-perfume';
+        title.innerHTML = getFormulaIconHtml(currentFormulaPage) + ' ' + getFormulaTitle(currentFormulaPage);
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderCosmeticPage();
+        setupBrowseViewOptions();
+        setupFormulaListActions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas('sample-perfume');
+        break;
+      case 'sample-foodsupplement':
+        currentFormulaPage = 'sample-foodsupplement';
+        title.innerHTML = getFormulaIconHtml(currentFormulaPage) + ' ' + getFormulaTitle(currentFormulaPage);
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderCosmeticPage();
+        setupBrowseViewOptions();
+        setupFormulaListActions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas('sample-foodsupplement');
+        break;
+      case 'browse':
+        title.textContent = 'Browse';
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderBrowsePage();
+        setupBrowseViewOptions();
+        setupFilterButtons();
+        setupSearchInputs();
+        switchView('list');
+        loadSavedFormulas();
+        break;
+      case 'compare':
+        title.innerHTML = '<ion-icon name="git-compare-outline" class="page-title-icon"></ion-icon> Formulation Comparison';
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderComparePage();
+        setupCompareLogic();
+        break;
+      case 'settings':
+        if (currentUserRole !== 'ADMIN') {
+          content.innerHTML = '<div style="padding: 50px; text-align: center; color: #666;">Unauthorized: Admin access required.</div>';
+          break;
+        }
+        title.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/126/126472.png" alt="Settings" class="page-title-icon" style="width:24px; height:24px;"> Settings';
+        if (welcomeMsg) welcomeMsg.style.display = 'none';
+        content.innerHTML = renderSettingsPage();
+        setupSettingsLogic();
+        break;
+      default:
+        title.textContent = 'Dashboard';
+        if (welcomeMsg) welcomeMsg.style.display = 'block';
+        content.innerHTML = '<p>Welcome to Formulation Manager</p>';
+    }
+  }
+
+  // Get table data from current table
+  function getTableData() {
+    var tableBody = document.getElementById('cosmeticTableBody');
+    if (!tableBody) return [];
+
+    var rows = tableBody.getElementsByTagName('tr');
+    var data = [];
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      // Skip hidden rows
+      if (row.style.display === 'none') continue;
+
+      var cells = row.getElementsByTagName('td');
+      if (cells.length >= 7) {
+        data.push({
+          lotNo: cells[1].textContent.trim(),      // Column 1: Lot NO.
+          owner: cells[2].textContent.trim(),      // Column 2: Owner
+          formulaName: cells[3].textContent.trim(), // Column 3: Formula Name
+          weight: cells[4].textContent.trim(),     // Column 4: Weight
+          date: cells[5].textContent.trim(),       // Column 5: Date
+          remarks: cells[6].textContent.trim()     // Column 6: Remarks
+        });
+      }
+    }
+
+    return data;
+  }
+
+  // Render List View
+  function renderListView() {
+    var tableContainer = document.querySelector('.cosmetic-table-container');
+    var browseContent = document.getElementById('browseContent');
+
+    if (tableContainer) {
+      tableContainer.style.display = 'block';
+    }
+
+    if (browseContent) {
+      // For browse page, show simple message or keep existing content
+      var existingContent = browseContent.innerHTML;
+      if (existingContent.indexOf('Browse content') > -1) {
+        browseContent.innerHTML = '<p>List view - showing table format. Select a formula category to see data.</p>';
+      }
+    }
+
+    // Show all table rows if table exists
+    var tableBody = document.getElementById('cosmeticTableBody');
+    if (tableBody) {
+      var rows = tableBody.getElementsByTagName('tr');
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].style.display = '';
+      }
+    }
+  }
+
+  function renderComparePage() {
+    return `
+      <div class="compare-container">
+        <div class="compare-controls">
+          <div style="flex: 1; position: relative;">
+            <label style="display:block; margin-bottom:5px; font-weight:600;">Search Formula to Add</label>
+            <input type="text" id="compareSearchInput" placeholder="Enter Lot No..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+            <div id="compareSearchResults" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-top: none; z-index: 2000; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></div>
+          </div>
+          <div style="padding-top: 20px;">
+            <button class="btn-primary" onclick="clearComparison()" style="background: #f44336; color: white;">Clear All</button>
+          </div>
+        </div>
+
+        <div id="selectedFormulasTags" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;"></div>
+
+        <div id="compareMatrixContainer" class="compare-table-wrapper">
+          <div style="padding: 40px; text-align: center; color: #999;">
+            <ion-icon name="search-outline" style="font-size: 48px;"></ion-icon>
+            <p>Select at least two formulations to start comparison.</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  var selectedCompareLotNos = [];
+
+  window.clearComparison = function () {
+    selectedCompareLotNos = [];
+    renderCompareMatrix();
+  }
+
+  function setupCompareLogic() {
+    var input = document.getElementById('compareSearchInput');
+    var results = document.getElementById('compareSearchResults');
+
+    if (!input) return;
+
+    var searchTimeout = null;
+    input.addEventListener('input', function () {
+      if (searchTimeout) clearTimeout(searchTimeout);
+
+      var query = input.value.trim().toLowerCase();
+      if (query.length < 2) {
+        results.style.display = 'none';
+        return;
+      }
+
+      results.innerHTML = '<div style="padding:10px; color:#999;"><ion-icon name="sync-outline" class="spin"></ion-icon> Searching...</div>';
+      results.style.display = 'block';
+
+      searchTimeout = setTimeout(function () {
+        google.script.run
+          .withSuccessHandler(function (formulas) {
+            if (!formulas || !Array.isArray(formulas)) {
+              results.innerHTML = '<div style="padding:10px; color:red;">Data error.</div>';
+              return;
+            }
+
+            var filtered = formulas.filter(f =>
+              (f && f.lotNo && f.lotNo.toLowerCase().includes(query)) ||
+              (f && f.product && f.product.toLowerCase().includes(query))
+            );
+
+            if (filtered.length > 0) {
+              results.innerHTML = filtered.map(f => `
+                <div class="search-result-item" onclick="addFormulaToCompare('${f.lotNo}')" style="padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;">
+                  <strong>${f.lotNo}</strong> - ${f.product || 'No Name'}
+                </div>
+              `).join('');
+            } else {
+              results.innerHTML = '<div style="padding:10px; color:#999;">No formulations found matching "' + query + '"</div>';
+            }
+          })
+          .withFailureHandler(function (err) {
+            results.innerHTML = '<div style="padding:10px; color:red;">Search Error: ' + err + '</div>';
+          })
+          .getSavedFormulas();
+      }, 500); // 500ms debounce
+    });
+
+    // Close results when clicking outside
+    document.addEventListener('click', function (e) {
+      if (!input.contains(e.target) && !results.contains(e.target)) {
+        results.style.display = 'none';
+      }
+    });
+  }
+
+  window.addFormulaToCompare = function (lotNo) {
+    if (selectedCompareLotNos.includes(lotNo)) {
+      showToast('Formula already added.', 'warning');
+      return;
+    }
+    if (selectedCompareLotNos.length >= 4) {
+      showToast('Maximum 4 formulas can be compared.', 'warning');
+      return;
+    }
+
+    selectedCompareLotNos.push(lotNo);
+    document.getElementById('compareSearchInput').value = '';
+    document.getElementById('compareSearchResults').style.display = 'none';
+    renderCompareMatrix();
+  }
+
+  window.removeFormulaFromCompare = function (lotNo) {
+    selectedCompareLotNos = selectedCompareLotNos.filter(l => l !== lotNo);
+    renderCompareMatrix();
+  }
+
+  function renderCompareMatrix() {
+    var tagContainer = document.getElementById('selectedFormulasTags');
+    var matrixContainer = document.getElementById('compareMatrixContainer');
+
+    // Render Tags
+    tagContainer.innerHTML = selectedCompareLotNos.map(lot => `
+      <div style="background: var(--navy); color: white; padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 13px;">
+        ${lot}
+        <ion-icon name="close-circle" onclick="removeFormulaFromCompare('${lot}')" style="cursor: pointer; font-size: 16px;"></ion-icon>
+      </div>
+    `).join('');
+
+    if (selectedCompareLotNos.length < 1) {
+      matrixContainer.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #999;">
+          <ion-icon name="search-outline" style="font-size: 48px;"></ion-icon>
+          <p>Search and select a formulation to view its details. Add more to compare side-by-side.</p>
+        </div>
+      `;
+      return;
+    }
+
+    matrixContainer.innerHTML = '<div style="padding: 20px; text-align: center;">Loading comparison data...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (formulas) {
+        // Build Mapping: Ingredient -> { part: 'A', values: [0.6, 0.4...], originalOrder: index }
+        var masterData = [];
+        var ingredientToMasterIdx = {};
+
+        // 1. Establish baseline from first formula
+        if (formulas.length > 0) {
+          var f1 = formulas[0];
+          f1.ingredients.forEach((ing, iIdx) => {
+            ingredientToMasterIdx[ing.ingredient] = masterData.length;
+            masterData.push({
+              ingredient: ing.ingredient,
+              part: ing.part || '?',
+              values: new Array(formulas.length).fill(null),
+              originalOrder: iIdx
+            });
+            masterData[masterData.length - 1].values[0] = parseFloat(ing.percent) || 0;
+          });
+        }
+
+        // 2. Add ingredients from other formulas
+        for (var fIdx = 1; fIdx < formulas.length; fIdx++) {
+          var f = formulas[fIdx];
+          f.ingredients.forEach((ing) => {
+            if (ingredientToMasterIdx[ing.ingredient] === undefined) {
+              ingredientToMasterIdx[ing.ingredient] = masterData.length;
+              masterData.push({
+                ingredient: ing.ingredient,
+                part: ing.part || '?',
+                values: new Array(formulas.length).fill(null),
+                originalOrder: 9999 + masterData.length
+              });
+            }
+            masterData[ingredientToMasterIdx[ing.ingredient]].values[fIdx] = parseFloat(ing.percent) || 0;
+          });
+        }
+
+        // 3. Sort by Part then Original Order (stable sequence)
+        masterData.sort((a, b) => {
+          if (a.part < b.part) return -1;
+          if (a.part > b.part) return 1;
+          return a.originalOrder - b.originalOrder;
+        });
+
+        // Build Table
+        var html = '<table class="compare-table"><thead><tr>';
+        html += '<th style="text-align:left; width:80px;">Part</th>';
+        html += '<th style="text-align:left;">Ingredient</th>';
+
+        formulas.forEach(f => {
+          html += `<th>
+            <div style="font-size:14px; margin-bottom:5px;">${f.header.lotNo}</div>
+            <button onclick="handleRecentOpen('${f.header.lotNo}')" style="margin-top:5px; padding:4px 10px; font-size:11px; background:var(--gold); color:var(--navy); border:none; border-radius:4px; cursor:pointer; font-weight:700; text-transform:uppercase;">Open</button>
+          </th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        // Add Owner and Formulation metadata
+        html += '<tr style="background:#fcfcfc;"><td colspan="2" style="text-align:left; font-weight:700;">Formulation Name</td>';
+        formulas.forEach(f => { html += `<td>${f.header.product || '-'}</td>`; });
+        html += '</tr>';
+
+        html += '<tr style="background:#fcfcfc;"><td colspan="2" style="text-align:left; font-weight:700;">Owner</td>';
+        formulas.forEach(f => { html += `<td>${f.header.owner || '-'}</td>`; });
+        html += '</tr>';
+
+        // Add Ingredient Rows
+        masterData.forEach(item => {
+          html += `<tr>`;
+          html += `<td style="color:#1d4ed8; font-weight:700;">... ${item.part}</td>`;
+          html += `<td style="text-align:left; text-transform:uppercase;">${item.ingredient}</td>`;
+
+          var values = item.values;
+          var isDifferent = false;
+          var activeValues = values.filter(v => v !== null);
+          if (activeValues.length > 1) {
+            isDifferent = activeValues.some(v => v !== activeValues[0]);
+          }
+
+          formulas.forEach((f, idx) => {
+            var val = values[idx];
+            var cellClass = '';
+            if (isDifferent && val !== null && val !== 0) {
+              if (val === Math.max(...activeValues)) cellClass = 'diff-high';
+              else if (val === Math.min(...activeValues)) cellClass = 'diff-low';
+            }
+
+            html += `<td class="${cellClass}">${val !== null ? val.toFixed(2) + ' %' : '-'}</td>`;
+          });
+          html += '</tr>';
+        });
+
+        // Add Total Percentage Row at bottom
+        html += '<tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1;">' +
+          '<td colspan="2" style="text-align:right; padding-right:20px; text-transform:uppercase;">Total Percentage:</td>';
+        formulas.forEach(f => {
+          html += `<td>${f.header.totalPercent || '100.00'} %</td>`;
+        });
+        html += '</tr>';
+
+        html += '</tbody></table>';
+        matrixContainer.innerHTML = html;
+      })
+      .getMultipleFormulas(selectedCompareLotNos);
+  }
+
+  // Render Grid View
+  function renderGridView() {
+    var tableContainer = document.querySelector('.cosmetic-table-container');
+    var browseContent = document.getElementById('browseContent');
+    var data = getTableData();
+
+    if (tableContainer) {
+      tableContainer.style.display = 'none';
+    }
+
+    if (browseContent) {
+      var html = '<div class="grid-view-container">';
+      if (data.length > 0) {
+        data.forEach(function (item) {
+          html += '<div class="grid-card">' +
+            '<div class="grid-card-header">' +
+            '<span class="grid-card-lot">' + (item.lotNo || 'N/A') + '</span>' +
+            '<span class="grid-card-menu">⋯</span>' +
+            '</div>' +
+            '<div class="grid-card-body">' +
+            '<div class="grid-card-field"><strong>Owner:</strong> ' + item.owner + '</div>' +
+            '<div class="grid-card-field"><strong>Formula:</strong> ' + item.formulaName + '</div>' +
+            '<div class="grid-card-field"><strong>Weight:</strong> ' + item.weight + '</div>' +
+            '<div class="grid-card-field"><strong>Date:</strong> ' + item.date + '</div>' +
+            (item.remarks ? '<div class="grid-card-field"><strong>Remarks:</strong> ' + item.remarks + '</div>' : '') +
+            '</div>' +
+            '</div>';
+        });
+      } else {
+        html += '<div class="empty-grid-message">No data available</div>';
+      }
+      html += '</div>';
+      browseContent.innerHTML = html;
+    }
+  }
+
+  // Render Calendar View
+  function renderCalendarView() {
+    var tableContainer = document.querySelector('.cosmetic-table-container');
+    var browseContent = document.getElementById('browseContent');
+    var data = getTableData();
+
+    if (tableContainer) {
+      tableContainer.style.display = 'none';
+    }
+
+    if (browseContent) {
+      // Group data by date
+      var dateGroups = {};
+      data.forEach(function (item) {
+        var date = item.date || 'Unknown';
+        if (!dateGroups[date]) {
+          dateGroups[date] = [];
+        }
+        dateGroups[date].push(item);
+      });
+
+      var html = '<div class="calendar-view-container">';
+
+      // Get current month/year for calendar structure
+      var now = new Date();
+      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      var currentMonth = monthNames[now.getMonth()];
+      var currentYear = now.getFullYear();
+
+      html += '<div class="calendar-header">' +
+        '<h3>' + currentMonth + ' ' + currentYear + '</h3>' +
+        '</div>' +
+        '<div class="calendar-grid">';
+
+      // Simple calendar layout showing dates with items
+      for (var date in dateGroups) {
+        if (dateGroups.hasOwnProperty(date)) {
+          html += '<div class="calendar-day">' +
+            '<div class="calendar-date">' + date + '</div>' +
+            '<div class="calendar-items">';
+
+          dateGroups[date].forEach(function (item) {
+            html += '<div class="calendar-item">' +
+              '<div class="calendar-item-title">' + item.lotNo + ' - ' + item.formulaName + '</div>' +
+              '<div class="calendar-item-details">' + item.owner + ' | ' + item.weight + '</div>' +
+              '</div>';
+          });
+
+          html += '</div></div>';
+        }
+      }
+
+      if (Object.keys(dateGroups).length === 0) {
+        html += '<div class="empty-calendar-message">No items scheduled for this period</div>';
+      }
+
+      html += '</div></div>';
+      browseContent.innerHTML = html;
+    }
+  }
+
+  // Switch view based on view type
+  function switchView(viewType) {
+    currentView = viewType;
+
+    switch (viewType) {
+      case 'list':
+        renderListView();
+        break;
+      case 'grid':
+        renderGridView();
+        break;
+      case 'calendar':
+        renderCalendarView();
+        break;
+      default:
+        renderListView();
+    }
+  }
+
+  // Setup Browse view options
+  function setupBrowseViewOptions() {
+    var viewButtons = document.querySelectorAll('.view-btn');
+    viewButtons.forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Remove active class from all buttons
+        viewButtons.forEach(function (b) {
+          b.classList.remove('active');
+        });
+
+        // Add active class to clicked button
+        this.classList.add('active');
+
+        // Get view type
+        var viewType = this.getAttribute('data-view');
+        if (viewType) {
+          switchView(viewType);
+        }
+      };
+    });
+  }
+
+  // Setup Filter buttons functionality
+  function setupFilterButtons() {
+    // Remove previous click outside handler if exists
+    if (clickOutsideHandler) {
+      document.removeEventListener('click', clickOutsideHandler);
+      clickOutsideHandler = null;
+    }
+
+    // Setup Browse page filter button
+    var browseFilterBtn = document.getElementById('browseFilterBtn');
+    if (browseFilterBtn) {
+      browseFilterBtn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var browseDropdown = document.getElementById('browseFilterDropdown');
+        if (browseDropdown) {
+          browseDropdown.style.display = browseDropdown.style.display === 'none' ? 'block' : 'none';
+        }
+      };
+    }
+
+    // Setup formula pages filter button (cosmetic/perfume/foodsupplement)
+    var filterBtn = document.getElementById('filterBtn');
+    var filterDropdown = document.getElementById('filterDropdown');
+
+    if (!filterBtn || !filterDropdown) return;
+
+    // Toggle dropdown on button click
+    filterBtn.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var isVisible = filterDropdown.style.display === 'block' || filterDropdown.style.display === '';
+      filterDropdown.style.display = isVisible ? 'none' : 'block';
+      filterState.dropdownOpen = !isVisible;
+    };
+
+    // Setup Apply button
+    var applyBtn = document.getElementById('filterApplyBtn');
+    if (applyBtn) {
+      applyBtn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        applyColumnFilter();
+        if (filterDropdown) {
+          filterDropdown.style.display = 'none';
+        }
+        filterState.dropdownOpen = false;
+      };
+    }
+
+    // Setup Clear button
+    var clearBtn = document.getElementById('filterClearBtn');
+    if (clearBtn) {
+      clearBtn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        clearColumnFilter();
+        if (filterDropdown) {
+          filterDropdown.style.display = 'none';
+        }
+        filterState.dropdownOpen = false;
+      };
+    }
+
+    // Close dropdown when clicking outside
+    clickOutsideHandler = function (e) {
+      if (filterDropdown && filterState.dropdownOpen) {
+        if (filterBtn && !filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+          filterDropdown.style.display = 'none';
+          filterState.dropdownOpen = false;
+        }
+      }
+    };
+
+    setTimeout(function () {
+      document.addEventListener('click', clickOutsideHandler);
+    }, 100);
+  }
+
+  // Apply column filter based on selected checkboxes
+  function applyColumnFilter() {
+    var tableBody = document.getElementById('cosmeticTableBody');
+    var searchInput = document.getElementById('cosmeticSearch');
+    if (!tableBody) return;
+
+    // Get selected columns
+    var checkboxes = document.querySelectorAll('.filter-checkbox');
+    var selectedColumns = [];
+    var columnMap = {
+      'lotno': 1,
+      'owner': 2,
+      'formulaname': 3,
+      'weight': 4,
+      'date': 5,
+      'remarks': 6
+    };
+
+    checkboxes.forEach(function (checkbox) {
+      if (checkbox.checked) {
+        selectedColumns.push(columnMap[checkbox.value]);
+      }
+    });
+
+    var searchValue = searchInput ? searchInput.value.trim() : '';
+    var rows = tableBody.getElementsByTagName('tr');
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var cells = row.getElementsByTagName('td');
+      var matchFound = false;
+
+      if (!searchValue) {
+        // If no search value, show all rows
+        row.style.display = '';
+        continue;
+      }
+
+      // Check only selected columns
+      if (selectedColumns.length > 0) {
+        for (var j = 0; j < selectedColumns.length; j++) {
+          var colIndex = selectedColumns[j];
+          if (colIndex < cells.length) {
+            var cellText = cells[colIndex].textContent || cells[colIndex].innerText;
+            if (cellText.toLowerCase().indexOf(searchValue.toLowerCase()) > -1) {
+              matchFound = true;
+              break;
+            }
+          }
+        }
+      } else {
+        // If no columns selected, search all columns
+        for (var j = 1; j < cells.length; j++) {
+          var cellText = cells[j].textContent || cells[j].innerText;
+          if (cellText.toLowerCase().indexOf(searchValue.toLowerCase()) > -1) {
+            matchFound = true;
+            break;
+          }
+        }
+      }
+
+      row.style.display = matchFound ? '' : 'none';
+    }
+  }
+
+  // Clear column filter
+  function clearColumnFilter() {
+    var tableBody = document.getElementById('cosmeticTableBody');
+    if (tableBody) {
+      var rows = tableBody.getElementsByTagName('tr');
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].style.display = '';
+      }
+    }
+
+    // Reset all checkboxes to checked
+    var checkboxes = document.querySelectorAll('.filter-checkbox');
+    checkboxes.forEach(function (checkbox) {
+      checkbox.checked = true;
+    });
+
+    // Clear search input
+    var searchInput = document.getElementById('cosmeticSearch');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+  }
+
+  // Apply filter to browse page content
+  function applyBrowseFilter(searchValue) {
+    var browseContent = document.getElementById('browseContent');
+    if (browseContent) {
+      // Filter logic for browse page can be extended here
+      // For now, it will filter based on search value if content structure is available
+    }
+  }
+
+  // Apply filter to table rows (for search input)
+  function applyTableFilter(tableBody, searchValue) {
+    var rows = tableBody.getElementsByTagName('tr');
+
+    // Get selected columns from checkboxes
+    var checkboxes = document.querySelectorAll('.filter-checkbox');
+    var selectedColumns = [];
+    var columnMap = {
+      'lotno': 1,
+      'owner': 2,
+      'formulaname': 3,
+      'weight': 4,
+      'date': 5,
+      'remarks': 6
+    };
+
+    checkboxes.forEach(function (checkbox) {
+      if (checkbox.checked) {
+        selectedColumns.push(columnMap[checkbox.value]);
+      }
+    });
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var cells = row.getElementsByTagName('td');
+      var matchFound = false;
+
+      if (!searchValue) {
+        // If no search value, show all rows
+        row.style.display = '';
+        continue;
+      }
+
+      // Check only selected columns
+      if (selectedColumns.length > 0) {
+        for (var j = 0; j < selectedColumns.length; j++) {
+          var colIndex = selectedColumns[j];
+          if (colIndex < cells.length) {
+            var cellText = cells[colIndex].textContent || cells[colIndex].innerText;
+            if (cellText.toLowerCase().indexOf(searchValue.toLowerCase()) > -1) {
+              matchFound = true;
+              break;
+            }
+          }
+        }
+      } else {
+        // If no columns selected, search all columns
+        for (var j = 1; j < cells.length; j++) {
+          var cellText = cells[j].textContent || cells[j].innerText;
+          if (cellText.toLowerCase().indexOf(searchValue.toLowerCase()) > -1) {
+            matchFound = true;
+            break;
+          }
+        }
+      }
+
+      // Show or hide row based on match
+      row.style.display = matchFound ? '' : 'none';
+    }
+  }
+
+  // Setup search input functionality
+  function setupSearchInputs() {
+    // Setup Browse page search
+    var browseSearch = document.getElementById('browseSearch');
+    if (browseSearch) {
+      browseSearch.addEventListener('input', function () {
+        // Search functionality for browse page can be added here
+        console.log('Browse search: ' + this.value);
+      });
+    }
+
+    // Setup formula pages search
+    var cosmeticSearch = document.getElementById('cosmeticSearch');
+    if (cosmeticSearch) {
+      cosmeticSearch.addEventListener('input', function () {
+        var tableBody = document.getElementById('cosmeticTableBody');
+        if (tableBody) {
+          applyTableFilter(tableBody, this.value);
+        }
+      });
+    }
+  }
+
+  // Load Saved Formulas from Backend
+  function loadSavedFormulas(category) {
+    google.script.run
+      .withSuccessHandler(renderFormulaTable)
+      .withFailureHandler(function (err) {
+        var tableBody = document.getElementById('cosmeticTableBody');
+        if (tableBody) tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading data: ' + err + '</td></tr>';
+      })
+      .getSavedFormulas(category);
+  }
+
+  // Render Table with Data
+  function renderFormulaTable(data) {
+    var tableBody = document.getElementById('cosmeticTableBody');
+    if (!tableBody) return;
+
+    if (!data || data.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">No formulas found. Create a New Formula!</td></tr>';
+      return;
+    }
+
+    var html = '';
+    data.forEach(function (item) {
+      var itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+      var statusClass = (item.status || 'PENDING').toLowerCase();
+      var isLocked = (item.status === 'LOCKED');
+
+      html += '<tr>' +
+        '<td class="table-col-action">' +
+        '<span class="row-menu" onclick="showGlobalRowMenu(event, this, \'' + (item.status || 'PENDING') + '\')">⋯</span>' +
+        '</td>' +
+        '<td>' + (item.lotNo || '') + '</td>' +
+        '<td>' + (item.owner || '') + '</td>' +
+        '<td><span class="role-badge ' + statusClass + '">' + (item.status || 'PENDING') + '</span></td>' +
+        '<td><span style="color:#888; font-size:11px;">' + (item.version || 'v1.0') + '</span></td>' +
+        '<td>' + (item.product || '') + '</td>' +
+        '<td>' + (item.weight ? parseFloat(item.weight).toLocaleString('en-US') : '') + '</td>' +
+        '<td class="date-cell">' + (item.date || '') + '</td>' +
+        '<td style="display:none;" class="full-data">' + itemJson + '</td>' +
+        '</tr>';
+    });
+
+    tableBody.innerHTML = html;
+  }
+
+  // Submit Formula to Google Sheets
+  function submitFormula() {
+    // 1. Gather Header Data
+    var lotNo = document.getElementById('lotNoInput') ? document.getElementById('lotNoInput').value.trim() : '';
+    var owner = document.getElementById('ownerInput') ? document.getElementById('ownerInput').value.trim() : '';
+    var product = document.getElementById('productInput') ? document.getElementById('productInput').value.trim() : '';
+
+    // Get date from input or fallback to global picker or today
+    var dateInput = document.getElementById('nfDateInput');
+    var globalPicker = document.getElementById('datePicker');
+    var date = (dateInput && dateInput.value) ? dateInput.value : (globalPicker ? globalPicker.value : new Date().toISOString().split('T')[0]);
+
+    var totalWeight = document.getElementById('totalWeightInput') ? document.getElementById('totalWeightInput').value : '0';
+    var totalPercent = document.getElementById('totalPercentDisplay') ? document.getElementById('totalPercentDisplay').value : '0';
+    var bottleType = document.getElementById('bottleTypeInput') ? document.getElementById('bottleTypeInput').value : '';
+    var bottleQty = document.getElementById('bottleQtyInput') ? document.getElementById('bottleQtyInput').value : '0';
+
+    // Validation
+    if (!lotNo) {
+      alert('Please enter a Lot No.');
+      return;
+    }
+    if (!product) {
+      alert('Please enter a Product Name.');
+      return;
+    }
+
+    // 2. Gather Ingredients Data
+    var ingredients = [];
+    var rows = document.querySelectorAll('.nf-table-row');
+
+    rows.forEach(function (row) {
+      var part = row.querySelector('.nf-part-label').innerText;
+      var ingredientInput = row.querySelector('.nf-table-input[data-col="ingredient"]');
+      var percentInput = row.querySelector('.nf-percent-input');
+      var weightInput = row.querySelector('.nf-weight-input');
+
+      if (ingredientInput && percentInput && ingredientInput.value.trim() !== '') {
+        ingredients.push({
+          part: part,
+          ingredient: ingredientInput.value.trim(),
+          percent: percentInput.value,
+          weight: weightInput.value,
+          settings: JSON.stringify({
+            precision: weightInput.getAttribute('data-precision'),
+            rounding: weightInput.getAttribute('data-rounding')
+          })
+        });
+      }
+    });
+
+    if (ingredients.length === 0) {
+      alert('Please add at least one ingredient.');
+      return;
+    }
+
+    // 3. Construct Payload
+    var payload = {
+      header: {
+        lotNo: lotNo,
+        owner: owner,
+        product: product,
+        date: date,
+        totalWeight: totalWeight,
+        totalPercent: totalPercent,
+        bottleType: bottleType,
+        bottleQty: bottleQty,
+        category: currentFormulaPage || 'cosmetic'
+      },
+      ingredients: ingredients
+    };
+
+    // 4. Send to Backend
+    var submitBtn = document.querySelector('.nf-submit-btn');
+    var originalText = submitBtn.innerText;
+    submitBtn.innerText = 'Saving...';
+    submitBtn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (response) {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+
+        if (response.success) {
+          alert('Success! ' + response.message);
+          // Optional: Clear form or redirect
+        } else {
+          alert('Error: ' + response.message);
+        }
+      })
+      .withFailureHandler(function (err) {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+        alert('System Error: ' + err);
+      })
+      .saveFormula(payload);
+  }
+
+  // Global Row Menu Logic
+  var activeRowButton = null;
+
+  function createGlobalRowMenu() {
+    if (document.getElementById('globalRowMenu')) return;
+
+    var menu = document.createElement('div');
+    menu.id = 'globalRowMenu';
+    menu.className = 'row-menu-dropdown';
+    menu.style.display = 'none';
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '100000';
+    document.body.appendChild(menu);
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#globalRowMenu') && !e.target.classList.contains('row-menu')) {
+        menu.style.display = 'none';
+      }
+    });
+
+    window.addEventListener('scroll', function () {
+      menu.style.display = 'none';
+    }, true);
+  }
+
+  window.showGlobalRowMenu = function (e, btn, status) {
+    e.stopPropagation();
+    var menu = document.getElementById('globalRowMenu');
+    if (!menu) { createGlobalRowMenu(); menu = document.getElementById('globalRowMenu'); }
+
+    activeRowButton = btn;
+
+    // Build menu items based on role and status
+    var items = [];
+    items.push('<div class="row-menu-item" onclick="handleGlobalMenuAction(\'open\')"><ion-icon name="eye-outline"></ion-icon> Open</div>');
+
+    if (status !== 'LOCKED' && (currentUserRole === 'BOSS' || currentUserRole === 'ENCODER' || currentUserRole === 'ADMIN')) {
+      items.push('<div class="row-menu-item" onclick="handleGlobalMenuAction(\'edit\')"><ion-icon name="create-outline"></ion-icon> Edit</div>');
+    }
+
+    if (currentUserRole === 'BOSS' || currentUserRole === 'ADMIN') {
+      if (status === 'PENDING') {
+        items.push('<div class="row-menu-item" onclick="handleGlobalMenuAction(\'approve\')"><ion-icon name="checkmark-circle-outline"></ion-icon> Approve</div>');
+      }
+      if (status === 'APPROVED') {
+        items.push('<div class="row-menu-item" onclick="handleGlobalMenuAction(\'lock\')"><ion-icon name="lock-closed-outline"></ion-icon> Lock Final</div>');
+      }
+    }
+
+    if (currentUserRole === 'ADMIN') {
+      items.push('<div class="row-menu-item row-menu-danger" onclick="handleGlobalMenuAction(\'delete\')"><ion-icon name="trash-outline"></ion-icon> Delete</div>');
+    }
+
+    menu.innerHTML = items.join('');
+
+    var rect = btn.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 5) + 'px';
+    menu.style.left = rect.left + 'px';
+    menu.style.display = 'block';
+  };
+
+  window.handleGlobalMenuAction = function (action) {
+    var menu = document.getElementById('globalRowMenu');
+    menu.style.display = 'none';
+
+    if (!activeRowButton) return;
+
+    var row = activeRowButton.closest('tr');
+    var fullData = JSON.parse(row.querySelector('.full-data').innerText);
+    var lotNo = fullData.lotNo;
+
+    if (action === 'open' || action === 'edit') {
+      triggerOpenFormula(activeRowButton);
+    } else if (action === 'approve') {
+      updateStatus(lotNo, 'APPROVED');
+    } else if (action === 'lock') {
+      if (confirm('Are you sure you want to LOCK this formula? It will become immutable and percentages will be hidden for encoders.')) {
+        updateStatus(lotNo, 'LOCKED');
+      }
+    } else if (action === 'delete') {
+      alert('Delete feature coming soon');
+    }
+  };
+  function updateStatus(lotNo, status) {
+    showToast('Updating status...', 'info');
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          showToast('Status updated to ' + status, 'success');
+          if (document.querySelector('.dashboard-container')) {
+            refreshDashboardData();
+          } else {
+            loadSavedFormulas(currentFormulaPage || 'cosmetic');
+          }
+        } else {
+          showToast('Update failed: ' + res.message, 'error');
+        }
+      })
+      .withFailureHandler(function (err) {
+        showToast('System Error: ' + err, 'error');
+      })
+      .updateFormulaStatus(lotNo, status);
+  }
+
+  window.approveFormulaFromDashboard = function (lotNo) {
+    if (confirm('Approve formulation ' + lotNo + '?')) {
+      updateStatus(lotNo, 'APPROVED');
+    }
+  };
+
+  function showToast(message, type) {
+    console.log('[TOAST]', type, message);
+  }
+
+  // Helper to get data and call open (Modified to accept button reference)
+  window.triggerOpenFormula = function (btn) {
+    if (!btn && activeRowButton) btn = activeRowButton;
+    if (!btn) return;
+
+    var row = btn.closest('tr');
+    var jsonStr = row.querySelector('.full-data').innerHTML;
+    try {
+      var data = JSON.parse(jsonStr.replace(/&quot;/g, '"'));
+      openFormula(data);
+    } catch (e) {
+      console.error(e);
+      alert('Error opening formula');
+    }
+  };
+
+  // Open Formula Functionality
+  function openFormula(headerData) {
+    // 1. Switch to Form View (Simulate "New Formula" click but with data)
+    var content = document.getElementById('dashboardContent');
+    // Render clean form
+    content.innerHTML = renderNewFormulaPage('cosmetic'); // Defaulting to cosmetic style
+
+    // 2. Pre-fill Header Data
+    setTimeout(function () { // Delay slightly to ensure DOM render
+      if (document.getElementById('lotNoInput')) document.getElementById('lotNoInput').value = headerData.lotNo || '';
+      if (document.getElementById('ownerInput')) document.getElementById('ownerInput').value = headerData.owner || '';
+      if (document.getElementById('productInput')) document.getElementById('productInput').value = headerData.product || '';
+      if (document.getElementById('nfDateInput')) document.getElementById('nfDateInput').value = headerData.date || '';
+      if (document.getElementById('totalWeightInput')) {
+        var w = parseFloat(headerData.weight);
+        document.getElementById('totalWeightInput').value = !isNaN(w) ? w.toLocaleString('en-US') : '';
+      }
+      // Note: Header weight usually comes with 'g', might need stripping if using in calculation
+
+      // Setup formula editor components
+      initializeFormulaEditor();
+
+      // 3. Fetch Ingredients
+      var loadingDiv = document.createElement('div');
+      loadingDiv.className = 'nf-loading-overlay';
+      loadingDiv.innerText = 'Loading Ingredients...';
+      loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:20px;border-radius:8px;z-index:9999;';
+      document.body.appendChild(loadingDiv);
+
+      google.script.run
+        .withSuccessHandler(function (data) {
+          loadingDiv.remove();
+          populateIngredients(data.ingredients);
+        })
+        .withFailureHandler(function (err) {
+          loadingDiv.innerText = 'Error: ' + err;
+          alert('Failed to load ingredients.');
+        })
+        .getFormulaDetails(headerData.lotNo, headerData.category);
+    }, 50);
+  }
+
+  // Populate Ingredients into Form
+  function populateIngredients(ingredients) {
+    var tableBody = document.getElementById('nfTableBody');
+    if (tableBody) tableBody.innerHTML = ''; // Clear default rows
+
+    if (!ingredients || ingredients.length === 0) {
+      var row = createIngredientRow('A', '', '', '');
+      if (tableBody) tableBody.appendChild(row);
+      setupPartMenuButtons();
+      return;
+    }
+
+    ingredients.forEach(function (item) {
+      var row = createIngredientRow(item.part, item.ingredient, item.percent, item.weight, item.settings);
+      if (tableBody) tableBody.appendChild(row);
+    });
+
+    setupPartMenuButtons();
+    calculateAllWeights();
+  }
+
+  function createIngredientRow(part, ingredient, percent, weight, settingsJson) {
+    var row = document.createElement('div');
+    row.className = 'nf-table-row';
+    row.setAttribute('data-part', part);
+
+    var weightAttr = '';
+    if (settingsJson) {
+      try {
+        var settings = JSON.parse(settingsJson);
+        if (settings.precision) weightAttr += ' data-precision="' + settings.precision + '"';
+        if (settings.rounding) weightAttr += ' data-rounding="' + settings.rounding + '"';
+      } catch (e) { }
+    }
+
+    // Format initial weight value
+    var formattedWeight = weight;
+    var wVal = parseFloat(weight);
+    if (!isNaN(wVal)) formattedWeight = wVal.toLocaleString('en-US');
+
+    row.innerHTML =
+      '<div class="nf-part-cell">' +
+      '<div class="nf-part-menu-container">' +
+      '<span class="nf-part-menu">⋯</span>' +
+      '<div class="nf-part-menu-dropdown" style="display: none;">' +
+      '<div class="nf-menu-item" data-action="copy">Copy</div>' +
+      '<div class="nf-menu-item" data-action="paste">Paste</div>' +
+      '<div class="nf-menu-item" data-action="delete">Delete</div>' +
+      '</div>' +
+      '</div>' +
+      '<span class="nf-part-label">' + part + '</span>' +
+      '</div>' +
+      '<div><input class="nf-table-input" type="text" data-col="ingredient" value="' + (ingredient || '') + '"></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-percent-input" type="text" data-col="percent" value="' + (percent || '') + '"><span class="nf-table-input-suffix">%</span></div>' +
+      '<div class="nf-table-input-wrapper"><input class="nf-table-input nf-weight-input" type="text" data-col="weight" readonly value="' + (formattedWeight || '') + '"' + weightAttr + '><span class="nf-table-input-suffix">(g)</span></div>';
+
+    return row;
+  }
+  // --- DASHBOARD LOGIC ---
+  function renderDashboard() {
+    var container = document.getElementById('dashboardContainer');
+    if (!container) return;
+
+    var html = '<div class="dashboard-container">' +
+      // KPI CARDS
+      '<div class="stat-card">' +
+      '<div class="stat-label">Total Formulations</div>' +
+      '<div class="stat-value" id="statsTotal">-</div>' +
+      '</div>' +
+      '<div class="stat-card approved">' +
+      '<div class="stat-label">Approved</div>' +
+      '<div class="stat-value" id="statsApproved">-</div>' +
+      '</div>' +
+      '<div class="stat-card draft">' +
+      '<div class="stat-label">Draft / Development</div>' +
+      '<div class="stat-value" id="statsDraft">-</div>' +
+      '</div>' +
+      '<div class="stat-card issue">' +
+      '<div class="stat-label">Issues / Obsolete</div>' +
+      '<div class="stat-value" id="statsIssue">-</div>' +
+      '</div>' +
+
+      // QUICK ACTIONS
+      '<div class="dashboard-section-title">Quick Actions</div>' +
+      '<div class="quick-actions-container">' +
+      '<button class="action-btn-large" onclick="loadPage(\'cosmetic\'); switchView(\'list\'); setTimeout(function(){ renderNewFormulaPage(\'cosmetic\') }, 100);">' +
+      '<span>➕ Create Formula</span>' +
+      '</button>' +
+      '<button class="action-btn-large" onclick="loadPage(\'request\')">' +
+      '<span>📝 Boss Request Form</span>' +
+      '</button>' +
+      '</div>' +
+
+      // BOSS REQUESTS SECTION
+      '\u003cdiv class=\"dashboard-section-title\"\u003ePending Boss Requests\u003c/div\u003e' +
+      '\u003cdiv class=\"dashboard-card\" style=\"grid-column: span 12; margin-bottom: 20px;\"\u003e' +
+      '\u003ctable class=\"db-table\"\u003e' +
+      '\u003cthead\u003e\u003ctr\u003e\u003cth\u003eDate\u003c/th\u003e\u003cth\u003eType\u003c/th\u003e\u003cth\u003eProduct/Lot\u003c/th\u003e\u003cth\u003ePriority\u003c/th\u003e\u003cth\u003eAction\u003c/th\u003e\u003c/tr\u003e\u003c/thead\u003e' +
+      '\u003ctbody id=\"dashboardRequestsTable\"\u003e\u003ctr\u003e\u003ctd colspan=\"5\" style=\"text-align:center; padding: 10px;\"\u003eChecking requests...\u003c/td\u003e\u003c/tr\u003e\u003c/tbody\u003e' +
+      '\u003c/table\u003e' +
+      '\u003c/div\u003e' +
+
+      // PENDING APPROVALS SECTION (Visible to BOSS/ADMIN)
+      ((currentUserRole === 'BOSS' || currentUserRole === 'ADMIN') ?
+        '\u003cdiv class=\"dashboard-section-title\"\u003ePending Formulation Approvals\u003c/div\u003e' +
+        '\u003cdiv class=\"dashboard-card\" style=\"grid-column: span 12; margin-bottom: 20px; border: 2px solid var(--accent-gold);\"\u003e' +
+        '\u003ctable class=\"db-table\"\u003e' +
+        '\u003cthead\u003e\u003ctr\u003e\u003cth\u003eLot No\u003c/th\u003e\u003cth\u003eProduct Name\u003c/th\u003e\u003cth\u003eEncoder\u003c/th\u003e\u003cth\u003eDate\u003c/th\u003e\u003cth\u003eAction\u003c/th\u003e\u003c/tr\u003e\u003c/thead\u003e' +
+        '\u003ctbody id=\"dashboardApprovalsTable\"\u003e\u003ctr\u003e\u003ctd colspan=\"5\" style=\"text-align:center; padding: 10px;\"\u003eChecking for pending approvals...\u003c/td\u003e\u003c/tr\u003e\u003c/tbody\u003e' +
+        '\u003c/table\u003e' +
+        '\u003c/div\u003e' : '') +
+
+      // MAIN TABLE
+      '<div class="dashboard-section-title">Formulation Status Overview</div>' +
+      '<div class="dashboard-card" style="grid-column: span 12;">' +
+      '<table class="db-table">' +
+      '<thead>' +
+      '<tr><th>Code</th><th>Product</th><th>Category</th><th>Version</th><th>Status</th><th>Action</th></tr>' +
+      '</thead>' +
+      '<tbody id="dashboardRecentTable"><tr><td colspan="6" style="text-align:center; padding: 20px;">Loading recent data...</td></tr></tbody>' +
+      '</table>' +
+      '</div>';
+
+    container.innerHTML = html;
+    refreshDashboardData();
+  }
+
+  function refreshDashboardData() {
+    google.script.run
+      .withSuccessHandler(function (stats) {
+        if (!document.getElementById('statsTotal')) return;
+
+        document.getElementById('statsTotal').innerText = stats.total || '0';
+        document.getElementById('statsApproved').innerText = stats.approved || '0';
+        document.getElementById('statsDraft').innerText = stats.draft || '0';
+        document.getElementById('statsIssue').innerText = stats.issue || '0';
+
+        var approvalTable = document.getElementById('dashboardApprovalsTable');
+        if (approvalTable && stats.pendingApprovals) {
+          if (stats.pendingApprovals.length > 0) {
+            var appHtml = '';
+            stats.pendingApprovals.forEach(function (f) {
+              appHtml += '<tr>' +
+                '<td style="font-weight:700;">' + (f.lotNo || '-') + '</td>' +
+                '<td>' + (f.product || '-') + '</td>' +
+                '<td>' + (f.owner || '-') + '</td>' +
+                '<td>' + (f.date || '-') + '</td>' +
+                '<td>' +
+                '<button onclick="handleRecentOpen(\'' + f.lotNo + '\')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-right:5px; background:var(--navy); color:var(--gold); border:none; border-radius:4px; cursor:pointer;">View</button>' +
+                '<button onclick="approveFormulaFromDashboard(\'' + f.lotNo + '\')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; background:#2e7d32; color:white; border:none; border-radius:4px; cursor:pointer;">Approve</button>' +
+                '</td>' +
+                '</tr>';
+            });
+            approvalTable.innerHTML = appHtml;
+          } else {
+            approvalTable.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 10px; color:#666;">No formulations pending approval.</td></tr>';
+          }
+        }
+
+        var tableBody = document.getElementById('dashboardRecentTable');
+        if (stats.recent && stats.recent.length > 0) {
+          var tableHtml = '';
+          stats.recent.forEach(function (item) {
+            var statusStr = item.status || 'Draft';
+            var statusClass = statusStr.toLowerCase();
+            var categoryStr = (item.category || 'cosmetic').replace('sample-', 'Sample: ');
+
+            tableHtml += '<tr>' +
+              '<td style="font-weight:700; color:var(--primary-navy);">' + (item.lotNo || '-') + '</td>' +
+              '<td>' + (item.product || '-') + '</td>' +
+              '<td style="text-transform: capitalize;">' + categoryStr + '</td>' +
+              '<td>' + (item.version || 'v1.0') + '</td>' +
+              '<td><span class="status-badge ' + statusClass + '">' + statusStr + '</span></td>' +
+              '<td><button onclick="handleRecentOpen(\'' + item.lotNo + '\')" style="background:none; border:none; color:var(--accent-gold); cursor:pointer; font-weight:700; text-decoration:underline;">View</button></td>' +
+              '</tr>';
+          });
+          tableBody.innerHTML = tableHtml;
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No recent formulations found. Click "Create" to start!</td></tr>';
+        }
+      })
+      .getDashboardStats();
+
+    // 2. Pending Boss Requests
+    google.script.run
+      .withSuccessHandler(function (requests) {
+        var tableBody = document.getElementById('dashboardRequestsTable');
+        if (!tableBody) return;
+
+        if (requests && requests.length > 0) {
+          var html = '';
+          requests.forEach(function (req) {
+            var priorityHtml = req.priority === 'URGENT' ? '<span style="color:red; font-weight:bold;">URGENT ⚡</span>' : 'Normal';
+            var dateStr = new Date(req.timestamp).toLocaleDateString();
+
+            html += '<tr>' +
+              '<td>' + dateStr + '</td>' +
+              '<td>' + req.type + '</td>' +
+              '<td style="font-weight:bold;">' + req.product + '</td>' +
+              '<td>' + priorityHtml + '</td>' +
+              '<td><button onclick="attendToRequest(\'' + req.id + '\', \'' + req.type + '\', \'' + req.product + '\')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; background:var(--navy); color:var(--gold); border:none; cursor:pointer; border-radius:4px;">Attend</button></td>' +
+              '</tr>';
+          });
+          tableBody.innerHTML = html;
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 10px; color: grey;">No pending requests from Boss.</td></tr>';
+        }
+      })
+      .getPendingRequests();
+  }
+
+  window.attendToRequest = function (requestId, type, product) {
+    if (!confirm('Attend to this request? This will mark it as active.')) return;
+
+    showToast('Initializing request...', 'info');
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) {
+          // Redirect to New Formula page with pre-filled data
+          loadPage('cosmetic'); // Default to cosmetic
+          switchView('form');
+          setTimeout(function () {
+            renderNewFormulaPage('cosmetic');
+            setTimeout(function () {
+              if (type === 'UPDATE') {
+                if (document.getElementById('lotNoInput')) document.getElementById('lotNoInput').value = product;
+              } else {
+                if (document.getElementById('productInput')) document.getElementById('productInput').value = product;
+              }
+              showToast('Request attended. Please complete the formulation.', 'success');
+            }, 300);
+          }, 200);
+        }
+      })
+      .attendRequest(requestId);
+  }
+
+  window.handleRecentOpen = function (lotNo) {
+    alert('Naglo-load po ang formula ' + lotNo + '... Hintayin lang saglit.');
+  }
+
+  window.onload = function () {
+    // Attempt automatic authentication on load
+    google.script.run
+      .withSuccessHandler(function (response) {
+        if (response && response.email && response.email !== "NOT_DETECTED") {
+          console.log("Auto-authenticated: " + response.email);
+          handleLogin(); // Auto-enter if authorized
+        } else {
+          console.warn("User not authorized or recognized.");
+          // Optional: Show specific error on the native login screen
+        }
+      })
+      .withFailureHandler(function (error) {
+        console.error("Auth check failed: " + error.message);
+      })
+      .getCurrentUserAuth();
+
+    // Initialize regular app logic if needed, though handleLogin calls initialize()
+    // but we might need setupRegisterToggle for the login page interactions
+    if (typeof setupRegisterToggle === 'function') {
+      setupRegisterToggle();
+    }
+  };
+</script>

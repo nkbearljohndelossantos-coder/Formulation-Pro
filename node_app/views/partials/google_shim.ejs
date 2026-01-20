@@ -1,0 +1,86 @@
+<script>
+    // SHIM: Emulate Google Apps Script 'google.script.run' behavior
+    // This allows us to keep the original frontend code 100% untouched.
+
+    window.google = {
+        script: {
+            run: new Proxy({}, {
+                get: function (target, prop) {
+                    if (prop === 'withSuccessHandler') {
+                        return function (callback) {
+                            this._success = callback;
+                            return this;
+                        };
+                    }
+                    if (prop === 'withFailureHandler') {
+                        return function (callback) {
+                            this._failure = callback;
+                            return this;
+                        };
+                    }
+
+                    // Any other property is assumed to be a backend function name
+                    return function (...args) {
+                        const successCb = this._success;
+                        const failureCb = this._failure;
+                        this._success = null;
+                        this._failure = null;
+
+                        // Map function calls to API endpoints
+                        // E.g. .getCurrentUserAuth() -> /api/getCurrentUserAuth
+                        // Arguments are sent as JSON body.
+                        // Note: GAS allows multiple args, we'll send them as direct props if one object, or an array?
+                        // The existing code uses single object args commonly (saveFormula(data)).
+                        // Let's inspect usage. saveFormula(data), getFormulaDetails(lotNo).
+                        // We will send body: { [argName]: argValue } ? No, we don't know arg names here.
+                        // Helper: The controllers expect req.body.data or req.body.lotNo.
+                        // We must map args carefully. 
+                        // OR use a standard body: { arg0: args[0], ... } and update controllers to look for that?
+                        // BETTER: Update controllers to look for specific named props, and here we merge args if object.
+
+                        let body = {};
+                        if (args.length === 1 && typeof args[0] === 'object') {
+                            body = args[0]; // Spread object
+                        } else if (args.length > 0) {
+                            // Fallback for primitive args. formulaController expects 'lotNo'.
+                            // We need manual mapping for primitives based on func name if we want total genericism?
+                            // Or simple convention: if primitive, send { arg1: value } and update controller?
+                            // Let's look at the controller I wrote: 
+                            // getFormulaDetails expects 'lotNo'. saveFormula expects 'header' inside body.
+                            // getSavedFormulas expects 'categoryFilter'.
+
+                            if (prop === 'getSavedFormulas') body = { categoryFilter: args[0] };
+                            if (prop === 'getFormulaDetails') body = { lotNo: args[0] };
+                            if (prop === 'updateFormulaStatus') body = { lotNo: args[0], newStatus: args[1] };
+                            if (prop === 'logAction') body = { actionType: args[0], actionDesc: args[1], formulaId: args[2] };
+                            // ... add others as needed
+                        }
+
+                        fetch('/api/' + prop, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        })
+                            .then(response => {
+                                if (response.status === 401) {
+                                    // Unauthorized
+                                    window.location.href = '/auth/google'; // Trigger login
+                                    throw new Error("Unauthorized");
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (successCb) successCb(data);
+                            })
+                            .catch(err => {
+                                if (failureCb) failureCb(err);
+                                else console.error('API Error:', err);
+                            });
+
+                        return {}; // Return format for chaining? GAS run calls don't return.
+                    }
+                }
+            })
+        }
+    };
+</script>
