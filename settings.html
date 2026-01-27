@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Formulation Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="supabase-client.js"></script>
+    <script type="text/javascript" src="auth.js"></script>
+    <script type="text/javascript" src="db-operations.js"></script>
+    <script type="text/javascript" src="app.js" defer></script>
+</head>
+
+<body>
+    <button class="mobile-toggle" onclick="toggleMobileSidebar()">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor">
+            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+        </svg>
+    </button>
+    <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+    <nav class="mobile-bottom-nav">
+        <a href="index.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M520-640v-160q0-17 11.5-28.5T560-840h240q17 0 28.5 11.5T840-800v160q0 17-11.5 28.5T800-600H560q-17 0-28.5-11.5T520-640ZM120-480v-320q0-17 11.5-28.5T160-840h240q17 0 28.5 11.5T440-800v320q0 17-11.5 28.5T400-440H160q-17 0-28.5-11.5T120-480Zm400 320v-320q0-17 11.5-28.5T560-520h240q17 0 28.5 11.5T840-480v320q0 17-11.5 28.5T800-120H560q-17 0-28.5-11.5T520-160Zm-400 0v-160q0-17 11.5-28.5T160-360h240q17 0 28.5 11.5T440-320v160q0 17-11.5 28.5T400-120H160q-17 0-28.5-11.5T120-160Zm80-360h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z" />
+            </svg>
+            <span>Home</span>
+        </a>
+        <a href="browse.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+            </svg>
+            <span>Browse</span>
+        </a>
+        <a href="cosmetics.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M440-183v-274L200-596v274l240 139Zm80 0 240-139v-274L520-457v274Zm-80 92L160-252q-19-11-29.5-29T120-321v-318q0-22 10.5-40t29.5-29l280-161q19-11 40-11t40 11l280 161q19 11 29.5 29t10.5 40v318q0 22-10.5 40T800-252L520-91q-19 11-40 11t-40-11ZM240-638l240 139 240-139-240-139-240 139Zm240 159Zm0-159Zm40 318v-274l240-139v274L520-320Z" />
+            </svg>
+            <span>Form</span>
+        </a>
+        <a href="s-cosmetics.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm280-590q13 0 21.5-8.5T510-820q0-13-8.5-21.5T480-850q-13 0-21.5 8.5T450-820q0 13 8.5 21.5T480-790ZM200-200v-560 560Z" />
+            </svg>
+            <span>Sample</span>
+        </a>
+        <a href="javascript:void(0)" onclick="toggleMobileSidebar()">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+            </svg>
+            <span>Menu</span>
+        </a>
+    </nav>
+
+
+
+    <div id="loader-wrapper">
+        <div class="logo-loader">
+            <div class="cube-container">
+                <div class="cube animate-cube-fast">
+                    <div class="cube-face face-front"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-back"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-left"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-right"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-top"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-bottom"><img src="logo.png" alt="NKB Logo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <nav id="sidebar">
+        <ul>
+            <li>
+                <div class="logo">
+
+                    <div class="cube-container">
+                        <div class="cube animate-cube-slow">
+                            <div class="cube-face face-front"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-back"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-left"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-right"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-top"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-bottom"><img src="logo.png" alt="NKB Logo"></div>
+                        </div>
+                    </div>
+                    <div class="brand-title">Formulation Manager</div>
+                </div>
+
+            </li>
+            <li class="divider"></li>
+            <li>
+                <div class="user-profile-card"
+                    onclick="toggleSubMenu(this.parentElement.querySelector('.dropdown-btn'))">
+                    <div class="user-avatar-container">
+                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                            alt="User Avatar">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name-wrapper">
+                            <span class="user-name">Loading...</span>
+                            <div class="verified-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960"
+                                    width="18px" fill="currentColor">
+                                    <path
+                                        d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm164-444L412-372l-96-96-56 56 152 152 288-288-56-56Z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <span class="user-email">...</span>
+                    </div>
+                </div>
+                <!-- Hidden button to maintain toggle logic if needed, or I can update app.js -->
+                <button class="dropdown-btn" style="display: none;"></button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="profile.html">View Profile</a></li>
+                        <li><a href="settings.html">Settings</a></li>
+                        <li><a href="#">Logout</a></li>
+                    </div>
+                </ul>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <a href="index.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M520-640v-160q0-17 11.5-28.5T560-840h240q17 0 28.5 11.5T840-800v160q0 17-11.5 28.5T800-600H560q-17 0-28.5-11.5T520-640ZM120-480v-320q0-17 11.5-28.5T160-840h240q17 0 28.5 11.5T440-800v320q0 17-11.5 28.5T400-440H160q-17 0-28.5-11.5T120-480Zm400 320v-320q0-17 11.5-28.5T560-520h240q17 0 28.5 11.5T840-480v320q0 17-11.5 28.5T800-120H560q-17 0-28.5-11.5T520-160Zm-400 0v-160q0-17 11.5-28.5T160-360h240q17 0 28.5 11.5T440-320v160q0 17-11.5 28.5T400-120H160q-17 0-28.5-11.5T120-160Zm80-360h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z" />
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="browse.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+                    </svg>
+                    <span>Browse</span>
+                </a>
+            </li>
+            <li>
+                <a href="compare.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M280-280h160v-160H280v160Zm0-240h160v-160H280v160Zm240 240h160v-160H520v160Zm0-240h160v-160H520v160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z" />
+                    </svg>
+                    <span>Compare</span>
+                </a>
+            </li>
+            <li>
+                <a href="boss-request.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80h640v-480H160v480Zm80-80h480v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80Z" />
+                    </svg>
+                    <span>Boss Request</span>
+                </a>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <button onclick=toggleSubMenu(this) class="dropdown-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M440-183v-274L200-596v274l240 139Zm80 0 240-139v-274L520-457v274Zm-80 92L160-252q-19-11-29.5-29T120-321v-318q0-22 10.5-40t29.5-29l280-161q19-11 40-11t40 11l280 161q19 11 29.5 29t10.5 40v318q0 22-10.5 40T800-252L520-91q-19 11-40 11t-40-11ZM240-638l240 139 240-139-240-139-240 139Zm240 159Zm0-159Zm40 318v-274l240-139v274L520-320Z" />
+                    </svg>
+                    <span>Formulation</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M480-361q-8 0-15-2.5t-13-8.5L268-556q-11-11-11-28t11-28q11-11 28-11t28 11l156 156 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L508-372q-6 6-13 8.5t-15 2.5Z" />
+                    </svg>
+                </button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="cosmetics.html">Cosmetics</a></li>
+                        <li><a href="perfume.html">Perfume</a></li>
+                        <li><a href="food-supplement.html">Food Supplement</a></li>
+                    </div>
+                </ul>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <button onclick=toggleSubMenu(this) class="dropdown-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm280-590q13 0 21.5-8.5T510-820q0-13-8.5-21.5T480-850q-13 0-21.5 8.5T450-820q0 13 8.5 21.5T480-790ZM200-200v-560 560Z" />
+                    </svg>
+                    <span>Sample</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M480-361q-8 0-15-2.5t-13-8.5L268-556q-11-11-11-28t11-28q11-11 28-11t28 11l156 156 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L508-372q-6 6-13 8.5t-15 2.5Z" />
+                    </svg>
+                </button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="s-cosmetics.html">S-Cosmetics</a></li>
+                        <li><a href="s-perfume.html">S-Perfume</a></li>
+                        <li><a href="s-food-supplement.html">S-Food Supplement</a></li>
+                    </div>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+
+    <button onclick="toggleSidebar()" id="toggle-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e8eaed">
+            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+        </svg>
+    </button>
+
+    <main>
+        <h1 class="page-title">Settings & Role Management</h1>
+
+        <!-- Content for Administrators -->
+        <div id="admin-section" style="display: none;">
+            <div class="dashboard-cards" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-icon total">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px"
+                            fill="currentColor">
+                            <path
+                                d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z" />
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Total Users</h3>
+                        <p class="stat-number" id="stat-total-users">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon approve">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px"
+                            fill="currentColor">
+                            <path
+                                d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm164-444L412-372l-96-96-56 56 152 152 288-288-56-56Z" />
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Administrators</h3>
+                        <p class="stat-number" id="stat-admins">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon draft">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px"
+                            fill="currentColor">
+                            <path
+                                d="M160-120v-170l527-526q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Z" />
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Staff Employees</h3>
+                        <p class="stat-number" id="stat-staff">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REGISTRATION SECURITY SECTION -->
+            <div class="stat-card" id="registration-security-card"
+                style="width: 100%; margin-bottom: 30px; display: block; height: auto; padding: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="section-title" style="margin: 0; font-size: 1.4em;">Registration Security (Secret Codes)
+                    </h2>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="badge high">VAULT PROTECTED</span>
+                        <button onclick="initRoleCodeManager()" class="table-btn view"
+                            style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                            <span class="mask"></span>
+                            <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px"
+                                fill="currentColor">
+                                <path
+                                    d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-70h80v200H600v-80h115q-37-30-83.5-45T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
+                            </svg>
+                    </div>
+
+                    <div <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; align-items: flex-start; max-width: 1000px;">
+                        <div style="flex: 1;">
+                            <label
+                                style="display: block; margin-bottom: 10px; font-size: 0.85em; opacity: 0.7; font-weight: 600; letter-spacing: 1px;">SELECT
+                                ROLE TO MANAGE</label>
+                            <select id="reg-role-select" onchange="loadRoleCodeIntoView(this.value)"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(212,175,55,0.3); color: #fff; padding: 0 15px; border-radius: 8px; width: 100%; height: 50px; cursor: pointer; font-size: 1.1em; outline: none; transition: 0.3s; display: block;">
+                                <option value="admin">Admin</option>
+                                <option value="formulator">Formulator</option>
+                                <option value="chemist">Chemist</option>
+                                <option value="compounding">Compounding</option>
+                                <option value="regulator_viewer">Regulator Viewer</option>
+                            </select>
+                        </div>
+
+                        <div style="flex: 1;">
+                            <label
+                                style="display: block; margin-bottom: 10px; font-size: 0.85em; opacity: 0.7; font-weight: 600; letter-spacing: 1px;">ACTIVE
+                                UNIQUE CODE</label>
+                            <div style="display: flex; gap: 12px; height: 50px;">
+                                <input type="text" id="active-role-code"
+                                    style="background: rgba(255,255,255,0.1); border: 1px solid var(--gold-clr); color: var(--gold-clr); padding: 0 15px; border-radius: 8px; flex: 1; font-family: monospace; font-weight: bold; font-size: 1.2em; outline: none; text-align: center; height: 100%;"
+                                    readonly>
+                                <button class="table-btn view" onclick="generateCurrentRoleCode()"
+                                    style="padding: 0 20px; height: 100%; border-radius: 8px; flex: 0 0 auto; margin: 0;"><span
+                                        class="mask"></span><span>NEW</span></button>
+                                <button class="table-btn approve" onclick="saveCurrentRoleCode()"
+                                    style="padding: 0 20px; height: 100%; border-radius: 8px; flex: 0 0 auto; margin: 0;"><span
+                                        class="mask"></span><span>SAVE</span></button>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="code-management-msg"
+                        style="margin-top: 15px; font-size: 0.9em; display: none; font-weight: 600;"></p>
+                </div>
+
+                <!-- USER MANAGEMENT TABLE -->
+                <h2 class="section-title">User Account Management</h2>
+                <div class="table-container">
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>User Name</th>
+                                <th>Email</th>
+                                <th>Role Selection</th>
+                                <th>Active Status</th>
+                                <th>Joined Date</th>
+                                <th>Current Badge</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body">
+                            <!-- Users will be dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Message for non-admins -->
+            <div id="non-admin-message" style="display: none;">
+                <div class="stat-card" style="width: 100%; text-align: center; padding: 60px 40px; margin-top: 50px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="60px" viewBox="0 -960 960 960" width="60px"
+                        fill="#e74c3c" style="margin-bottom: 20px;">
+                        <path
+                            d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54-54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm-40-160h80v-240h-80v240Zm0-320h80v-80h-80v80Z" />
+                    </svg>
+                    <h3 style="font-size: 1.8em; color: #fff; margin-bottom: 10px;">Access Restricted</h3>
+                    <p style="font-size: 1.1em; opacity: 0.8;">Only authenticated Administrators can access the Role
+                        Management dashboard.</p>
+                </div>
+            </div>
+    </main>
+
+    <style>
+        /* Switch Toggle Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .4s;
+            border-radius: 24px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--gold-clr);
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px var(--gold-clr);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(24px);
+            background-color: var(--navy-clr);
+        }
+
+        /* Custom Select Styles for Better Contrast */
+        select option {
+            background-color: #1a1c26 !important;
+            color: #fff !important;
+            padding: 10px;
+        }
+
+        #reg-role-select:focus {
+            border-color: var(--gold-clr);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+    </style>
+
+    <script>
+        let currentProfile = null;
+
+        async function initSettings() {
+            // Check auth
+            const isAuth = await window.supabaseClient.requireAuth();
+            if (!isAuth) return;
+
+            // Get profile
+            const userWithProfile = await window.auth.getCurrentUserWithProfile();
+            if (!userWithProfile) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            currentProfile = userWithProfile.profile;
+
+            updateUserInfo();
+            initRoleCodeManager(); // Load codes and setup select
+
+            // Show admin section if applicable
+            if (currentProfile.role === 'admin') {
+                document.getElementById('admin-section').style.display = 'block';
+                document.getElementById('non-admin-message').style.display = 'none';
+                loadUsers();
+            } else {
+                document.getElementById('admin-section').style.display = 'none';
+                document.getElementById('non-admin-message').style.display = 'block';
+            }
+        }
+
+        let roleCodesCache = {};
+
+        async function initRoleCodeManager() {
+            if (currentProfile.role !== 'admin') return;
+            roleCodesCache = await window.dbOperations.getAllRegistrationCodes();
+            const initialRole = document.getElementById('reg-role-select').value;
+            loadRoleCodeIntoView(initialRole);
+        }
+
+        function loadRoleCodeIntoView(role) {
+            const input = document.getElementById('active-role-code');
+            if (input) input.value = roleCodesCache[role] || 'NO-CODE-SET';
+
+            const msg = document.getElementById('code-management-msg');
+            if (msg) msg.style.display = 'none';
+        }
+
+        function generateCurrentRoleCode() {
+            const role = document.getElementById('reg-role-select').value;
+            const prefix = role.slice(0, 4).toUpperCase();
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let newCode = `${prefix}-`;
+            for (let i = 0; i < 6; i++) {
+                newCode += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+
+            document.getElementById('active-role-code').value = newCode;
+
+            const msg = document.getElementById('code-management-msg');
+            msg.textContent = `New code generated for ${role.toUpperCase()}. Click SAVE to apply.`;
+            msg.style.display = 'block';
+            msg.style.color = 'var(--gold-clr)';
+        }
+
+        async function saveCurrentRoleCode() {
+            const role = document.getElementById('reg-role-select').value;
+            const code = document.getElementById('active-role-code').value;
+
+            if (!code || code === 'NO-CODE-SET') return;
+
+            const result = await window.dbOperations.updateRoleRegistrationCode(role, code);
+            if (result.success) {
+                roleCodesCache[role] = code; // Update cache
+                const msg = document.getElementById('code-management-msg');
+                msg.textContent = `Success! Secret code for ${role.toUpperCase()} has been updated.`;
+                msg.style.color = '#2ecc71';
+                setTimeout(() => { msg.style.display = 'none'; }, 3000);
+            }
+        }
+
+        function updateUserInfo() {
+            if (!currentProfile) return;
+            const userName = document.querySelector('.user-name');
+            const userEmail = document.querySelector('.user-email');
+            const userAvatar = document.querySelector('.user-avatar-container img');
+
+            if (userName) userName.textContent = currentProfile.full_name || 'User';
+            if (userEmail) userEmail.textContent = currentProfile.email;
+            if (userAvatar && currentProfile.avatar_url) {
+                userAvatar.src = currentProfile.avatar_url;
+            }
+        }
+
+        async function loadUsers() {
+            const users = await window.dbOperations.listAllProfiles();
+            const tbody = document.getElementById('users-body');
+
+            if (!tbody) return;
+
+            // Update stats
+            document.getElementById('stat-total-users').textContent = users.length;
+            document.getElementById('stat-admins').textContent = users.filter(u => u.role === 'admin').length;
+            document.getElementById('stat-staff').textContent = users.filter(u => u.role !== 'compounding').length;
+
+            tbody.innerHTML = users.map(user => {
+                // Handle legacy 'viewer' role mapping to 'compounding'
+                const displayRole = user.role === 'viewer' ? 'compounding' : user.role;
+
+                return `
+                <tr>
+                    <td>${user.full_name || 'No Name'}</td>
+                    <td>${user.email}</td>
+                    <td>
+                        <select class="filter-select" style="width: 120px; padding: 5px; margin: 0;" onchange="updateUserRole('${user.id}', this.value)">
+                            <option value="admin" ${displayRole === 'admin' ? 'selected' : ''}>Admin</option>
+                            <option value="formulator" ${displayRole === 'formulator' ? 'selected' : ''}>Formulator</option>
+                            <option value="chemist" ${displayRole === 'chemist' ? 'selected' : ''}>Chemist</option>
+                            <option value="compounding" ${displayRole === 'compounding' ? 'selected' : ''}>Compounding</option>
+                            <option value="regulator_viewer" ${displayRole === 'regulator_viewer' ? 'selected' : ''}>Regulator Viewer</option>
+                        </select>
+                    </td>
+                    <td>
+                        <label class="switch">
+                            <input type="checkbox" ${user.is_active ? 'checked' : ''} onchange="handleToggleActivation('${user.id}', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </td>
+                    <td>${window.supabaseClient.formatDate(user.created_at)}</td>
+                    <td>
+                        <span class="badge ${user.role === 'admin' ? 'high' : (displayRole === 'compounding' ? 'draft' : 'medium')}">
+                            ${displayRole.toUpperCase()}
+                        </span>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        async function handleToggleActivation(userId, isActive) {
+            if (userId === currentProfile.id && !isActive) {
+                if (!confirm('Are you sure you want to deactivate your own account? You will be logged out immediately.')) {
+                    loadUsers(); // Refresh to revert
+                    return;
+                }
+            }
+
+            const result = await window.dbOperations.toggleUserProfileActivation(userId, isActive);
+            if (result.success && userId === currentProfile.id && !isActive) {
+                window.auth.signOut();
+            } else {
+                loadUsers(); // Refresh stats
+            }
+        }
+
+        async function updateUserRole(userId, newRole) {
+            if (userId === currentProfile.id && newRole !== 'admin') {
+                if (!confirm('Are you sure you want to remove your own Admin privileges? You will lose access to this page.')) {
+                    loadUsers(); // Refresh to revert
+                    return;
+                }
+            }
+
+            const result = await window.dbOperations.updateUserProfileRole(userId, newRole);
+            if (result.success) {
+                loadUsers();
+                if (userId === currentProfile.id) {
+                    currentProfile.role = newRole;
+                    initSettings(); // Re-init to handle UI visibility
+                }
+            }
+        }
+
+        window.addEventListener('load', initSettings);
+    </script>
+</body>
+
+</html>

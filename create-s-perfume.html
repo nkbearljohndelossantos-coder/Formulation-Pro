@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create S-Perfume - Formulation Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="supabase-client.js" defer></script>
+    <script type="text/javascript" src="auth.js" defer></script>
+    <script type="text/javascript" src="db-operations.js" defer></script>
+    <script type="text/javascript" src="app.js" defer></script>
+    <script type="text/javascript" src="print-manager.js" defer></script>
+</head>
+
+<body>
+
+
+    <button class="mobile-toggle" onclick="toggleMobileSidebar()">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor">
+            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+        </svg>
+    </button>
+    <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+    <nav class="mobile-bottom-nav">
+        <a href="index.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M520-640v-160q0-17 11.5-28.5T560-840h240q17 0 28.5 11.5T840-800v160q0 17-11.5 28.5T800-600H560q-17 0-28.5-11.5T520-640ZM120-480v-320q0-17 11.5-28.5T160-840h240q17 0 28.5 11.5T440-800v320q0 17-11.5 28.5T400-440H160q-17 0-28.5-11.5T120-480Zm400 320v-320q0-17 11.5-28.5T560-520h240q17 0 28.5 11.5T840-480v320q0 17-11.5 28.5T800-120H560q-17 0-28.5-11.5T520-160Zm-400 0v-160q0-17 11.5-28.5T160-360h240q17 0 28.5 11.5T440-320v160q0 17-11.5 28.5T400-120H160q-17 0-28.5-11.5T120-160Zm80-360h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z" />
+            </svg>
+            <span>Home</span>
+        </a>
+        <a href="browse.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+            </svg>
+            <span>Browse</span>
+        </a>
+        <a href="cosmetics.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M440-183v-274L200-596v274l240 139Zm80 0 240-139v-274L520-457v274Zm-80 92L160-252q-19-11-29.5-29T120-321v-318q0-22 10.5-40t29.5-29l280-161q19-11 40-11t40 11l280 161q19 11 29.5 29t10.5 40v318q0 22-10.5 40T800-252L520-91q-19 11-40 11t-40-11ZM240-638l240 139 240-139-240-139-240 139Zm240 159Zm0-159Zm40 318v-274l240-139v274L520-320Z" />
+            </svg>
+            <span>Form</span>
+        </a>
+        <a href="s-cosmetics.html">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path
+                    d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm280-590q13 0 21.5-8.5T510-820q0-13-8.5-21.5T480-850q-13 0-21.5 8.5T450-820q0 13 8.5 21.5T480-790ZM200-200v-560 560Z" />
+            </svg>
+            <span>Sample</span>
+        </a>
+        <a href="javascript:void(0)" onclick="toggleMobileSidebar()">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+            </svg>
+            <span>Menu</span>
+        </a>
+    </nav>
+
+    <div id="loader-wrapper">
+        <div class="logo-loader">
+            <div class="cube-container">
+                <div class="cube animate-cube-fast">
+                    <div class="cube-face face-front"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-back"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-left"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-right"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-top"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-bottom"><img src="logo.png" alt="NKB Logo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <nav id="sidebar">
+        <ul>
+            <li>
+                <div class="logo">
+
+                    <div class="cube-container">
+                        <div class="cube animate-cube-slow">
+                            <div class="cube-face face-front"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-back"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-left"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-right"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-top"><img src="logo.png" alt="NKB Logo"></div>
+                            <div class="cube-face face-bottom"><img src="logo.png" alt="NKB Logo"></div>
+                        </div>
+                    </div>
+                    <div class="brand-title">Formulation Manager</div>
+                </div>
+
+            </li>
+            <li class="divider"></li>
+            <li>
+                <div class="user-profile-card"
+                    onclick="toggleSubMenu(this.parentElement.querySelector('.dropdown-btn'))">
+                    <div class="user-avatar-container">
+                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                            alt="User Avatar">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name-wrapper">
+                            <span class="user-name">Loading...</span>
+                            <div class="verified-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960"
+                                    width="18px" fill="currentColor">
+                                    <path
+                                        d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm164-444L412-372l-96-96-56 56 152 152 288-288-56-56Z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <span class="user-email">...</span>
+                    </div>
+                </div>
+                <button class="dropdown-btn" style="display: none;"></button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="profile.html">View Profile</a></li>
+                        <li><a href="settings.html">Settings</a></li>
+                        <li><a href="#">Logout</a></li>
+                    </div>
+                </ul>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <a href="index.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M520-640v-160q0-17 11.5-28.5T560-840h240q17 0 28.5 11.5T840-800v160q0 17-11.5 28.5T800-600H560q-17 0-28.5-11.5T520-640ZM120-480v-320q0-17 11.5-28.5T160-840h240q17 0 28.5 11.5T440-800v320q0 17-11.5 28.5T400-440H160q-17 0-28.5-11.5T120-480Zm400 320v-320q0-17 11.5-28.5T560-520h240q17 0 28.5 11.5T840-480v320q0 17-11.5 28.5T800-120H560q-17 0-28.5-11.5T520-160Zm-400 0v-160q0-17 11.5-28.5T160-360h240q17 0 28.5 11.5T440-320v160q0 17-11.5 28.5T400-120H160q-17 0-28.5-11.5T120-160Zm80-360h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z" />
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="browse.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+                    </svg>
+                    <span>Browse</span>
+                </a>
+            </li>
+            <li>
+                <a href="cosmetics.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M440-183v-274L200-596v274l240 139Zm80 0 240-139v-274L520-457v274Zm-80 92L160-252q-19-11-29.5-29T120-321v-318q0-22 10.5-40t29.5-29l280-161q19-11 40-11t40 11l280 161q19 11 29.5 29t10.5 40v318q0 22-10.5 40T800-252L520-91q-19 11-40 11t-40-11ZM240-638l240 139 240-139-240-139-240 139Zm240 159Zm0-159Zm40 318v-274l240-139v274L520-320Z" />
+                    </svg>
+                    <span>Form</span>
+                </a>
+            </li>
+            <li>
+                <a href="s-cosmetics.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm280-590q13 0 21.5-8.5T510-820q0-13-8.5-21.5T480-850q-13 0-21.5 8.5T450-820q0 13 8.5 21.5T480-790ZM200-200v-560 560Z" />
+                    </svg>
+                    <span>Sample</span>
+                </a>
+            </li>
+            <li>
+                <a href="compare.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M280-280h160v-160H280v160Zm0-240h160v-160H280v160Zm240 240h160v-160H520v160Zm0-240h160v-160H520v160ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z" />
+                    </svg>
+                    <span>Compare</span>
+                </a>
+            </li>
+            <li>
+                <a href="boss-request.html">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80h640v-480H160v480Zm80-80h480v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80Z" />
+                    </svg>
+                    <span>Boss Request</span>
+                </a>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <button onclick=toggleSubMenu(this) class="dropdown-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M440-183v-274L200-596v274l240 139Zm80 0 240-139v-274L520-457v274Zm-80 92L160-252q-19-11-29.5-29T120-321v-318q0-22 10.5-40t29.5-29l280-161q19-11 40-11t40 11l280 161q19 11 29.5 29t10.5 40v318q0 22-10.5 40T800-252L520-91q-19 11-40 11t-40-11ZM240-638l240 139 240-139-240-139-240 139Zm240 159Zm0-159Zm40 318v-274l240-139v274L520-320Z" />
+                    </svg>
+                    <span>Formulation</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M480-361q-8 0-15-2.5t-13-8.5L268-556q-11-11-11-28t11-28q11-11 28-11t28 11l156 156 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L508-372q-6 6-13 8.5t-15 2.5Z" />
+                    </svg>
+                </button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="cosmetics.html">Cosmetics</a></li>
+                        <li><a href="perfume.html">Perfume</a></li>
+                        <li><a href="food-supplement.html">Food Supplement</a></li>
+                    </div>
+                </ul>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <button onclick=toggleSubMenu(this) class="dropdown-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm280-590q13 0 21.5-8.5T510-820q0-13-8.5-21.5T480-850q-13 0-21.5 8.5T450-820q0 13 8.5 21.5T480-790ZM200-200v-560 560Z" />
+                    </svg>
+                    <span>Sample</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                        fill="#e8eaed">
+                        <path
+                            d="M480-361q-8 0-15-2.5t-13-8.5L268-556q-11-11-11-28t11-28q11-11 28-11t28 11l156 156 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L508-372q-6 6-13 8.5t-15 2.5Z" />
+                    </svg>
+                </button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="s-cosmetics.html">S-Cosmetics</a></li>
+                        <li><a href="s-perfume.html">S-Perfume</a></li>
+                        <li><a href="s-food-supplement.html">S-Food Supplement</a></li>
+                    </div>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+    <button onclick="toggleSidebar()" id="toggle-btn"><svg xmlns="http://www.w3.org/2000/svg" height="24px"
+            viewBox="0 -960 960 960" width="24px" fill="#e8eaed">
+            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+        </svg></button>
+    <main>
+        <h1 class="page-title">Create S-Perfume Formula</h1>
+
+        <div class="creation-form-container">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>RND No.</label>
+                    <input type="text" id="rnd-number-input" placeholder="Auto-generated" readonly
+                        style="background-color: rgba(255, 255, 255, 0.05); cursor: not-allowed; color: var(--gold-clr); font-weight: bold;">
+                </div>
+                <div class="form-group">
+                    <label>Customer</label>
+                    <input type="text" placeholder="Enter Customer Name">
+                </div>
+                <div class="form-group">
+                    <label>Product</label>
+                    <input type="text" placeholder="Enter Product Name">
+                </div>
+                <div class="form-group">
+                    <label>Weight (Total)</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="total-weight" placeholder="0.00" oninput="calculateWeights()">
+                        <span class="unit-suffix">g</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Bottle Type</label>
+                    <input type="text" placeholder="Enter Bottle Type">
+                </div>
+                <div class="form-group">
+                    <label>Bottle Qty</label>
+                    <div class="input-wrapper">
+                        <input type="number" placeholder="0">
+                        <span class="unit-suffix">pcs</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons-container">
+                <button class="action-btn" onclick="addRow()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Add Row</span>
+                </button>
+                <button class="action-btn" onclick="addPart()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Add Part</span>
+                </button>
+                <button class="action-btn" onclick="addLabel()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Add Label</span>
+                </button>
+                <button class="action-btn" onclick="clearFormula()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Clear All</span>
+                </button>
+                <div class="toggle-container">
+                    <label class="toggle-label">Existing</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="existing-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-status" id="toggle-status">OFF</span>
+                </div>
+                <button class="action-btn save" onclick="submitFormula()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Submit Sample</span>
+                </button>
+                <button class="action-btn" onclick="handlePrint()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Print LOT Traveler</span>
+                </button>
+                <button class="action-btn" onclick="exportToExcel()">
+                    <span class="mask"></span>
+                    <span class="btn-text">Export to Excel</span>
+                </button>
+            </div>
+
+            <div class="existing-table-container" id="existing-table-container">
+                <div class="existing-header">
+                    <h3>Existing Ingredients</h3>
+                    <button class="table-btn" onclick="addExistingRow()"><span class="mask"></span><span>+ Add Existing
+                            Row</span></button>
+                </div>
+                <table class="existing-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient Name</th>
+                            <th style="width: 150px;">Existing Weight (g)</th>
+                            <th style="width: 80px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="existing-body">
+                        <!-- Existing rows added here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container create-table-wrapper">
+                <table class="data-table formulation-table" id="formula-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th style="width: 120px;">Percent (%)</th>
+                            <th style="width: 150px;">Weight (calculated)</th>
+                            <th style="width: 80px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="formula-body">
+                        <!-- Rows will be added here -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="totals-row">
+                            <td><strong>TOTAL</strong></td>
+                            <td style="text-align: right;"><strong id="total-percent">0.00%</strong></td>
+                            <td style="text-align: right;"><strong id="total-weight-sum">0.00</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Authentication check and Initialization
+        window.addEventListener('load', async () => {
+            const isAuth = await window.supabaseClient.requireAuth();
+            if (!isAuth) return;
+
+            // Auto-generate RND Number if not editing
+            const urlParams = new URLSearchParams(window.location.search);
+            if (!urlParams.get('edit') && !urlParams.get('view')) {
+                const rndInput = document.getElementById('rnd-number-input');
+                if (rndInput) {
+                    rndInput.value = generateUniqueCode('RND-');
+                }
+            }
+
+            // Check for view/edit parameters
+            const viewId = urlParams.get('view');
+            const editId = urlParams.get('edit');
+            const id = viewId || editId;
+
+            if (id) {
+                await loadFormulation(id, !!viewId);
+            }
+        });
+
+        let currentFormulationId = null;
+
+        /**
+         * Load formulation data into the form
+         */
+        async function loadFormulation(id, isViewOnly) {
+            try {
+                const formulation = await window.dbOperations.getFormulation(id);
+                if (!formulation) {
+                    window.supabaseClient.showNotification('Sample not found', 'error');
+                    return;
+                }
+
+                currentFormulationId = id;
+
+                // Populate basic info
+                const rndInput = document.getElementById('rnd-number-input');
+                if (rndInput) {
+                    rndInput.value = formulation.lot_number;
+                }
+
+                document.querySelector('input[placeholder="Enter Customer Name"]').value = formulation.customer;
+                document.querySelector('input[placeholder="Enter Product Name"]').value = formulation.product_name;
+                document.getElementById('total-weight').value = formulation.total_weight;
+                document.querySelector('input[placeholder="Enter Bottle Type"]').value = formulation.bottle_type || '';
+                document.querySelector('input[placeholder="0"]').value = formulation.bottle_qty || 0;
+
+                // Clear default rows
+                const tbody = document.getElementById('formula-body');
+                tbody.innerHTML = '';
+
+                // Populate ingredients
+                formulation.ingredients.forEach(ing => {
+                    if (ing.phase) {
+                        addPart(ing.phase);
+                    } else if (ing.is_label) {
+                        const row = document.createElement('tr');
+                        row.className = 'label-row';
+                        row.innerHTML = `
+                            <td colspan="3"><input type="text" placeholder="Add custom label..." value="${ing.label_text}" style="width: 100%; border: none; font-style: italic;"></td>
+                            <td><button class="remove-row-btn" onclick="this.closest('tr').remove()">✕</button></td>
+                        `;
+                        tbody.appendChild(row);
+                    } else {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-decimal-places', ing.decimal_places || 2);
+                        row.setAttribute('data-rounding-mode', ing.rounding_mode || 'round');
+                        row.innerHTML = `
+                            <td><input type="text" placeholder="Ingredient Name" value="${ing.ingredient_name}"></td>
+                            <td><input type="number" step="0.01" class="percent-input" value="${ing.percentage}" oninput="calculateWeights()"></td>
+                            <td><span class="weight-label">${ing.calculated_weight}</span></td>
+                            <td>
+                                <div class="row-action-menu">
+                                    <button class="ellipsis-btn" onclick="toggleRowMenu(this)">⋮</button>
+                                    <div class="row-action-dropdown">
+                                        <div class="menu-item delete" onclick="deleteRow(this)">Delete Row</div>
+                                        <div class="menu-divider"></div>
+                                        <div class="submenu-header">Decimal Places</div>
+                                        <div class="menu-item decimal-option ${ing.decimal_places === 0 ? 'active' : ''}" onclick="setDecimalPlaces(this, 0)">0 decimals</div>
+                                        <div class="menu-item decimal-option ${ing.decimal_places === 1 ? 'active' : ''}" onclick="setDecimalPlaces(this, 1)">1 decimal</div>
+                                        <div class="menu-item decimal-option ${ing.decimal_places === 2 || !ing.decimal_places ? 'active' : ''}" onclick="setDecimalPlaces(this, 2)">2 decimals</div>
+                                        <div class="menu-item decimal-option ${ing.decimal_places === 3 ? 'active' : ''}" onclick="setDecimalPlaces(this, 3)">3 decimals</div>
+                                        <div class="menu-item decimal-option ${ing.decimal_places === 4 ? 'active' : ''}" onclick="setDecimalPlaces(this, 4)">4 decimals</div>
+                                        <div class="menu-item decimal-option ${ing.decimal_places === 5 ? 'active' : ''}" onclick="setDecimalPlaces(this, 5)">5 decimals</div>
+                                        <div class="menu-divider"></div>
+                                        <div class="submenu-header">Rounding Mode</div>
+                                        <div class="menu-item rounding-option ${ing.rounding_mode === 'round' || !ing.rounding_mode ? 'active' : ''}" onclick="setRoundingMode(this, 'round')">Round</div>
+                                        <div class="menu-item rounding-option ${ing.rounding_mode === 'truncate' ? 'active' : ''}" onclick="setRoundingMode(this, 'truncate')">Truncate</div>
+                                    </div>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+                });
+
+                if (isViewOnly) {
+                    document.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
+                    document.querySelectorAll('button:not(.action-btn)').forEach(el => el.style.display = 'none');
+                    document.querySelector('.action-btn.save').style.display = 'none';
+                }
+
+                calculateWeights();
+
+            } catch (error) {
+                console.error('Error loading sample:', error);
+                window.supabaseClient.showNotification('Error loading sample', 'error');
+            }
+        }
+
+        // Submit sample function
+        async function submitFormula() {
+            try {
+                // Get form values
+                const rndInput = document.getElementById('rnd-number-input');
+                const lotNumber = rndInput ? rndInput.value : '';
+
+                const customer = document.querySelector('input[placeholder="Enter Customer Name"]').value;
+                const productName = document.querySelector('input[placeholder="Enter Product Name"]').value;
+                const totalWeight = parseFloat(document.getElementById('total-weight').value) || 0;
+                const bottleType = document.querySelector('input[placeholder="Enter Bottle Type"]').value;
+                const bottleQty = parseInt(document.querySelector('input[placeholder="0"]').value) || 0;
+
+                // Validate required fields
+                if (!lotNumber || !customer || !productName || !totalWeight) {
+                    window.supabaseClient.showNotification('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                // Get ingredients from table
+                const ingredients = [];
+                const rows = document.querySelectorAll('#formula-body tr');
+
+                rows.forEach((row, index) => {
+                    if (row.classList.contains('part-row')) {
+                        // Part/Phase row
+                        const phaseInput = row.querySelector('input');
+                        if (phaseInput && phaseInput.value.trim()) {
+                            ingredients.push({
+                                ingredient_name: '',
+                                percentage: 0,
+                                calculated_weight: 0,
+                                phase: phaseInput.value.trim(),
+                                is_label: false,
+                                decimal_places: 2,
+                                rounding_mode: 'round'
+                            });
+                        }
+                    } else if (row.classList.contains('label-row')) {
+                        // Label row
+                        const labelInput = row.querySelector('input');
+                        if (labelInput && labelInput.value.trim()) {
+                            ingredients.push({
+                                ingredient_name: '',
+                                percentage: 0,
+                                calculated_weight: 0,
+                                phase: null,
+                                is_label: true,
+                                label_text: labelInput.value.trim(),
+                                decimal_places: 2,
+                                rounding_mode: 'round'
+                            });
+                        }
+                    } else {
+                        // Regular ingredient row
+                        const nameInput = row.querySelector('input[placeholder="Ingredient Name"]');
+                        const percentInput = row.querySelector('.percent-input');
+                        const weightLabel = row.querySelector('.weight-label');
+
+                        if (nameInput && nameInput.value.trim()) {
+                            const decimalPlaces = parseInt(row.getAttribute('data-decimal-places')) || 2;
+                            const roundingMode = row.getAttribute('data-rounding-mode') || 'round';
+
+                            ingredients.push({
+                                ingredient_name: nameInput.value.trim(),
+                                percentage: parseFloat(percentInput.value) || 0,
+                                calculated_weight: parseFloat(weightLabel.textContent) || 0,
+                                phase: null,
+                                is_label: false,
+                                decimal_places: decimalPlaces,
+                                rounding_mode: roundingMode
+                            });
+                        }
+                    }
+                });
+
+                // Get existing ingredients if toggle is ON
+                const existingIngredients = [];
+                const existingToggle = document.getElementById('existing-toggle');
+                if (existingToggle && existingToggle.checked) {
+                    const existingRows = document.querySelectorAll('#existing-body tr');
+                    existingRows.forEach(row => {
+                        const nameInput = row.querySelector('input[placeholder="Existing Ingredient Name"]');
+                        const weightInput = row.querySelector('.existing-weight-input');
+
+                        if (nameInput && nameInput.value.trim()) {
+                            existingIngredients.push({
+                                ingredient_name: nameInput.value.trim(),
+                                existing_weight: parseFloat(weightInput.value) || 0
+                            });
+                        }
+                    });
+                }
+
+                // Create formulation object
+                const formulation = {
+                    type: 's-perfume',
+                    lot_number: lotNumber,
+                    customer: customer,
+                    product_name: productName,
+                    total_weight: totalWeight,
+                    bottle_type: bottleType,
+                    bottle_qty: bottleQty,
+                    status: 'draft',
+                    version: 'V1.0'
+                };
+
+                // Save to database
+                let result;
+                if (currentFormulationId) {
+                    result = await window.dbOperations.updateFormulation(
+                        currentFormulationId,
+                        formulation,
+                        ingredients,
+                        existingIngredients // Make sure to pass existingIngredients
+                    );
+                } else {
+                    result = await window.dbOperations.createFormulation(
+                        formulation,
+                        ingredients,
+                        existingIngredients
+                    );
+                }
+
+                if (result.success) {
+                    // Redirect to sample list page after short delay
+                    setTimeout(() => {
+                        window.location.href = 's-perfume.html';
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('Error saving sample:', error);
+                window.supabaseClient.showNotification('Error saving sample', 'error');
+            }
+        }
+
+        function exportToExcel() {
+            try {
+                const rndInput = document.getElementById('rnd-number-input');
+                const lotNumber = rndInput ? rndInput.value : 'sample';
+
+                const productName = document.querySelector('input[placeholder="Enter Product Name"]').value || 'product';
+                const filename = `${productName}-${lotNumber}.csv`;
+
+                const rows = [];
+                const headers = ["Ingredient", "Percentage (%)", "Weight (g)", "Phase", "Type"];
+
+                const tableRows = document.querySelectorAll('#formula-body tr');
+                tableRows.forEach(row => {
+                    if (row.classList.contains('part-row')) {
+                        rows.push([row.querySelector('input').value, "", "", "Phase", "Phase Header"]);
+                    } else if (row.classList.contains('label-row')) {
+                        rows.push([row.querySelector('input').value, "", "", "", "Label"]);
+                    } else {
+                        const nameInput = row.querySelector('input[placeholder="Ingredient Name"]');
+                        if (nameInput) {
+                            const name = nameInput.value;
+                            const percent = row.querySelector('.percent-input').value;
+                            const weight = row.querySelector('.weight-label').textContent;
+                            rows.push([name, percent, weight, "", "Ingredient"]);
+                        }
+                    }
+                });
+
+                window.dbOperations.exportToCSV(filename, rows, headers);
+                window.supabaseClient.showNotification('File exported successfully!', 'success');
+            } catch (error) {
+                console.error('Export failed:', error);
+                window.supabaseClient.showNotification('Export failed', 'error');
+            }
+        }
+
+        async function handlePrint() {
+            const rndInput = document.getElementById('rnd-number-input');
+            const data = {
+                lot_number: rndInput ? rndInput.value : 'UNKNOWN',
+                customer: document.querySelector('input[placeholder="Enter Customer Name"]').value,
+                product_name: document.querySelector('input[placeholder="Enter Product Name"]').value,
+                total_weight: document.getElementById('total-weight').value,
+                bottle_type: document.querySelector('input[placeholder="Enter Bottle Type"]').value,
+                bottle_qty: document.querySelector('input[placeholder="0"]').value,
+                ingredients: []
+            };
+
+            const rows = document.querySelectorAll('#formula-body tr');
+            rows.forEach(row => {
+                if (row.classList.contains('part-row')) {
+                    data.ingredients.push({ phase: row.querySelector('input').value });
+                } else if (row.classList.contains('label-row')) {
+                    data.ingredients.push({ is_label: true, label_text: row.querySelector('input').value });
+                } else {
+                    const nameInput = row.querySelector('input[placeholder="Ingredient Name"]');
+                    if (nameInput) {
+                        data.ingredients.push({
+                            ingredient_name: nameInput.value,
+                            percentage: row.querySelector('.percent-input').value,
+                            calculated_weight: row.querySelector('.weight-label').textContent
+                        });
+                    }
+                }
+            });
+
+            window.printManager.showPreview(data);
+        }
+    </script>
+</body>
+
+</html>

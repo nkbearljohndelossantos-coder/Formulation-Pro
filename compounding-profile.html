@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Compounding</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="supabase-client.js"></script>
+    <script type="text/javascript" src="auth.js"></script>
+    <script type="text/javascript" src="app.js" defer></script>
+    <style>
+        body {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: hidden;
+        }
+
+        main {
+            width: 100% !important;
+            max-width: 800px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            padding: 150px 20px 60px 20px !important;
+            box-sizing: border-box !important;
+        }
+
+        .compounding-profile-card {
+            width: 100%;
+            background: rgba(26, 31, 55, 0.4);
+            border: 1px solid var(--line-clr);
+            border-radius: 25px;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2.5rem;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .large-avatar-wrapper {
+            position: relative;
+            width: 180px;
+            height: 180px;
+        }
+
+        .avatar-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 110%;
+            height: 110%;
+            background: radial-gradient(circle, var(--accent-clr) 0%, transparent 70%);
+            opacity: 0.3;
+            filter: blur(20px);
+            z-index: 0;
+        }
+
+        .large-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 5px solid var(--accent-clr);
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+            background: var(--base-clr);
+        }
+
+        .large-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-details-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .detail-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .detail-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent-clr);
+            transform: translateY(-3px);
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--secondary-text-clr);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 800;
+        }
+
+        .detail-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-pill.active {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+
+        .profile-back-btn {
+            background: none;
+            border: 1px solid var(--line-clr);
+            color: var(--secondary-text-clr);
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .profile-back-btn:hover {
+            color: #fff;
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Reusing some classes from compounding-dashboard.html */
+        .user-profile-mini {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .user-avatar-container {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid var(--accent-clr);
+            box-shadow: 0 0 15px rgba(94, 99, 255, 0.3);
+        }
+
+        .profile-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 15px);
+            right: 0;
+            width: 260px;
+            background: rgba(17, 18, 26, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--line-clr);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            z-index: 2000;
+            animation: slideDown 0.3s ease;
+        }
+
+        .profile-dropdown-menu.show {
+            display: flex;
+        }
+    </style>
+</head>
+
+<body>
+    <header
+        style="position: fixed; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 25px 50px; align-items: center; z-index: 1000; box-sizing: border-box; backdrop-filter: blur(15px); background: rgba(17, 18, 26, 0.75); border-bottom: 1px solid var(--line-clr);">
+        <div style="display: flex; gap: 40px; align-items: center;">
+            <div style="font-size: 0.9rem; font-weight: 600; color: var(--secondary-text-clr); cursor: pointer; text-transform: uppercase; letter-spacing: 1px;"
+                id="header-timestamp" onclick="location.href='compounding-dashboard.html'">← Back to Tasks</div>
+        </div>
+
+        <div class="user-profile-mini" id="profile-trigger">
+            <span class="user-name"
+                style="font-size: 1rem; font-weight: 700; color: #fff; letter-spacing: 0.5px;">Loading...</span>
+            <div class="user-avatar-container">
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Profile"
+                    style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+
+            <!-- Floating Dropdown Menu -->
+            <div class="profile-dropdown-menu" id="profile-dropdown">
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Profile"
+                    class="dropdown-avatar" id="dropdown-avatar-img"
+                    style="width: 85px; height: 85px; border-radius: 50%; border: 3px solid var(--accent-clr); margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+                    <span class="dropdown-name" id="dropdown-full-name"
+                        style="font-size: 1.4rem; font-weight: 800; color: #fff;">Loading...</span>
+                </div>
+                <span class="dropdown-email" id="dropdown-user-email"
+                    style="font-size: 0.95rem; color: var(--secondary-text-clr); margin-bottom: 30px;">...</span>
+
+                <div style="width: 100%; display: flex; flex-direction: column; gap: 15px; text-align: left;">
+                    <a href="compounding-profile.html"
+                        style="color: var(--accent-clr); text-decoration: none; font-size: 1.1rem; font-weight: 500;">View
+                        Profile</a>
+                    <a href="settings.html"
+                        style="color: var(--text-clr); text-decoration: none; font-size: 1.1rem; font-weight: 500;">Settings</a>
+                    <a href="javascript:void(0)" onclick="window.auth.signOut()"
+                        style="color: var(--text-clr); text-decoration: none; font-size: 1.1rem; font-weight: 500; border-top: 1px solid var(--line-clr); padding-top: 15px;">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="compounding-profile-card">
+            <div class="large-avatar-wrapper">
+                <div class="avatar-glow"></div>
+                <div class="large-avatar">
+                    <img id="main-profile-avatar" src="" alt="Profile">
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <h1 id="main-profile-name"
+                    style="font-size: 2.5rem; font-weight: 900; color: #fff; margin-bottom: 0.5rem; letter-spacing: -1px;">
+                    ...</h1>
+                <div id="main-profile-role"
+                    style="font-size: 0.9rem; font-weight: 800; color: var(--accent-clr); text-transform: uppercase; letter-spacing: 5px; opacity: 0.8;">
+                    ...</div>
+            </div>
+
+            <div class="profile-details-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Email Address</span>
+                    <span id="main-profile-email" class="detail-value">...</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Account Status</span>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                        <div id="main-status-pill" class="status-pill active">
+                            <span style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></span>
+                            <span>Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="profile-back-btn" onclick="location.href='compounding-dashboard.html'">
+                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
+                    fill="currentColor">
+                    <path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z" />
+                </svg>
+                Back to Workspace
+            </button>
+        </div>
+    </main>
+
+    <script>
+        async function initProfile() {
+            // Trigger background animation
+            if (typeof initBackgroundAnimation === 'function') initBackgroundAnimation();
+
+            // Wait for auth
+            let retries = 0;
+            while ((!window.auth || !window.auth.getCurrentUserWithProfile) && retries < 10) {
+                await new Promise(r => setTimeout(r, 100));
+                retries++;
+            }
+
+            const userWithProfile = await window.auth.getCurrentUserWithProfile();
+            if (!userWithProfile) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const profile = userWithProfile.profile;
+            const initials = (profile.full_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            const fallback = `https://ui-avatars.com/api/?name=${initials}&background=5e63ff&color=fff&bold=true`;
+            const avatarUrl = profile.avatar_url || fallback;
+
+            // Header profile
+            document.querySelector('.user-name').textContent = profile.full_name || 'User';
+            document.querySelector('.user-avatar-container img').src = avatarUrl;
+            document.getElementById('dropdown-full-name').textContent = profile.full_name || 'User';
+            document.getElementById('dropdown-user-email').textContent = profile.email || '';
+            document.getElementById('dropdown-avatar-img').src = avatarUrl;
+
+            // Main profile card
+            document.getElementById('main-profile-avatar').src = avatarUrl;
+            document.getElementById('main-profile-name').textContent = profile.full_name || 'Anonymous';
+            document.getElementById('main-profile-role').textContent = profile.role || 'Personnel';
+            document.getElementById('main-profile-email').textContent = profile.email || '';
+
+            const statusPill = document.getElementById('main-status-pill');
+            if (!profile.is_active) {
+                statusPill.innerHTML = '<span style="width: 8px; height: 8px; background: currentColor; border-radius: 50%;"></span><span>Inactive</span>';
+                statusPill.classList.remove('active');
+                statusPill.style.color = '#ef4444';
+                statusPill.style.background = 'rgba(239, 68, 68, 0.1)';
+                statusPill.style.border = '1px solid #ef4444';
+            }
+
+            // Dropdown trigger
+            const trigger = document.getElementById('profile-trigger');
+            const dropdown = document.getElementById('profile-dropdown');
+            if (trigger && dropdown) {
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('show');
+                });
+                document.addEventListener('click', () => dropdown.classList.remove('show'));
+            }
+        }
+
+        window.addEventListener('load', initProfile);
+    </script>
+</body>
+
+</html>

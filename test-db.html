@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Supabase Test</title>
+</head>
+
+<body>
+    <h1>Supabase Connection Test</h1>
+    <pre id="out">Running...</pre>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const out = document.getElementById('out');
+
+        // Global error handler for this module
+        async function runTest() {
+            try {
+                out.textContent = 'Initializing Supabase Client...';
+
+                const SUPABASE_URL = 'https://qhsvwrzosxjxeqzudkdi.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoc3Z3cnpvc3hqeGVxenVka2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwNjQ3NzUsImV4cCI6MjA4NDY0MDc3NX0.DmSHj2GzjxnwUdK607sZdWFo3l6I9Ttc_jJGvD7Carg';
+
+                const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                out.textContent = 'Connecting to database table "formulations"...';
+
+                const { data, error } = await supabase
+                    .from('formulations')
+                    .select('*')
+                    .limit(1);
+
+                if (error) {
+                    out.textContent = '❌ Supabase Error:\n' + JSON.stringify(error, null, 2);
+                } else {
+                    out.textContent = '✅ Success! Connected to Supabase.\n\nFetched Data:\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (err) {
+                out.textContent = '💥 Unexpected Exception:\n' + err.stack;
+            }
+        }
+
+        runTest();
+    </script>
+</body>
+
+</html>

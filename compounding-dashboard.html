@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script type="text/javascript" src="supabase-client.js"></script>
+    <script type="text/javascript" src="auth.js"></script>
+    <script type="text/javascript" src="db-operations.js"></script>
+    <script type="text/javascript" src="barcode-scanner.js" defer></script>
+    <script type="text/javascript" src="app.js" defer></script>
+    <style>
+        body {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: hidden;
+        }
+
+        main {
+            width: 100% !important;
+            max-width: 1200px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            padding: 150px 20px 60px 20px !important;
+            box-sizing: border-box !important;
+        }
+
+        .user-profile-mini {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .user-profile-mini:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .user-avatar-container {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid var(--accent-clr);
+            box-shadow: 0 0 15px rgba(94, 99, 255, 0.3);
+        }
+
+        /* Verified Badge from Admin */
+        .verified-badge {
+            display: inline-flex;
+            color: var(--accent-clr);
+            background: rgba(94, 99, 255, 0.1);
+            border-radius: 50%;
+            padding: 2px;
+            margin-left: 5px;
+        }
+
+        /* Profile Dropdown Menu */
+        .profile-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 15px);
+            right: 0;
+            width: 260px;
+            background: rgba(17, 18, 26, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--line-clr);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            z-index: 2000;
+            animation: slideDown 0.3s ease;
+        }
+
+        .profile-dropdown-menu.show {
+            display: flex;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-avatar {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            border: 3px solid var(--accent-clr);
+            box-shadow: 0 0 25px rgba(94, 99, 255, 0.4);
+            margin-bottom: 20px;
+        }
+
+        .dropdown-name-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+
+        .dropdown-name {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-email {
+            font-size: 0.95rem;
+            color: var(--secondary-text-clr);
+            margin-bottom: 30px;
+            word-break: break-all;
+        }
+
+        .dropdown-links {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            text-align: left;
+        }
+
+        .dropdown-link {
+            color: var(--text-clr);
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 500;
+            padding: 5px 0;
+            transition: color 0.2s ease;
+        }
+
+        .dropdown-link:hover {
+            color: var(--accent-clr);
+        }
+
+        .dropdown-link.logout {
+            border-top: 1px solid var(--line-clr);
+            padding-top: 15px;
+            margin-top: 5px;
+        }
+
+        .table-container {
+            width: 100%;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Background animation managed by app.js -->
+
+    <!-- Simplified Header -->
+    <header
+        style="position: fixed; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 25px 50px; align-items: center; z-index: 1000; box-sizing: border-box; backdrop-filter: blur(15px); background: rgba(17, 18, 26, 0.75); border-bottom: 1px solid var(--line-clr);">
+        <div style="display: flex; gap: 40px; align-items: center;">
+            <div style="font-size: 0.9rem; font-weight: 600; color: var(--secondary-text-clr); cursor: pointer; text-transform: uppercase; letter-spacing: 1px;"
+                id="header-timestamp" onclick="loadCompoundingTasks()">Time Stamp</div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="user-profile-mini" id="profile-trigger">
+                <div class="user-avatar-container">
+                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+
+                <!-- Floating Dropdown Menu (Matches Screenshot) -->
+                <div class="profile-dropdown-menu" id="profile-dropdown">
+                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        alt="Profile" class="dropdown-avatar" id="dropdown-avatar-img">
+                    <div class="dropdown-name-wrapper">
+                        <span class="dropdown-name" id="dropdown-full-name">Loading...</span>
+                        <div class="verified-badge">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px"
+                                fill="currentColor">
+                                <path
+                                    d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm164-444L412-372l-96-96-56 56 152 152 288-288-56-56Z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <span class="dropdown-email" id="dropdown-user-email">...</span>
+
+                    <div class="dropdown-links">
+                        <a href="compounding-profile.html" class="dropdown-link">View Profile</a>
+                        <a href="settings.html" class="dropdown-link">Settings</a>
+                        <a href="javascript:void(0)" class="dropdown-link logout"
+                            onclick="window.auth.signOut()">Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification bell will be injected here by app.js -->
+        </div>
+    </header>
+
+    <main style="position: relative; z-index: 10;">
+
+        <!-- Brand Centerpiece & Search -->
+        <div class="brand-search-container">
+            <div class="cube-container" style="width: 110px; height: 110px; margin: 0 auto 25px auto;">
+                <div class="cube animate-cube-slow">
+                    <div class="cube-face face-front"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-back"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-left"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-right"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-top"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-bottom"><img src="logo.png" alt="NKB Logo"></div>
+                </div>
+            </div>
+            <h1
+                style="font-size: 1.8rem; font-weight: 800; color: #fff; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 45px; text-align: center;">
+                Formulation <span style="color: var(--accent-clr);">Manager</span>
+            </h1>
+
+            <div class="search-filter-bar" style="width: 100%; max-width: 1000px; justify-content: center;">
+                <div class="search-box">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
+                        fill="currentColor">
+                        <path
+                            d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+                    </svg>
+                    <input type="text" placeholder="Search formulations..." class="search-input">
+                </div>
+                <select class="filter-select" id="type-filter">
+                    <option value="">All Types</option>
+                    <option value="cosmetics">Cosmetics</option>
+                    <option value="perfume">Perfume</option>
+                    <option value="food-supplement">Food Supplement</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Title -->
+        <h2 class="section-title"
+            style="margin-bottom: 25px; font-size: 1.35rem; font-weight: 700; text-align: center; width: 100%;">
+            Compounding Tasks</h2>
+
+        <!-- Table -->
+        <div class="table-container"
+            style="border: 1px solid var(--line-clr); border-radius: 15px; overflow: hidden; background: rgba(26, 31, 55, 0.4);">
+            <table class="data-table">
+                <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.03);">
+                        <th style="padding: 22px 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
+                            DATE/TIME</th>
+                        <th style="padding: 22px 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">LOT
+                            NO.</th>
+                        <th style="padding: 22px 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
+                            CUSTOMER</th>
+                        <th style="padding: 22px 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
+                            PRODUCT</th>
+                        <th style="padding: 22px 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px;">
+                            WEIGHT</th>
+                        <th
+                            style="padding: 22px 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; text-align: right; padding-right: 40px;">
+                            ACTION</th>
+                    </tr>
+                </thead>
+                <tbody id="compounding-list">
+                    <tr>
+                        <td colspan="6"
+                            style="text-align: center; padding: 120px; color: var(--secondary-text-clr); font-style: italic; font-size: 1.1rem;">
+                            Loading latest tasks...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="mask"></div>
+        </div>
+
+    </main>
+
+    <script>
+        // Compounding Dashboard Logic
+        let currentProfile = null;
+
+        async function initCompoundingDashboard() {
+            // Init Background
+            if (typeof initBackgroundAnimation === 'function') initBackgroundAnimation();
+
+            // Check Auth
+            const isAuth = await window.supabaseClient.requireAuth();
+            if (!isAuth) return;
+
+            // Get Profile
+            const userWithProfile = await window.auth.getCurrentUserWithProfile();
+            if (!userWithProfile) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentProfile = userWithProfile.profile;
+
+            // Update Header & Dropdown UI
+            const displayName = currentProfile.full_name && currentProfile.full_name !== 'New User'
+                ? currentProfile.full_name
+                : (currentProfile.email ? currentProfile.email.split('@')[0] : 'Compounding');
+
+            const userNameEl = document.querySelector('.user-name');
+            if (userNameEl) userNameEl.textContent = displayName;
+
+            const dropdownNameEl = document.getElementById('dropdown-full-name');
+            if (dropdownNameEl) dropdownNameEl.textContent = displayName;
+
+            const dropdownEmailEl = document.getElementById('dropdown-user-email');
+            if (dropdownEmailEl) dropdownEmailEl.textContent = currentProfile.email || '';
+
+            const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${initials}\u0026background=5e63ff\u0026color=fff\u0026bold=true`;
+
+            document.querySelectorAll('.user-avatar-container img, .dropdown-avatar').forEach(img => {
+                img.src = currentProfile.avatar_url || fallbackAvatar;
+            });
+
+            // Profile Dropdown Interaction
+            const trigger = document.getElementById('profile-trigger');
+            const dropdown = document.getElementById('profile-dropdown');
+
+            if (trigger && dropdown) {
+                trigger.addEventListener('click', (e) => {
+                    // Only toggle if clicking the trigger itself or its direct children, NOT the dropdown
+                    if (dropdown.contains(e.target)) return;
+
+                    e.stopPropagation();
+                    dropdown.classList.toggle('show');
+                    console.log('Dropdown toggled. State:', dropdown.classList.contains('show'));
+                });
+
+                // Prevent clicks INSIDE the dropdown from closing it immediately
+                dropdown.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!trigger.contains(e.target)) {
+                        dropdown.classList.remove('show');
+                    }
+                });
+            }
+
+            // Header Timestamp Label
+            document.getElementById('header-timestamp').textContent = 'Task History';
+
+            // Load Data
+            await loadCompoundingTasks();
+        }
+
+        async function loadCompoundingTasks() {
+            const formulas = await window.dbOperations.listFormulations({ limit: 100 });
+            const tbody = document.getElementById('compounding-list');
+            const searchInput = document.querySelector('.search-input');
+            const typeFilter = document.getElementById('type-filter');
+
+            if (!tbody) return;
+
+            function renderTable(data) {
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 120px; color: var(--secondary-text-clr);">No tasks found matching your search.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(f => {
+                    const isCompleted = f.status === 'completed';
+                    const displayDate = isCompleted && f.completed_at
+                        ? `<span style="color: #22c55e;">Done: ${window.supabaseClient.formatDate(f.completed_at)}</span>`
+                        : window.supabaseClient.formatDate(f.created_at);
+
+                    const actionLabel = isCompleted ? 'View Done' : 'Open Task';
+                    const badge = isCompleted ? `<span style="display: block; font-size: 0.65rem; color: #22c55e; font-weight: 800; margin-top: 4px;">FINISHED</span>` : '';
+
+                    return `
+                    <tr>
+                        <td>
+                            ${displayDate}
+                            ${badge}
+                        </td>
+                        <td style="font-weight: 600; color: #fff;">${f.lot_number}</td>
+                        <td>${f.customer || '-'}</td>
+                        <td>${f.product_name}</td>
+                        <td>${f.total_weight}g</td>
+                        <td style="text-align: right; padding-right: 40px;">
+                            <button class="table-btn view ${isCompleted ? 'completed' : ''}" onclick="viewTask('${f.id}', '${f.type}')">
+                                <span class="mask"></span>
+                                <span>${actionLabel}</span>
+                            </button>
+                        </td>
+                    </tr>
+                `}).join('');
+            }
+
+            function filterResults() {
+                const term = searchInput ? searchInput.value.toLowerCase() : '';
+                const type = typeFilter ? typeFilter.value : '';
+
+                const filtered = formulas.filter(f => {
+                    const matchesSearch = f.lot_number.toLowerCase().includes(term) ||
+                        f.product_name.toLowerCase().includes(term) ||
+                        (f.customer && f.customer.toLowerCase().includes(term));
+
+                    const matchesType = type === '' || f.type === type;
+
+                    return matchesSearch && matchesType;
+                });
+
+                renderTable(filtered);
+            }
+
+            renderTable(formulas);
+
+            // Event Listeners
+            if (searchInput) searchInput.addEventListener('input', filterResults);
+            if (typeFilter) typeFilter.addEventListener('change', filterResults);
+        }
+
+        function viewTask(id, type) {
+            window.location.href = `compounding-execution.html?id=${id}`;
+        }
+
+        // Initial Load
+        window.addEventListener('load', initCompoundingDashboard);
+    </script>
+</body>
+
+</html>

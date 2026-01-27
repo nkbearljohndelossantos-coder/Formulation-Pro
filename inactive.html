@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Inactive | Formulation Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-clr: #5e63ff;
+            --bg-clr: #0a0b1e;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-clr: #ffffff;
+            --secondary-text: #b0b0b0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-clr);
+            color: var(--text-clr);
+            font-family: 'Outfit', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .background-blob {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(94, 99, 255, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+            z-index: -1;
+            filter: blur(50px);
+            animation: move 20s infinite alternate;
+        }
+
+        @keyframes move {
+            from {
+                transform: translate(-30%, -30%);
+            }
+
+            to {
+                transform: translate(30%, 30%);
+            }
+        }
+
+        .container {
+            max-width: 480px;
+            width: 90%;
+            padding: 50px 40px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background: rgba(94, 99, 255, 0.1);
+            border: 1px solid rgba(94, 99, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+        }
+
+        .icon-circle svg {
+            color: var(--primary-clr);
+            width: 40px;
+            height: 40px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(to right, #fff, #5e63ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            color: var(--secondary-text);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+            color: #d1d1d1;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-clr);
+            color: #fff;
+            box-shadow: 0 10px 20px -5px rgba(94, 99, 255, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(94, 99, 255, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--secondary-text);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-blob"></div>
+
+    <div class="container">
+        <div class="icon-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+        </div>
+
+        <h1>Access Denied</h1>
+        <p>Your account is currently <strong>Inactive</strong>. You need administrative approval to access the
+            Formulation Pro dashboard.</p>
+
+        <div class="info-card">
+            Please contact your System Administrator to activate your account.
+        </div>
+
+        <div class="buttons">
+            <button onclick="window.location.reload()" class="btn btn-primary">Check Again</button>
+            <button id="logout-btn" class="btn btn-ghost">Sign in with another account</button>
+        </div>
+
+        <div class="footer">
+            &copy; 2026 Formulation Pro. All rights reserved.
+        </div>
+    </div>
+
+    <!-- Essential Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="auth.js"></script>
+    <script>
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('logout-btn');
+            btn.innerHTML = 'Signing out...';
+            btn.disabled = true;
+            await window.auth.signOut();
+        });
+
+        // Background initialization if needed
+        window.addEventListener('load', () => {
+            if (window.supabaseClient && window.supabaseClient.SessionDebugger) {
+                window.supabaseClient.SessionDebugger.log('Access Denied Page Loaded', 'warning');
+            }
+        });
+    </script>
+</body>
+
+</html>

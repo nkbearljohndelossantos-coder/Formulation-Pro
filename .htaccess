@@ -1,0 +1,19 @@
+# Formulation Pro - Hostinger Deployment Configuration
+# Place this file in your public_html directory
+
+RewriteEngine On
+
+# 1. Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# 2. Prevent Directory Listing
+Options -Indexes
+
+# 3. Handle 404s
+ErrorDocument 404 /index.html
+
+# 4. Cache Control for Assets
+<filesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|js|css|swf)$">
+    Header set Cache-Control "max-age=2592000, public"
+</filesMatch>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Formulation Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="supabase-client.js"></script>
+    <script type="text/javascript" src="auth.js"></script>
+    <script type="text/javascript" src="app.js" defer></script>
+    <style>
+        .profile-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--line-clr);
+            border-radius: 2rem;
+            padding: 3rem;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 2rem;
+        }
+
+        .profile-header {
+            position: relative;
+        }
+
+        .profile-avatar-large {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 4px solid var(--accent-clr);
+            box-shadow: 0 0 30px rgba(94, 99, 255, 0.4);
+            overflow: hidden;
+            background: var(--hover-clr);
+        }
+
+        .profile-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-info {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .info-group {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--line-clr);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            text-align: left;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: var(--secondary-text-clr);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .profile-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(94, 99, 255, 0.1);
+            border: 1px solid var(--accent-clr);
+            border-radius: 50px;
+            color: var(--accent-clr);
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="mobile-toggle" onclick="toggleMobileSidebar()">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor">
+            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+        </svg>
+    </button>
+    <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <nav id="sidebar">
+        <ul>
+            <li>
+                <div class="logo">
+                    <img src="logo.png" alt="Logo" style="width: 50px; margin-bottom: 10px;">
+                    <div class="brand-title">Formulation Manager</div>
+                </div>
+            </li>
+            <li class="divider"></li>
+            <li>
+                <div class="user-profile-card"
+                    onclick="toggleSubMenu(this.parentElement.querySelector('.dropdown-btn'))">
+                    <div class="user-avatar-container">
+                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                            alt="User Avatar">
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name-wrapper">
+                            <span class="user-name">Loading...</span>
+                            <div class="verified-badge">
+                                <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960"
+                                    width="18px" fill="currentColor">
+                                    <path
+                                        d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm164-444L412-372l-96-96-56 56 152 152 288-288-56-56Z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <span class="user-email">...</span>
+                    </div>
+                </div>
+                <button class="dropdown-btn" style="display: none;"></button>
+                <ul class="sub-menu">
+                    <div>
+                        <li><a href="profile.html" class="active">View Profile</a></li>
+                        <li><a href="settings.html">Settings</a></li>
+                        <li><a href="javascript:void(0)" onclick="window.auth.signOut()">Logout</a></li>
+                    </div>
+                </ul>
+            </li>
+            <li class="divider"></li>
+            <li><a href="index.html"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960"
+                        width="24px">
+                        <path
+                            d="M240-200h120v-240h240v240h120v-360L480-740 240-560v360Zm-80 80v-480l320-240 320 240v480H520v-240h-80v240H160Zm320-350Z" />
+                    </svg><span>Dashboard</span></a></li>
+            <li><a href="browse.html"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960"
+                        width="24px">
+                        <path
+                            d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+                    </svg><span>Browse</span></a></li>
+            <li><a href="compare.html"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960"
+                        width="24px">
+                        <path
+                            d="M400-240v-400l-200 200 200 200Zm160 0 200-200-200-200v400ZM120-120v-720h720v720H120Zm80-80h560v-560H200v560Zm0 0v-560 560Z" />
+                    </svg><span>Compare</span></a></li>
+            <li><a href="boss-request.html"><svg xmlns="http://www.w3.org/2000/svg" height="24px"
+                        viewBox="0 -960 960 960" width="24px">
+                        <path d="M160-160v-640h640v640H160Zm80-80h480v-480H240v480Zm0 0v-480 480Z" />
+                    </svg><span>Boss Request</span></a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <h1 class="page-title">User Profile</h1>
+
+        <div class="profile-container">
+            <div class="profile-header">
+                <div class="profile-avatar-large">
+                    <img id="profile-avatar-img"
+                        src="https://ui-avatars.com/api/?name=U&background=5e63ff&color=fff&bold=true" alt="Avatar">
+                </div>
+                <div id="role-badge" class="profile-badge">Loading...</div>
+            </div>
+
+            <div class="profile-info">
+                <div class="info-group">
+                    <span class="info-label">Full Name</span>
+                    <div id="profile-full-name" class="info-value">...</div>
+                </div>
+                <div class="info-group">
+                    <span class="info-label">Email Address</span>
+                    <div id="profile-email" class="info-value">...</div>
+                </div>
+                <div class="info-group">
+                    <span class="info-label">Account Status</span>
+                    <div id="profile-status" class="info-value">Active</div>
+                </div>
+            </div>
+
+            <div style="width: 100%; display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+                <button class="button" onclick="location.href='settings.html'">
+                    <span class="mask"></span>
+                    <a href="settings.html">Edit Profile</a>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <button id="toggle-btn" onclick="toggleSidebar()">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor">
+            <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+        </svg>
+    </button>
+
+    <script>
+        async function loadProfilePage() {
+            // Wait for auth
+            let retries = 0;
+            while ((!window.auth || !window.auth.getCurrentUserWithProfile) && retries < 10) {
+                await new Promise(r => setTimeout(r, 100));
+                retries++;
+            }
+
+            if (!window.auth) return;
+
+            const userWithProfile = await window.auth.getCurrentUserWithProfile();
+            if (!userWithProfile) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const profile = userWithProfile.profile;
+
+            // Update UI
+            document.getElementById('profile-full-name').textContent = profile.full_name || 'Anonymous User';
+            document.getElementById('profile-email').textContent = profile.email || '';
+            document.getElementById('role-badge').textContent = (profile.role || 'user').toUpperCase();
+
+            if (profile.avatar_url) {
+                document.getElementById('profile-avatar-img').src = profile.avatar_url;
+            } else {
+                const initials = (profile.full_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                document.getElementById('profile-avatar-img').src = `https://ui-avatars.com/api/?name=${initials}&background=5e63ff&color=fff&bold=true`;
+            }
+
+            document.getElementById('profile-status').textContent = profile.is_active ? 'Active' : 'Inactive';
+        }
+
+        window.addEventListener('load', loadProfilePage);
+    </script>
+</body>
+
+</html>

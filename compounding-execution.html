@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Execution - Formulation Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script type="text/javascript" src="supabase-client.js" defer></script>
+    <script type="text/javascript" src="auth.js" defer></script>
+    <script type="text/javascript" src="db-operations.js" defer></script>
+    <script type="text/javascript" src="qrcode-generator.js" defer></script>
+    <script type="text/javascript" src="app.js" defer></script>
+    <style>
+        body {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: hidden;
+            background: #0a0b10 !important;
+        }
+
+        main {
+            width: 100% !important;
+            max-width: 900px !important;
+            margin: 0 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 120px 20px 100px 20px !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Progress Header */
+        .execution-header {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin: 30px 0;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--line-clr);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-clr), #a855f7);
+            box-shadow: 0 0 20px rgba(94, 99, 255, 0.4);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .progress-text {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        /* Task Info Card */
+        .task-info-card {
+            background: rgba(26, 31, 55, 0.4);
+            border: 1px solid var(--line-clr);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--secondary-text-clr);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .info-item span {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* Checklist Area */
+        .checklist-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .phase-header {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 4px solid #fbbf24;
+        }
+
+        .ingredient-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--line-clr);
+            border-radius: 12px;
+            padding: 18px 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .ingredient-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent-clr);
+        }
+
+        .ingredient-item.checked {
+            background: rgba(34, 197, 94, 0.05);
+            border-color: #22c55e;
+            opacity: 0.7;
+        }
+
+        .ingredient-item.checked .ingredient-name {
+            text-decoration: line-through;
+            color: var(--secondary-text-clr);
+        }
+
+        .checkbox-wrapper {
+            width: 28px;
+            height: 28px;
+            border: 2px solid var(--line-clr);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .ingredient-item.checked .checkbox-wrapper {
+            background: #22c55e;
+            border-color: #22c55e;
+        }
+
+        .checkbox-wrapper svg {
+            display: none;
+            color: #fff;
+        }
+
+        .ingredient-item.checked .checkbox-wrapper svg {
+            display: block;
+        }
+
+        .ingredient-details {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ingredient-name {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .ingredient-weight {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-clr);
+        }
+
+        .instruction-item {
+            font-style: italic;
+            color: #60a5fa;
+            padding: 10px 40px;
+            font-size: 0.95rem;
+            border-left: 2px solid rgba(96, 165, 250, 0.3);
+        }
+
+        /* Footer Actions */
+        .execution-footer {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-finish {
+            background: var(--accent-clr);
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(94, 99, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-finish:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .btn-finish:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(94, 99, 255, 0.4);
+        }
+
+        .back-link {
+            color: var(--secondary-text-clr);
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-link:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Background managed by app.js -->
+
+    <header
+        style="position: fixed; top: 0; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 20px 50px; align-items: center; z-index: 1000; box-sizing: border-box; backdrop-filter: blur(15px); background: rgba(17, 18, 26, 0.75); border-bottom: 1px solid var(--line-clr);">
+        <a href="compounding-dashboard.html" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                fill="currentColor">
+                <path d="m313-440 224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z" />
+            </svg>
+            Back to Dashboard
+        </a>
+        <div id="execution-status-badge" class="badge"
+            style="background: rgba(94, 99, 255, 0.1); color: var(--accent-clr); padding: 8px 20px; border-radius: 50px; font-weight: 700;">
+            IN PROGRESS
+        </div>
+
+        <div class="user-profile-mini" id="profile-trigger"
+            style="display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative;">
+            <span class="user-name" id="dropdown-full-name"
+                style="font-size: 1rem; font-weight: 700; color: #fff; letter-spacing: 0.5px;">Loading...</span>
+            <div class="user-avatar-container"
+                style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 2px solid var(--accent-clr);">
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                    id="dropdown-avatar-img" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+
+            <!-- Profile Dropdown -->
+            <div class="profile-dropdown-menu" id="profile-dropdown"
+                style="position: absolute; top: 100%; right: 0; margin-top: 15px; background: #1a1b26; border: 1px solid var(--line-clr); border-radius: 20px; padding: 25px; width: 280px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); display: none; flex-direction: column; align-items: center; z-index: 10000;">
+                <span class="dropdown-email" id="dropdown-user-email"
+                    style="font-size: 0.95rem; color: var(--secondary-text-clr); margin-bottom: 20px; word-break: break-all;">...</span>
+                <div class="dropdown-links" style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
+                    <a href="compounding-profile.html" class="dropdown-link">View Profile</a>
+                    <a href="settings.html" class="dropdown-link">Settings</a>
+                    <a href="javascript:void(0)" class="dropdown-link logout" onclick="window.auth.signOut()">Logout</a>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Simple Dropdown Toggle for Execution view
+            document.addEventListener('DOMContentLoaded', () => {
+                const trigger = document.getElementById('profile-trigger');
+                const dropdown = document.getElementById('profile-dropdown');
+                if (trigger && dropdown) {
+                    trigger.onclick = (e) => {
+                        e.stopPropagation();
+                        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+                    };
+                    document.onclick = () => { dropdown.style.display = 'none'; };
+                }
+            });
+        </script>
+    </header>
+
+    <main>
+        <!-- Brand Centerpiece -->
+        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 50px;">
+            <div class="cube-container" style="width: 80px; height: 80px; margin-bottom: 20px;">
+                <div class="cube animate-cube-slow">
+                    <div class="cube-face face-front"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-back"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-left"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-right"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-top"><img src="logo.png" alt="NKB Logo"></div>
+                    <div class="cube-face face-bottom"><img src="logo.png" alt="NKB Logo"></div>
+                </div>
+            </div>
+            <h2
+                style="font-size: 1.2rem; font-weight: 800; color: #fff; letter-spacing: 3px; text-transform: uppercase; margin: 0; text-align: center;">
+                Formulation <span style="color: var(--accent-clr);">Manager</span>
+            </h2>
+        </div>
+
+        <div class="execution-header">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 30px;">
+                <div style="flex: 1;">
+                    <h1 id="exec-product-name"
+                        style="font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 10px;">
+                        Loading Task...</h1>
+                    <p id="exec-lot-number"
+                        style="color: var(--secondary-text-clr); font-size: 1.1rem; letter-spacing: 2px;">
+                        LOT #---------</p>
+                </div>
+                <!-- QR Code Display -->
+                <div id="qr-code-section"
+                    style="display: none; flex-direction: column; align-items: center; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <div id="qr-container"
+                        style="background: #fff; padding: 10px; border-radius: 12px; margin-bottom: 12px;"></div>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <button onclick="printLabel()"
+                            style="flex: 1; padding: 10px; border-radius: 10px; background: var(--accent-clr); border: none; color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px"
+                                fill="currentColor">
+                                <path
+                                    d="M640-640v-120H320v120h-80v-200h480v200h-80Zm-480 80h640-640Zm560 100q17 0 28.5-11.5T760-500q0-17-11.5-28.5T720-540q-17 0-28.5 11.5T680-500q0 17 11.5 28.5T720-460Zm-80 260v-160H320v160h320Zm80 80H240v-160H80v-240q0-51 35-85.5t85-34.5h560q51 0 85.5 34.5T880-520v240H720v160Zm80-240v-160q0-17-11.5-28.5T760-560H200q-17 0-28.5 11.5T160-520v160h80v-80h480v80h80Z" />
+                            </svg>
+                            Print Label
+                        </button>
+                        <button onclick="downloadCode()"
+                            style="padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; cursor: pointer;">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px"
+                                fill="currentColor">
+                                <path
+                                    d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="exec-progress-bar"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="progress-text" id="exec-progress-percent">0% Completed</span>
+                <span style="color: var(--secondary-text-clr); font-weight: 600;" id="exec-count-text">0 / 0
+                    Ingredients</span>
+            </div>
+        </div>
+
+        <div class="task-info-card">
+            <div class="info-item">
+                <label>Customer</label>
+                <span id="exec-customer">-</span>
+            </div>
+            <div class="info-item">
+                <label>Total Weight</label>
+                <span id="exec-total-weight">0.00g</span>
+            </div>
+            <div class="info-item">
+                <label>Formula Type</label>
+                <span id="exec-type">-</span>
+            </div>
+        </div>
+
+        <div class="checklist-container" id="exec-checklist">
+            <!-- Checklist items will be injected here -->
+        </div>
+
+        <div class="execution-footer">
+            <button class="btn-finish" id="btn-complete-task" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
+                    fill="currentColor">
+                    <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" />
+                </svg>
+                Complete Production
+            </button>
+        </div>
+    </main>
+
+    <script>
+        async function initExecution() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const formulationId = urlParams.get('id');
+
+            if (!formulationId) {
+                window.location.href = 'compounding-dashboard.html';
+                return;
+            }
+
+            // Init Background
+            if (typeof initBackgroundAnimation === 'function') initBackgroundAnimation();
+
+            // Fetch Data
+            const data = await window.dbOperations.getFormulation(formulationId);
+            if (!data) {
+                alert('Task not found');
+                window.location.href = 'compounding-dashboard.html';
+                return;
+            }
+
+            console.log('Production Data Loaded:', data);
+
+            // Database returns formulation fields directly on the object, but let's be safe
+            const formulation = data;
+            const ingredients = data.ingredients || [];
+
+            // Populate UI with null safety
+            document.getElementById('exec-product-name').textContent = formulation.product_name || 'Generic Formulation';
+            document.getElementById('exec-lot-number').textContent = `LOT #${formulation.lot_number || '000000'}`;
+            document.getElementById('exec-customer').textContent = formulation.customer || '-';
+            document.getElementById('exec-total-weight').textContent = `${formulation.total_weight || 0}g`;
+            document.getElementById('exec-type').textContent = (formulation.type || 'cosmetics').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+            renderChecklist(ingredients);
+            updateProgress();
+
+            // Generate QR Code
+            if (window.qrCodeGenerator && formulation.lot_number) {
+                const qrSection = document.getElementById('qr-code-section');
+                const qrContainer = document.getElementById('qr-container');
+                qrSection.style.display = 'flex';
+                window.qrCodeGenerator.generate(formulation.lot_number, qrContainer, 100);
+            }
+
+            // Enable global hover background for items
+            document.querySelectorAll('.ingredient-item').forEach(el => {
+                el.addEventListener('mouseenter', () => document.body.classList.add('hover'));
+                el.addEventListener('mouseleave', () => document.body.classList.remove('hover'));
+            });
+        }
+
+        function printLabel() {
+            const productName = document.getElementById('exec-product-name').textContent;
+            const lotNumber = document.getElementById('exec-lot-number').textContent.replace('LOT #', '');
+            window.qrCodeGenerator.print(lotNumber, productName);
+        }
+
+        function downloadCode() {
+            const lotNumber = document.getElementById('exec-lot-number').textContent.replace('LOT #', '');
+            window.qrCodeGenerator.download(lotNumber, `QR_${lotNumber}.png`);
+        }
+
+        function renderChecklist(ingredients) {
+            const container = document.getElementById('exec-checklist');
+            container.innerHTML = '';
+
+            ingredients.forEach(ing => {
+                // Determine if this is a new Phase
+                if (ing.phase && ing.phase.trim() !== '' && !container.querySelector(`[data-phase="${ing.phase}"]`)) {
+                    const phaseDiv = document.createElement('div');
+                    phaseDiv.className = 'phase-header';
+                    phaseDiv.setAttribute('data-phase', ing.phase);
+                    phaseDiv.textContent = ing.phase;
+                    container.appendChild(phaseDiv);
+                }
+
+                // Render Labels/Instructions
+                if (ing.is_label && ing.label_text && ing.label_text.trim() !== '') {
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'instruction-item';
+                    labelDiv.textContent = ing.label_text;
+                    container.appendChild(labelDiv);
+                }
+                // Render Ingredient Checkboxes (Only if they have a name)
+                else if (ing.ingredient_name && ing.ingredient_name.trim() !== '') {
+                    const item = document.createElement('div');
+                    item.className = 'ingredient-item';
+                    item.innerHTML = `
+                        <div class="checkbox-wrapper">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+                                <path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" />
+                            </svg>
+                        </div>
+                        <div class="ingredient-details">
+                            <span class="ingredient-name">${ing.ingredient_name}</span>
+                            <span class="ingredient-weight">${ing.calculated_weight}g</span>
+                        </div>
+                    `;
+                    item.onclick = () => {
+                        item.classList.toggle('checked');
+                        updateProgress();
+                    };
+                    container.appendChild(item);
+                }
+            });
+        }
+
+        function updateProgress() {
+            const total = document.querySelectorAll('.ingredient-item').length;
+            const checked = document.querySelectorAll('.ingredient-item.checked').length;
+            const percent = total > 0 ? Math.round((checked / total) * 100) : 0;
+
+            document.getElementById('exec-progress-bar').style.width = `${percent}%`;
+            document.getElementById('exec-progress-percent').textContent = `${percent}% Completed`;
+            document.getElementById('exec-count-text').textContent = `${checked} / ${total} Ingredients`;
+
+            const finishBtn = document.getElementById('btn-complete-task');
+            finishBtn.disabled = percent < 100;
+
+            if (percent === 100) {
+                document.getElementById('execution-status-badge').textContent = 'READY TO COMPLETE';
+                document.getElementById('execution-status-badge').style.color = '#22c55e';
+                document.getElementById('execution-status-badge').style.background = 'rgba(34, 197, 94, 0.1)';
+            } else {
+                document.getElementById('execution-status-badge').textContent = 'IN PROGRESS';
+                document.getElementById('execution-status-badge').style.color = 'var(--accent-clr)';
+                document.getElementById('execution-status-badge').style.background = 'rgba(94, 99, 255, 0.1)';
+            }
+        }
+
+        document.getElementById('btn-complete-task').onclick = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const formulationId = urlParams.get('id');
+
+            if (confirm('Are you sure you have completed all steps? This will finalize the production.')) {
+                const result = await window.dbOperations.completeProductionTask(formulationId);
+                if (result.success) {
+                    window.location.href = 'compounding-dashboard.html';
+                }
+            }
+        };
+
+        window.addEventListener('load', initExecution);
+    </script>
+</body>
+
+</html>
