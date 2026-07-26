@@ -10,7 +10,7 @@ const router = express.Router();
 // GET /api/v1/materials - Search & Filter Materials
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { search, category, companyId, vendorId, activeOnly } = req.query;
+    const { search, category, uomCategory, productCategory, companyId, vendorId, activeOnly } = req.query;
 
     const query = db('materials')
       .leftJoin('companies', 'materials.company_id', 'companies.id')
@@ -35,8 +35,27 @@ router.get('/', authenticateToken, async (req, res) => {
       });
     }
 
-    if (category) {
-      query.andWhere('materials.uom_category', category);
+    // UOM Category filter (MASS, VOLUME, COUNT)
+    const targetUomCat = uomCategory || (['MASS', 'VOLUME', 'COUNT'].includes(category) ? category : null);
+    if (targetUomCat) {
+      query.andWhere('materials.uom_category', targetUomCat);
+    }
+
+    // Domain Category filter (Cosmetic, Perfume, Supplement)
+    const isPerfumeUser = req.user?.username?.toLowerCase().includes('perfume') ||
+                          req.user?.email?.toLowerCase().includes('perfume') ||
+                          (req.user?.roles && req.user.roles.some(r => String(r).toLowerCase().includes('perfume')));
+
+    let domainCat = productCategory || (!['MASS', 'VOLUME', 'COUNT'].includes(category) ? category : null);
+    if (!domainCat && isPerfumeUser) {
+      domainCat = 'Perfume';
+    }
+
+    const hasCategoryCol = await db.schema.hasColumn('materials', 'category');
+    if (hasCategoryCol && domainCat && domainCat !== 'All') {
+      query.andWhere(b => {
+        b.where('materials.category', domainCat).orWhere('materials.category', 'All');
+      });
     }
 
     if (companyId) {
@@ -187,6 +206,7 @@ router.post('/', authenticateToken, requireRoles('Super Admin', 'Formulator'), a
       unitWeightUom,
       description,
       isInventoried,
+      category,
     } = req.body;
 
     if (!name || !code || !uom) {
@@ -198,13 +218,19 @@ router.post('/', authenticateToken, requireRoles('Super Admin', 'Formulator'), a
       return res.status(400).json({ success: false, message: `Material Code '${code}' already exists.` });
     }
 
+    const isPerfumeUser = req.user?.username?.toLowerCase().includes('perfume') ||
+                          req.user?.email?.toLowerCase().includes('perfume') ||
+                          (req.user?.roles && req.user.roles.some(r => String(r).toLowerCase().includes('perfume')));
+
+    const materialCategory = category || (isPerfumeUser ? 'Perfume' : 'Cosmetic');
+
     const uomCategory = UOM_CATEGORIES[uom] || 'MASS';
     const costDec = new Decimal(cost || '0').toFixed(6);
     const densityDec = new Decimal(densityKgPerL || '1.000000').toFixed(6);
     const sgDec = new Decimal(specificGravity || densityKgPerL || '1.000000').toFixed(6);
     const unitWtDec = unitWeight ? new Decimal(unitWeight).toFixed(6) : null;
 
-    const [materialId] = await db('materials').insert({
+    const payload = {
       code,
       name,
       company_id: companyId || null,
@@ -218,9 +244,16 @@ router.post('/', authenticateToken, requireRoles('Super Admin', 'Formulator'), a
       unit_weight: unitWtDec,
       unit_weight_uom: unitWeightUom || null,
       description: description || null,
-      is_inventoried: Boolean(isInventoried), // Descriptive reference field only
+      is_inventoried: Boolean(isInventoried),
       is_active: true,
-    }).then(res => [res[0]]);
+    };
+
+    const hasCatCol = await db.schema.hasColumn('materials', 'category');
+    if (hasCatCol) {
+      payload.category = materialCategory;
+    }
+
+    const [materialId] = await db('materials').insert(payload).then(res => [res[0]]);
 
     // Record initial cost history entry
     await db('material_cost_history').insert({
@@ -265,6 +298,7 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       isInventoried,
       isActive,
       is_active,
+      category,
     } = req.body;
 
     if (code && code !== existing.code) {
@@ -282,7 +316,7 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
 
     const activeStatus = isActive !== undefined ? Boolean(isActive) : (is_active !== undefined ? Boolean(is_active) : existing.is_active);
 
-    await db('materials').where({ id }).update({
+    const updatePayload = {
       code: code ? code.trim() : existing.code,
       name: name ? name.trim() : existing.name,
       company_id: companyId !== undefined ? (companyId ? companyId : null) : existing.company_id,
@@ -300,7 +334,14 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       is_inventoried: isInventoried !== undefined ? Boolean(isInventoried) : existing.is_inventoried,
       is_active: activeStatus,
       updated_at: db.fn.now(),
-    });
+    };
+
+    const hasCatCol = await db.schema.hasColumn('materials', 'category');
+    if (hasCatCol && category !== undefined) {
+      updatePayload.category = category;
+    }
+
+    await db('materials').where({ id }).update(updatePayload);
 
     // Check if cost or currency changed -> insert into material_cost_history
     if (newCostDec !== oldCostDec || newCurrency !== oldCurrency) {

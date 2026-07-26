@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Save, ArrowLeft, Info, Plus, Building2, Building, X, RefreshCw } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 
 export function CreateMaterialPage({ setCurrentPage }) {
+  const { user } = useAuth();
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
+
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -16,6 +22,7 @@ export function CreateMaterialPage({ setCurrentPage }) {
     unitWeight: '',
     unitWeightUom: 'g',
     description: '',
+    category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
     isInventoried: false,
   });
 

@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter, History, CheckCircle2, Download, Upload, FileSpreadsheet, Building2, Building, Edit, Save, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 
 export function MaterialsListPage({ setCurrentPage }) {
+  const { user } = useAuth();
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
+
   const [materials, setMaterials] = useState([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [domainFilter, setDomainFilter] = useState(isPerfumeUser ? 'Perfume' : '');
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [selectedCostHistory, setSelectedCostHistory] = useState(null);
@@ -24,6 +31,7 @@ export function MaterialsListPage({ setCurrentPage }) {
     densityKgPerL: '1.00',
     specificGravity: '1.00',
     description: '',
+    category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
     isInventoried: false,
     isActive: true,
   });
@@ -35,7 +43,9 @@ export function MaterialsListPage({ setCurrentPage }) {
   const fetchMaterials = () => {
     setLoading(true);
     let url = `/api/v1/materials?search=${encodeURIComponent(search)}`;
-    if (categoryFilter) url += `&category=${categoryFilter}`;
+    if (categoryFilter) url += `&uomCategory=${categoryFilter}`;
+    if (domainFilter) url += `&productCategory=${domainFilter}`;
+    else if (isPerfumeUser) url += `&productCategory=Perfume`;
 
     apiFetch(url)
       .then(res => res.json())
@@ -61,7 +71,7 @@ export function MaterialsListPage({ setCurrentPage }) {
   useEffect(() => {
     fetchMaterials();
     fetchCompaniesAndVendors();
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, domainFilter]);
 
   const openCostHistory = (materialId, materialName) => {
     apiFetch(`/api/v1/materials/${materialId}/cost-history`)
@@ -89,6 +99,7 @@ export function MaterialsListPage({ setCurrentPage }) {
       densityKgPerL: m.density_kg_per_l !== undefined && m.density_kg_per_l !== null ? String(m.density_kg_per_l) : '1.00',
       specificGravity: m.specific_gravity !== undefined && m.specific_gravity !== null ? String(m.specific_gravity) : '1.00',
       description: m.description || '',
+      category: m.category || (isPerfumeUser ? 'Perfume' : 'Cosmetic'),
       isInventoried: Boolean(m.is_inventoried),
       isActive: m.is_active !== undefined ? Boolean(m.is_active) : true,
     });
@@ -379,14 +390,25 @@ export function MaterialsListPage({ setCurrentPage }) {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Filter className="w-4 h-4 text-slate-500" />
+          <select
+            value={domainFilter}
+            onChange={e => setDomainFilter(e.target.value)}
+            className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+          >
+            {!isPerfumeUser && <option value="">All Product Domains (Cosmetics & Perfumes)</option>}
+            <option value="Perfume">Perfumes Only</option>
+            {!isPerfumeUser && <option value="Cosmetic">Cosmetics Only</option>}
+            {!isPerfumeUser && <option value="Supplement">Supplements Only</option>}
+          </select>
+
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
             className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
           >
-            <option value="">All Categories (MASS / VOLUME / COUNT)</option>
+            <option value="">All UOMs (MASS / VOLUME / COUNT)</option>
             <option value="MASS">MASS (mg, g, kg)</option>
             <option value="VOLUME">VOLUME (mL, L)</option>
             <option value="COUNT">COUNT (pieces, capsules, tablets)</option>
