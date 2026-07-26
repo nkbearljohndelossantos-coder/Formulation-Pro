@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, User, Sparkles } from 'lucide-react';
+import { Lock, User } from 'lucide-react';
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [usernameOrEmail, setUsernameOrEmail] = useState('admin@nkb.com');
-  const [password, setPassword] = useState('Admin@123456');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,6 +63,7 @@ export function LoginPage() {
               <input
                 type="text"
                 required
+                placeholder="Enter your username or email"
                 value={usernameOrEmail}
                 onChange={e => setUsernameOrEmail(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
@@ -77,6 +78,7 @@ export function LoginPage() {
               <input
                 type="password"
                 required
+                placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
@@ -92,14 +94,6 @@ export function LoginPage() {
             {loading ? 'Authenticating...' : 'Sign In to Formulation Hub'}
           </button>
         </form>
-
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
-          <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Default Super Admin Credentials:
-          </p>
-          <p className="font-mono text-slate-700">Email: <span className="font-bold text-slate-900">admin@nkb.com</span></p>
-          <p className="font-mono text-slate-700">Password: <span className="font-bold text-slate-900">Admin@123456</span></p>
-        </div>
       </div>
     </div>
   );
