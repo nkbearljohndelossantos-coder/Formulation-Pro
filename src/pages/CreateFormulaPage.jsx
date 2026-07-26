@@ -6,12 +6,16 @@ import { Beaker, ArrowLeft, Save, AlertTriangle, CheckCircle, FileText, RefreshC
 export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
   const { accessToken, user } = useAuth();
   
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
+
   const [formData, setFormData] = useState({
     code: '',
     name: '',
-    formula_type: 'COSMETIC',
-    product_category: 'Cosmetic',
-    product_subcategory: 'Serum',
+    formula_type: isPerfumeUser ? 'PERFUME' : 'COSMETIC',
+    product_category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
+    product_subcategory: isPerfumeUser ? 'Eau de Parfum' : 'Serum',
     brand_type: 'NKB Core',
     reference_batch_size: '100.00',
     reference_batch_uom: 'g',
@@ -33,12 +37,14 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
         const count = (d.success && Array.isArray(d.data)) ? d.data.length + 1 : 1;
         const year = new Date().getFullYear();
         const pad = String(count).padStart(3, '0');
-        setFormData(prev => ({ ...prev, code: `COS-${year}-${pad}` }));
+        const prefix = isPerfumeUser ? 'PRF' : 'COS';
+        setFormData(prev => ({ ...prev, code: `${prefix}-${year}-${pad}` }));
       })
       .catch(() => {
         const year = new Date().getFullYear();
         const rand = String(Math.floor(100 + Math.random() * 900));
-        setFormData(prev => ({ ...prev, code: `COS-${year}-${rand}` }));
+        const prefix = isPerfumeUser ? 'PRF' : 'COS';
+        setFormData(prev => ({ ...prev, code: `${prefix}-${year}-${rand}` }));
       });
   };
 
@@ -58,9 +64,9 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
         method: 'POST',
         body: JSON.stringify({
           name: formData.name,
-          category: 'Cosmetic',
-          formula_type: 'COSMETIC',
-          product_category: 'Cosmetic',
+          category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
+          formula_type: formData.formula_type,
+          product_category: formData.product_category,
           product_subcategory: formData.product_subcategory,
           brand_type: formData.brand_type,
           reference_batch_size: formData.reference_batch_size,
@@ -84,7 +90,7 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
       }
 
       setTimeout(() => {
-        setCurrentPage('formulation-cosmetic');
+        setCurrentPage(isPerfumeUser ? 'formulation-perfume-no-brand' : 'formulation-cosmetic');
       }, 600);
 
     } catch (err) {

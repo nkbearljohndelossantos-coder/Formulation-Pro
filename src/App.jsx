@@ -36,12 +36,18 @@ export function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [selectedBatchId, setSelectedBatchId] = useState(1);
 
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
+
   useEffect(() => {
     if (user) {
       if (user.role === 'Compounding Operator') {
         setCurrentPage('operator-dashboard');
       } else if (user.role === 'QC Specialist') {
         setCurrentPage('qc-inspection');
+      } else if (isPerfumeUser) {
+        setCurrentPage('formulation-perfume-no-brand');
       } else if (user.role === 'Formulation Chemist') {
         setCurrentPage('create-formula');
       } else {
@@ -63,7 +69,8 @@ export function App() {
     'operator-history',
   ];
 
-  const isDenied = isOperator && !operatorAllowedPages.includes(currentPage);
+  const isCosmeticDenied = isPerfumeUser && currentPage === 'formulation-cosmetic';
+  const isDenied = (isOperator && !operatorAllowedPages.includes(currentPage)) || isCosmeticDenied;
 
   const getPageTitle = () => {
     switch (currentPage) {

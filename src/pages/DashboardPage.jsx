@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBadge } from '../components/Badge';
+import { useAuth } from '../context/AuthContext';
 import {
   FlaskConical,
   Clock,
@@ -11,9 +12,14 @@ import {
 import { apiFetch } from '../services/api';
 
 export function DashboardPage({ setCurrentPage }) {
+  const { user } = useAuth();
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
+
   const [stats, setStats] = useState({
     total: 2,
-    cosmetic: 2,
+    categoryCount: 2,
     drafts: 0,
     underReview: 0,
     forApproval: 0,
@@ -21,22 +27,20 @@ export function DashboardPage({ setCurrentPage }) {
     rejected: 0,
   });
 
-  const [recentFormulas, setRecentFormulas] = useState([
-    { id: 1, code: 'F-COS-001', name: 'Gentle Hydrating Facial Cleanser', category: 'Cosmetic', version: '1.0', status: 'APPROVED', updated_at: '2026-07-21' },
-    { id: 2, code: 'F-COS-002', name: 'Niacinamide 10% Soothing Serum', category: 'Cosmetic', version: '1.0', status: 'APPROVED', updated_at: '2026-07-21' },
-  ]);
+  const [recentFormulas, setRecentFormulas] = useState([]);
 
   useEffect(() => {
     apiFetch('/api/v1/formulas')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
-          const list = data.data.filter(f => f.product_category === 'Cosmetic' || f.category === 'Cosmetic');
-          let cosmetic = 0;
+          const targetCategory = isPerfumeUser ? 'Perfume' : 'Cosmetic';
+          const list = data.data.filter(f => f.product_category === targetCategory || f.category === targetCategory || (isPerfumeUser && (f.formula_type?.includes('PERFUME'))));
+          let categoryCount = 0;
           let drafts = 0, underReview = 0, forApproval = 0, approved = 0, rejected = 0;
 
           list.forEach(f => {
-            cosmetic++;
+            categoryCount++;
             const st = f.latest_version ? f.latest_version.version_status : 'DRAFT';
             if (st === 'DRAFT') drafts++;
             else if (st === 'UNDER_REVIEW') underReview++;
@@ -47,7 +51,7 @@ export function DashboardPage({ setCurrentPage }) {
 
           setStats({
             total: list.length,
-            cosmetic,
+            categoryCount,
             drafts,
             underReview,
             forApproval,
@@ -58,7 +62,7 @@ export function DashboardPage({ setCurrentPage }) {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [isPerfumeUser]);
 
   return (
     <div className="p-6 space-y-6">
@@ -67,7 +71,7 @@ export function DashboardPage({ setCurrentPage }) {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Formulation Command Center</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Real-time management for Cosmetic Formulations and Production Compounding MES.
+            Real-time management for {isPerfumeUser ? 'Perfume' : 'Cosmetic'} Formulations and Production Compounding MES.
           </p>
         </div>
         <div className="flex gap-3">
@@ -94,12 +98,12 @@ export function DashboardPage({ setCurrentPage }) {
           </div>
         </div>
 
-        {/* Cosmetic */}
+        {/* Category Count */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Cosmetics Formulations</span>
-            <p className="text-3xl font-extrabold text-slate-900 mt-2">{stats.cosmetic}</p>
-            <p className="text-xs text-slate-500 mt-1">Phase-Based Skincare & Personal Care</p>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">{isPerfumeUser ? 'Perfume Formulations' : 'Cosmetics Formulations'}</span>
+            <p className="text-3xl font-extrabold text-slate-900 mt-2">{stats.categoryCount}</p>
+            <p className="text-xs text-slate-500 mt-1">{isPerfumeUser ? 'Eau de Parfum & Brand Conversions' : 'Phase-Based Skincare & Personal Care'}</p>
           </div>
           <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl">
             <Layers className="w-6 h-6" />
@@ -135,7 +139,7 @@ export function DashboardPage({ setCurrentPage }) {
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
           <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-            <Clock className="w-4 h-4 text-slate-600" /> Recently Modified Cosmetics Formulas
+            <Clock className="w-4 h-4 text-slate-600" /> Recently Modified {isPerfumeUser ? 'Perfume' : 'Cosmetics'} Formulas
           </h3>
           <button
             onClick={() => setCurrentPage('formula-versions')}

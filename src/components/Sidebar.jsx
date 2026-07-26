@@ -36,6 +36,9 @@ export function Sidebar({ currentPage, setCurrentPage }) {
 
   const isCurrent = (page) => currentPage === page;
   const isOperator = user?.role === 'Compounding Operator';
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
 
   const handleMobileNav = (page) => {
     setCurrentPage(page);
@@ -210,16 +213,40 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                 </button>
                 {formulationsOpen && (
                   <div className="ml-4 pl-3 border-l border-slate-800 mt-1 space-y-1">
+                    {!isPerfumeUser && (
+                      <button
+                        onClick={() => setCurrentPage('formulation-cosmetic')}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                          isCurrent('formulation-cosmetic')
+                            ? 'bg-slate-800 text-blue-400 font-semibold'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <FlaskConical className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Cosmetic Workspace</span>
+                      </button>
+                    )}
                     <button
-                      onClick={() => setCurrentPage('formulation-cosmetic')}
+                      onClick={() => setCurrentPage('formulation-perfume-no-brand')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
-                        isCurrent('formulation-cosmetic')
+                        isCurrent('formulation-perfume-no-brand')
                           ? 'bg-slate-800 text-blue-400 font-semibold'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                       }`}
                     >
-                      <FlaskConical className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Cosmetic Workspace</span>
+                      <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Perfume – No Brand</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('formulation-perfume-brand')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                        isCurrent('formulation-perfume-brand')
+                          ? 'bg-slate-800 text-blue-400 font-semibold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <FlaskConical className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Perfume – Brand</span>
                     </button>
                     <button
                       onClick={() => setCurrentPage('create-formula')}
@@ -355,7 +382,9 @@ export function Sidebar({ currentPage, setCurrentPage }) {
 
         {/* Scope Footer */}
         <div className="p-3 border-t border-slate-800 bg-slate-950/60 text-xs text-slate-400 space-y-1">
-          <p className="font-semibold text-slate-300">Cosmetics Formulation MES</p>
+          <p className="font-semibold text-slate-300">
+            {isPerfumeUser ? 'Perfume Formulation MES' : 'Cosmetics Formulation MES'}
+          </p>
           <p className="text-[10px] leading-tight text-slate-400">
             Strictly Formulation & Compounding MES. No ERP logic.
           </p>
@@ -390,9 +419,9 @@ export function Sidebar({ currentPage, setCurrentPage }) {
 
         {/* Tab 3: Formulations Workspace / Compounding Screen */}
         <button
-          onClick={() => handleMobileNav(isOperator ? 'operator-compounding-screen' : 'formulation-cosmetic')}
+          onClick={() => handleMobileNav(isOperator ? 'operator-compounding-screen' : (isPerfumeUser ? 'formulation-perfume-no-brand' : 'formulation-cosmetic'))}
           className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl transition ${
-            isCurrent('formulation-cosmetic') || isCurrent('operator-compounding-screen') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            isCurrent('formulation-cosmetic') || isCurrent('formulation-perfume-no-brand') || isCurrent('operator-compounding-screen') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           {isOperator ? <Play className="w-5 h-5" /> : <FlaskConical className="w-5 h-5" />}
