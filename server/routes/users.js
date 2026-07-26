@@ -112,6 +112,10 @@ router.put('/:id/status', authenticateToken, requireRoles('Super Admin'), async 
     await logAudit(req, 'TOGGLE_USER_STATUS', 'User', id, { is_active: user.is_active }, { is_active: isActive });
     return res.json({ success: true, message: `User status changed to ${isActive ? 'Active' : 'Inactive'}.` });
   } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to update user status.', error: err.message });
+  }
+});
+
 // PUT /api/v1/users/:id - Edit Full User Credentials (Username, Email, Password, Name, Roles, Active Status)
 router.put('/:id', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
   try {
