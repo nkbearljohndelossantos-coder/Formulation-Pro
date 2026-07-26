@@ -21,6 +21,7 @@ import reportRoutes from './routes/reports.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLogs.js';
 import { idempotencyMiddleware } from './middleware/idempotency.js';
+import { ensurePerfumeAdminAccounts } from './services/seedPerfumeAdminService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -190,6 +191,7 @@ async function initDatabase() {
     console.log('Checking database migrations...');
     await db.migrate.latest();
     console.log('✅ Database migrations up to date.');
+    await ensurePerfumeAdminAccounts();
   } catch (err) {
     console.error('Database migration note:', err.message);
   }
