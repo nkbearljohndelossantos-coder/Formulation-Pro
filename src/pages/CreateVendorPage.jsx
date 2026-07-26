@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Building2, Save, ArrowLeft, Trash2, Search, PlusCircle, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 
 export function CreateVendorPage({ setCurrentPage }) {
+  const { user } = useAuth();
+  const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
+                        user?.email?.toLowerCase().includes('perfume') ||
+                        user?.role?.toLowerCase().includes('perfume');
+
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -15,11 +21,13 @@ export function CreateVendorPage({ setCurrentPage }) {
     contactPerson: '',
     email: '',
     phone: '',
+    category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
   });
 
   const fetchVendors = () => {
     setLoading(true);
-    apiFetch('/api/v1/vendors')
+    const url = isPerfumeUser ? '/api/v1/vendors?productCategory=Perfume' : '/api/v1/vendors';
+    apiFetch(url)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -37,7 +45,8 @@ export function CreateVendorPage({ setCurrentPage }) {
 
   const generateSuggestedCode = () => {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
-    setFormData(prev => ({ ...prev, code: `VEND-${randomNum}` }));
+    const prefix = isPerfumeUser ? 'VEND-PRF' : 'VEND';
+    setFormData(prev => ({ ...prev, code: `${prefix}-${randomNum}` }));
   };
 
   const handleSubmit = (e) => {
