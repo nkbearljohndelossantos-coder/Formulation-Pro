@@ -98,8 +98,20 @@ export async function seed(knex) {
   const reviewerUserId = userMap['supervisor@nkb.com'] || userMap['reviewer@nkb.com'];
   const approverUserId = userMap['chemist2@nkb.com'] || userMap['approver@nkb.com'];
 
-  // 3. Companies
+  // 3. Companies & Vendors
   const c1 = await knex('companies').insert({ code: 'NKB-MC', name: 'NKB Manufacturing Corp.', contact_person: 'Admin', email: 'info@nkb.com', phone: '+63 2 8123 4567' }).then(res => res[0] || 1);
+
+  const cosVendors = [
+    { code: 'VEND-COS-001', name: 'Dow Chemical Personal Care & Specialty Ingredients', contact_person: 'Sales Dept', email: 'orders@dow.com', phone: '+1 800 258 2436', category: 'Cosmetic' },
+    { code: 'VEND-COS-002', name: 'BASF Surfactants & Emulsifiers Corp.', contact_person: 'Supply Chain', email: 'contact@basf.com', phone: '+49 621 60 0', category: 'Cosmetic' },
+    { code: 'VEND-COS-003', name: 'Evonik Active Ingredients & Care Solutions', contact_person: 'Account Rep', email: 'personal-care@evonik.com', phone: '+49 201 177 01', category: 'Cosmetic' },
+  ];
+
+  const vendorMap = {};
+  for (const v of cosVendors) {
+    const [id] = await knex('vendors').insert(v).then(res => [res[0]]);
+    vendorMap[v.code] = id;
+  }
 
   // 4. System Settings
   await knex('system_settings').insert([
