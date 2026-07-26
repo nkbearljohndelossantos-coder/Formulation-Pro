@@ -250,6 +250,7 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
     }
 
     const {
+      code,
       name,
       companyId,
       vendorId,
@@ -262,7 +263,16 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       unitWeightUom,
       description,
       isInventoried,
+      isActive,
+      is_active,
     } = req.body;
+
+    if (code && code !== existing.code) {
+      const codeCheck = await db('materials').where({ code }).whereNot({ id }).first();
+      if (codeCheck) {
+        return res.status(400).json({ success: false, message: `Material Code '${code}' is already used by another material.` });
+      }
+    }
 
     const uomCategory = uom ? (UOM_CATEGORIES[uom] || existing.uom_category) : existing.uom_category;
     const newCostDec = cost !== undefined ? new Decimal(cost).toFixed(6) : existing.cost;
@@ -270,20 +280,25 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
     const oldCostDec = existing.cost;
     const oldCurrency = existing.currency_code;
 
+    const activeStatus = isActive !== undefined ? Boolean(isActive) : (is_active !== undefined ? Boolean(is_active) : existing.is_active);
+
     await db('materials').where({ id }).update({
-      name: name || existing.name,
-      company_id: companyId !== undefined ? companyId : existing.company_id,
-      vendor_id: vendorId !== undefined ? vendorId : existing.vendor_id,
+      code: code ? code.trim() : existing.code,
+      name: name ? name.trim() : existing.name,
+      company_id: companyId !== undefined ? (companyId ? companyId : null) : existing.company_id,
+      vendor_id: vendorId !== undefined ? (vendorId ? vendorId : null) : existing.vendor_id,
       uom: uom || existing.uom,
+      default_uom: uom || existing.default_uom || existing.uom,
       uom_category: uomCategory,
       cost: newCostDec,
       currency_code: newCurrency,
-      density_kg_per_l: densityKgPerL !== undefined ? new Decimal(densityKgPerL).toFixed(6) : existing.density_kg_per_l,
-      specific_gravity: specificGravity !== undefined ? new Decimal(specificGravity).toFixed(6) : existing.specific_gravity,
+      density_kg_per_l: densityKgPerL !== undefined && densityKgPerL !== null && densityKgPerL !== '' ? new Decimal(densityKgPerL).toFixed(6) : existing.density_kg_per_l,
+      specific_gravity: specificGravity !== undefined && specificGravity !== null && specificGravity !== '' ? new Decimal(specificGravity).toFixed(6) : existing.specific_gravity,
       unit_weight: unitWeight !== undefined ? (unitWeight ? new Decimal(unitWeight).toFixed(6) : null) : existing.unit_weight,
       unit_weight_uom: unitWeightUom !== undefined ? unitWeightUom : existing.unit_weight_uom,
       description: description !== undefined ? description : existing.description,
       is_inventoried: isInventoried !== undefined ? Boolean(isInventoried) : existing.is_inventoried,
+      is_active: activeStatus,
       updated_at: db.fn.now(),
     });
 
@@ -300,7 +315,7 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       });
     }
 
-    await logAudit(req, 'UPDATE_MATERIAL', 'Material', id, existing, { cost: newCostDec, currency: newCurrency });
+    await logAudit(req, 'UPDATE_MATERIAL', 'Material', id, existing, { code, name, cost: newCostDec, currency: newCurrency });
     return res.json({ success: true, message: 'Material updated successfully.' });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to update material.', error: err.message });
