@@ -65,6 +65,7 @@ export async function seed(knex) {
   const passwordHash = await bcrypt.hash('Admin@123456', 10);
   const usersToSeed = [
     { username: 'admin', email: 'admin@nkb.com', first_name: 'Super', last_name: 'Admin', roleName: 'Super Admin' },
+    { username: 'perfume_admin', email: 'perfume.admin@nkb.com', first_name: 'Perfume', last_name: 'Master Admin', roleName: 'Super Admin' },
     { username: 'chemist1', email: 'chemist1@nkb.com', first_name: 'Elena', last_name: 'Rostova (Maker)', roleName: 'Formulation Chemist' },
     { username: 'chemist2', email: 'chemist2@nkb.com', first_name: 'Marcus', last_name: 'Vance (Checker)', roleName: 'Formulation Chemist' },
     { username: 'supervisor', email: 'supervisor@nkb.com', first_name: 'David', last_name: 'Miller', roleName: 'Production Supervisor' },
