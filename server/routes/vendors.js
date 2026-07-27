@@ -77,6 +77,47 @@ router.post('/', authenticateToken, requireRoles('Super Admin', 'Formulator', 'F
   }
 });
 
+// PUT /api/v1/vendors/:id - Update vendor details
+router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator', 'Formulation Chemist', 'Production Supervisor', 'QC Specialist'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, name, contactPerson, email, phone, category } = req.body;
+
+    const existing = await db('vendors').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Vendor record not found.' });
+    }
+
+    if (code && code.trim() !== existing.code) {
+      const codeCheck = await db('vendors').where({ code: code.trim() }).whereNot({ id }).first();
+      if (codeCheck) {
+        return res.status(400).json({ success: false, message: `Vendor Code '${code}' is already used by another vendor.` });
+      }
+    }
+
+    const updatePayload = {
+      code: code ? code.trim() : existing.code,
+      name: name ? name.trim() : existing.name,
+      contact_person: contactPerson !== undefined ? (contactPerson ? contactPerson.trim() : null) : existing.contact_person,
+      email: email !== undefined ? (email ? email.trim() : null) : existing.email,
+      phone: phone !== undefined ? (phone ? phone.trim() : null) : existing.phone,
+      updated_at: db.fn.now(),
+    };
+
+    const hasCatCol = await db.schema.hasColumn('vendors', 'category');
+    if (hasCatCol && category !== undefined) {
+      updatePayload.category = category;
+    }
+
+    await db('vendors').where({ id }).update(updatePayload);
+
+    await logAudit(req, 'UPDATE_VENDOR', 'Vendor', id, existing, updatePayload);
+    return res.json({ success: true, message: `Vendor '${updatePayload.name}' updated successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to update vendor record.', error: err.message });
+  }
+});
+
 // DELETE /api/v1/vendors/:id - Delete vendor reference
 router.delete('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator', 'Formulation Chemist', 'Production Supervisor'), async (req, res) => {
   try {

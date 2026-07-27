@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Save, ArrowLeft, Trash2, Search, PlusCircle, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Save, ArrowLeft, Trash2, Search, PlusCircle, CheckCircle2, AlertCircle, RefreshCw, Edit, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 
@@ -23,6 +23,20 @@ export function CreateVendorPage({ setCurrentPage }) {
     phone: '',
     category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
   });
+
+  // Edit Vendor Modal state
+  const [editingVendor, setEditingVendor] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    id: '',
+    code: '',
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const fetchVendors = () => {
     setLoading(true);
@@ -69,7 +83,7 @@ export function CreateVendorPage({ setCurrentPage }) {
         setSaving(false);
         if (data.success) {
           setMessage({ type: 'success', text: `Vendor '${formData.name}' created successfully!` });
-          setFormData({ code: '', name: '', contactPerson: '', email: '', phone: '' });
+          setFormData({ code: '', name: '', contactPerson: '', email: '', phone: '', category: isPerfumeUser ? 'Perfume' : 'Cosmetic' });
           generateSuggestedCode();
           fetchVendors();
         } else {
@@ -80,6 +94,60 @@ export function CreateVendorPage({ setCurrentPage }) {
         setSaving(false);
         setMessage({ type: 'error', text: err.message });
       });
+  };
+
+  const handleOpenEditModal = (v) => {
+    setEditError('');
+    setEditingVendor(v);
+    setEditFormData({
+      id: v.id,
+      code: v.code || '',
+      name: v.name || '',
+      contactPerson: v.contact_person || '',
+      email: v.email || '',
+      phone: v.phone || '',
+      category: v.category || (isPerfumeUser ? 'Perfume' : 'Cosmetic'),
+    });
+  };
+
+  const handleSaveEditVendor = async (e) => {
+    e.preventDefault();
+    if (!editFormData.code.trim() || !editFormData.name.trim()) {
+      setEditError('Vendor Code and Vendor Name are required.');
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError('');
+
+    try {
+      const res = await apiFetch(`/api/v1/vendors/${editFormData.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: editFormData.code.trim(),
+          name: editFormData.name.trim(),
+          contactPerson: editFormData.contactPerson.trim(),
+          email: editFormData.email.trim(),
+          phone: editFormData.phone.trim(),
+          category: editFormData.category,
+        }),
+      });
+
+      const data = await res.json();
+      setSavingEdit(false);
+
+      if (res.ok && data.success) {
+        setEditingVendor(null);
+        setMessage({ type: 'success', text: data.message });
+        fetchVendors();
+      } else {
+        setEditError(data.message || 'Failed to update vendor record.');
+      }
+    } catch (err) {
+      setSavingEdit(false);
+      setEditError(err.message || 'Server error while updating vendor.');
+    }
   };
 
   const handleDelete = (id, vendorName) => {
@@ -121,7 +189,7 @@ export function CreateVendorPage({ setCurrentPage }) {
             <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Building2 className="w-5 h-5 text-blue-600" /> Vendor Management & Registration
             </h1>
-            <p className="text-xs text-slate-500">Register new raw material vendors, suppliers, and distributors</p>
+            <p className="text-xs text-slate-500">Register and edit raw material vendors, suppliers, and distributors</p>
           </div>
         </div>
 
@@ -231,17 +299,31 @@ export function CreateVendorPage({ setCurrentPage }) {
               />
             </div>
 
-            {/* Submit Button */}
-            <div className="flex items-end">
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
+            {/* Product Domain */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Product Domain</label>
+              <select
+                value={formData.category}
+                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
               >
-                <Save className="w-4 h-4" />
-                {saving ? 'Saving Vendor...' : 'Save Vendor'}
-              </button>
+                <option value="Cosmetic">Cosmetic</option>
+                <option value="Perfume">Perfume</option>
+                <option value="Supplement">Supplement</option>
+                <option value="All">All / Shared</option>
+              </select>
             </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving Vendor...' : 'Save Vendor'}
+            </button>
           </div>
         </form>
       </div>
@@ -272,6 +354,7 @@ export function CreateVendorPage({ setCurrentPage }) {
               <tr>
                 <th className="p-3">Vendor Code</th>
                 <th className="p-3">Vendor Name</th>
+                <th className="p-3">Domain</th>
                 <th className="p-3">Contact Person</th>
                 <th className="p-3">Email</th>
                 <th className="p-3">Phone</th>
@@ -281,11 +364,11 @@ export function CreateVendorPage({ setCurrentPage }) {
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-slate-500">Loading vendor records...</td>
+                  <td colSpan="7" className="p-8 text-center text-slate-500">Loading vendor records...</td>
                 </tr>
               ) : filteredVendors.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-slate-500">
+                  <td colSpan="7" className="p-8 text-center text-slate-500">
                     No registered vendors found. Fill out the form above to add your first vendor.
                   </td>
                 </tr>
@@ -294,17 +377,31 @@ export function CreateVendorPage({ setCurrentPage }) {
                   <tr key={v.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3 font-mono font-bold text-blue-700">{v.code}</td>
                     <td className="p-3 font-medium text-slate-900">{v.name}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                        {v.category || 'Cosmetic'}
+                      </span>
+                    </td>
                     <td className="p-3 text-slate-600">{v.contact_person || '—'}</td>
                     <td className="p-3 text-slate-600">{v.email || '—'}</td>
                     <td className="p-3 text-slate-600">{v.phone || '—'}</td>
                     <td className="p-3 text-center">
-                      <button
-                        onClick={() => handleDelete(v.id, v.name)}
-                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                        title="Delete Vendor"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditModal(v)}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded font-semibold text-[11px] flex items-center gap-1 transition-colors"
+                          title="Edit Vendor"
+                        >
+                          <Edit className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(v.id, v.name)}
+                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
+                          title="Delete Vendor"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -313,6 +410,115 @@ export function CreateVendorPage({ setCurrentPage }) {
           </table>
         </div>
       </div>
+
+      {/* Edit Vendor Modal */}
+      {editingVendor && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Edit className="w-4 h-4 text-blue-600" /> Edit Vendor Record — {editingVendor.name}
+              </h3>
+              <button onClick={() => setEditingVendor(null)} className="text-slate-400 hover:text-slate-700">✕</button>
+            </div>
+
+            {editError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold text-rose-800">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEditVendor} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Vendor Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.code}
+                    onChange={e => setEditFormData({ ...editFormData, code: e.target.value.toUpperCase() })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono font-bold text-blue-700 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Product Domain</label>
+                  <select
+                    value={editFormData.category}
+                    onChange={e => setEditFormData({ ...editFormData, category: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="Cosmetic">Cosmetic</option>
+                    <option value="Perfume">Perfume</option>
+                    <option value="Supplement">Supplement</option>
+                    <option value="All">All / Shared</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Vendor Name / Company *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Contact Person</label>
+                <input
+                  type="text"
+                  value={editFormData.contactPerson}
+                  onChange={e => setEditFormData({ ...editFormData, contactPerson: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={editFormData.phone}
+                    onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingVendor(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> {savingEdit ? 'Saving...' : 'Save Vendor Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
