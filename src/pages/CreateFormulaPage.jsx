@@ -14,7 +14,7 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
     code: '',
     name: '',
     formula_type: isPerfumeUser ? 'PERFUME' : 'COSMETIC',
-    product_category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
+    product_category: isPerfumeUser ? 'Perfume No Brand' : 'Cosmetic',
     product_subcategory: isPerfumeUser ? 'Eau de Parfum' : 'Serum',
     brand_type: 'NKB Core',
     reference_batch_size: '100.00',
@@ -64,9 +64,9 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
         method: 'POST',
         body: JSON.stringify({
           name: formData.name,
-          category: isPerfumeUser ? 'Perfume' : 'Cosmetic',
+          category: formData.product_category || (isPerfumeUser ? 'Perfume No Brand' : 'Cosmetic'),
           formula_type: formData.formula_type,
-          product_category: formData.product_category,
+          product_category: formData.product_category || (isPerfumeUser ? 'Perfume No Brand' : 'Cosmetic'),
           product_subcategory: formData.product_subcategory,
           brand_type: formData.brand_type,
           reference_batch_size: formData.reference_batch_size,
@@ -194,9 +194,12 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
               <select
                 value={formData.product_category}
                 onChange={(e) => handleChange('product_category', e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-slate-900"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white font-semibold text-slate-900"
               >
-                <option value="Cosmetic">Cosmetic (Skincare / Personal Care)</option>
+                {!isPerfumeUser && <option value="Cosmetic">Cosmetic (Skincare / Personal Care)</option>}
+                <option value="Perfume No Brand">Perfume – No Brand</option>
+                <option value="Perfume Brand">Perfume – Brand</option>
+                {!isPerfumeUser && <option value="Food Supplement">Food Supplement</option>}
               </select>
             </div>
 
