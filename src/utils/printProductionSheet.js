@@ -247,18 +247,25 @@ export function printProductionSheet({ version, formula, materials, user }) {
           text-align: left;
           font-size: 12px;
           font-weight: 500;
-          margin-bottom: 28px;
+          margin-bottom: 24px;
         }
-        .sig-line-bar {
-          border-top: 1.5px solid #000000;
-          padding-top: 4px;
-          font-size: 11.5px;
+        .sig-name {
+          font-size: 12px;
           font-weight: 700;
+          color: #000000;
+          margin-bottom: 4px;
+          min-height: 18px;
+          text-align: center;
+        }
+        .sig-line {
+          border-bottom: 1.5px solid #000000;
+          width: 100%;
+          margin-bottom: 4px;
         }
         .sig-subtext {
           font-size: 10.5px;
           color: #4b5563;
-          margin-top: 2px;
+          text-align: center;
         }
 
         /* Screen Print Bar Controls */
@@ -359,19 +366,22 @@ export function printProductionSheet({ version, formula, materials, user }) {
         <div class="signatures-row">
           <div class="sig-box">
             <div class="sig-title">Prepared by:</div>
-            <div class="sig-line-bar">${preparedByName}</div>
+            <div class="sig-name">${preparedByName}</div>
+            <div class="sig-line"></div>
             <div class="sig-subtext">Name & Signature</div>
           </div>
 
           <div class="sig-box">
             <div class="sig-title">Checked by:</div>
-            <div class="sig-line-bar">&nbsp;</div>
+            <div class="sig-name">&nbsp;</div>
+            <div class="sig-line"></div>
             <div class="sig-subtext">QC Name & Signature</div>
           </div>
 
           <div class="sig-box">
             <div class="sig-title">Completed by:</div>
-            <div class="sig-line-bar">&nbsp;</div>
+            <div class="sig-name">&nbsp;</div>
+            <div class="sig-line"></div>
             <div class="sig-subtext">Production Team & Date</div>
           </div>
         </div>
