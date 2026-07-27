@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBadge } from '../components/Badge';
-import { History, GitBranch, ArrowLeft, RefreshCw } from 'lucide-react';
+import { History, GitBranch, ArrowLeft, RefreshCw, Printer } from 'lucide-react';
 import { apiFetch } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { printProductionSheet } from '../utils/printProductionSheet';
 
 export function FormulaVersionsPage({ setCurrentPage }) {
+  const { user } = useAuth();
   const [formulas, setFormulas] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState(null);
   const [versionDetail, setVersionDetail] = useState(null);
@@ -145,6 +148,19 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={versionDetail.version.version_status} />
+                  {versionDetail.version.version_status === 'APPROVED' && (
+                    <button
+                      onClick={() => printProductionSheet({
+                        version: versionDetail.version,
+                        formula: versionDetail.formula,
+                        materials: versionDetail.materials,
+                        user
+                      })}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                    >
+                      <Printer className="w-4 h-4" /> Print Production Sheet (PDF)
+                    </button>
+                  )}
                   {(versionDetail.version.version_status === 'APPROVED' || versionDetail.version.version_status === 'REJECTED') && (
                     <button
                       onClick={() => createRevisionDraft(versionDetail.formula?.id || versionDetail.version.formula_id, versionDetail.version.id)}

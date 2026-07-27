@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
+import { printProductionSheet } from '../utils/printProductionSheet';
 import {
   FlaskConical,
   Save,
@@ -14,6 +15,7 @@ import {
   Info,
   Clock,
   GitBranch,
+  Printer,
 } from 'lucide-react';
 
 function StatusBadge({ status }) {
@@ -374,12 +376,22 @@ export function CosmeticFormulatorPage() {
                 </button>
               )}
               {isReadOnly && (
-                <button
-                  onClick={handleCreateRevision}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs"
-                >
-                  <GitBranch className="w-3.5 h-3.5" /> Create New Revision (Draft)
-                </button>
+                <>
+                  {activeVersion.version_status === 'APPROVED' && (
+                    <button
+                      onClick={() => printProductionSheet({ version: activeVersion, formula: { code: activeVersion.formula_code, name: activeVersion.formula_name }, materials, user })}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                    >
+                      <Printer className="w-4 h-4" /> Print Production Sheet (PDF)
+                    </button>
+                  )}
+                  <button
+                    onClick={handleCreateRevision}
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs"
+                  >
+                    <GitBranch className="w-3.5 h-3.5" /> Create New Revision (Draft)
+                  </button>
+                </>
               )}
             </div>
           </div>
