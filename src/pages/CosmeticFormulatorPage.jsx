@@ -101,7 +101,8 @@ export function CosmeticFormulatorPage() {
             material_id: m.material_id,
             material_code_snapshot: m.material_code,
             material_name_snapshot: m.material_name,
-            uom_snapshot: m.uom_snapshot || 'g',
+            uom_snapshot: 'g',
+            raw_uom: m.material_uom || m.uom || m.default_uom || 'g',
             percentage: String(m.percentage || '0.00'),
             function_name: m.function_name || 'Active',
             phase_name: m.phase_name || 'Phase A - Water Phase',
@@ -117,6 +118,13 @@ export function CosmeticFormulatorPage() {
       });
   };
 
+  const getCostPerGram = (m) => {
+    const c = parseFloat(m.cost || 0);
+    const u = String(m.raw_uom || m.uom || m.default_uom || 'g').trim().toLowerCase();
+    if (u === 'kg') return c / 1000;
+    return c;
+  };
+
   const totalPct = materials.reduce((acc, m) => acc + (parseFloat(m.percentage) || 0), 0).toFixed(2);
   const isValidPct = Math.abs(parseFloat(totalPct) - 100) < 0.05;
 
@@ -128,7 +136,8 @@ export function CosmeticFormulatorPage() {
         material_id: mat.id,
         material_code_snapshot: mat.code,
         material_name_snapshot: mat.name,
-        uom_snapshot: mat.uom || 'g',
+        uom_snapshot: 'g',
+        raw_uom: mat.uom || 'g',
         percentage: '0.00',
         function_name: 'Solvent Base',
         phase_name: phaseName,
@@ -150,7 +159,8 @@ export function CosmeticFormulatorPage() {
         next[idx].material_id = mat.id;
         next[idx].material_code_snapshot = mat.code;
         next[idx].material_name_snapshot = mat.name;
-        next[idx].uom_snapshot = mat.uom || 'g';
+        next[idx].uom_snapshot = 'g';
+        next[idx].raw_uom = mat.uom || 'g';
         next[idx].cost = mat.cost || '0.00';
       }
     } else {
@@ -433,8 +443,11 @@ export function CosmeticFormulatorPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {materials.map((m, idx) => {
-                    const unitCost = parseFloat(m.cost || 0);
-                    const lineCost = (parseFloat(m.percentage || 0) / 100) * parseFloat(activeVersion?.target_batch_size || 100) * unitCost;
+                    const unitCostG = getCostPerGram(m);
+                    const batchSizeG = parseFloat(activeVersion?.target_batch_size || 100);
+                    const pct = parseFloat(m.percentage || 0);
+                    const reqWeightGrams = (pct / 100) * batchSizeG;
+                    const lineCost = reqWeightGrams * unitCostG;
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50">
@@ -471,7 +484,7 @@ export function CosmeticFormulatorPage() {
                           )}
                         </td>
                         <td className="p-3 text-right font-mono text-slate-600 font-semibold">
-                          PHP {unitCost.toFixed(4)}
+                          PHP {unitCostG.toFixed(4)}
                         </td>
                         <td className="p-3 text-right font-mono text-blue-700 font-bold">
                           PHP {lineCost.toFixed(2)}
@@ -501,7 +514,7 @@ export function CosmeticFormulatorPage() {
                             />
                           )}
                         </td>
-                        <td className="p-3 font-mono text-slate-700 font-bold">{m.uom_snapshot || 'g'}</td>
+                        <td className="p-3 font-mono text-slate-700 font-bold">g</td>
                         {!isReadOnly && (
                           <td className="p-3 text-center">
                             <button onClick={() => removeLine(idx)} className="p-1 text-rose-600 hover:bg-rose-50 rounded">
@@ -524,9 +537,9 @@ export function CosmeticFormulatorPage() {
                     <td className="p-3 text-right font-mono text-blue-800 text-sm">
                       PHP {materials.reduce((acc, m) => {
                         const pct = parseFloat(m.percentage) || 0;
-                        const cost = parseFloat(m.cost) || 0;
+                        const unitCostG = getCostPerGram(m);
                         const batchSize = parseFloat(activeVersion?.target_batch_size) || 100;
-                        return acc + (pct / 100) * batchSize * cost;
+                        return acc + (pct / 100) * batchSize * unitCostG;
                       }, 0).toFixed(2)}
                     </td>
                     <td className="p-3 font-mono text-indigo-700">

@@ -15,25 +15,31 @@ function calculateFormulaCosting(materials, targetBatchSize = '100.000000') {
 
   const lineCosts = materials.map(m => {
     const pctDec = new Decimal(m.percentage || '0');
-    const costPerKg = new Decimal(m.cost || '0');
-    const reqWeight = pctDec.div(100).times(batchSizeDec);
-    const lineCost = reqWeight.times(costPerKg);
+    const rawCost = new Decimal(m.cost || '0');
+    const uom = String(m.material_uom || m.uom || m.uom_snapshot || 'g').trim().toLowerCase();
+
+    // Convert raw cost to cost per gram if material UOM in DB is kg
+    const costPerG = (uom === 'kg') ? rawCost.div(1000) : rawCost;
+    const reqWeightGrams = pctDec.div(100).times(batchSizeDec);
+    const lineCost = reqWeightGrams.times(costPerG);
 
     totalCost = totalCost.plus(lineCost);
     return {
       materialId: m.material_id,
       percentage: pctDec.toFixed(6),
-      requiredWeight: reqWeight.toFixed(6),
-      costPerKg: costPerKg.toFixed(6),
+      requiredWeight: reqWeightGrams.toFixed(6),
+      costPerG: costPerG.toFixed(6),
+      costPerKg: (uom === 'kg') ? rawCost.toFixed(6) : rawCost.times(1000).toFixed(6),
       lineCost: lineCost.toFixed(6),
     };
   });
 
-  const costPerKg = batchSizeDec.gt(0) ? totalCost.div(batchSizeDec) : new Decimal(0);
+  const costPerG = batchSizeDec.gt(0) ? totalCost.div(batchSizeDec) : new Decimal(0);
 
   return {
     totalBatchCost: totalCost.toFixed(6),
-    costPerKg: costPerKg.toFixed(6),
+    costPerKg: costPerG.times(1000).toFixed(6),
+    costPerG: costPerG.toFixed(6),
     lineCosts,
   };
 }
@@ -157,6 +163,7 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
         'materials.code as material_code',
         'materials.name as material_name',
         'materials.cost',
+        'materials.uom as material_uom',
         'materials.currency_code',
         'materials.density_kg_per_l',
         'materials.specific_gravity',
@@ -247,7 +254,10 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
       const rawMaterials = await trx('materials').whereIn('id', materialIds);
       const materialCostMap = {};
       rawMaterials.forEach(m => {
-        materialCostMap[m.id] = new Decimal(m.cost || '0');
+        const uom = String(m.uom || 'g').trim().toLowerCase();
+        const c = new Decimal(m.cost || '0');
+        const costPerG = (uom === 'kg') ? c.div(1000) : c;
+        materialCostMap[m.id] = costPerG;
       });
 
       const batchSizeDec = new Decimal(version.target_batch_size || '100.000000');
@@ -279,7 +289,7 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
             material_id: mId,
             material_code_snapshot: m.material_code_snapshot || m.material_code || m.code || 'MAT',
             material_name_snapshot: m.material_name_snapshot || m.material_name || m.name || 'Material',
-            uom_snapshot: m.uom_snapshot || m.uom || 'g',
+            uom_snapshot: 'g',
             percentage: pctDec.toFixed(6),
             calculated_quantity: reqWeight.toFixed(6),
             addition_order: m.addition_order || (idx + 1),

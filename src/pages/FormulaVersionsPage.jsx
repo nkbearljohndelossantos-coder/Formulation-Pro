@@ -184,7 +184,7 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <span className="text-slate-500 block">Target Batch</span>
-                  <span className="font-mono text-slate-900 font-bold">{versionDetail.version.target_batch_size || '100.00'} {versionDetail.version.target_batch_uom || 'kg'}</span>
+                  <span className="font-mono text-slate-900 font-bold">{versionDetail.version.target_batch_size || '100.00'} {versionDetail.version.target_batch_uom || 'g'}</span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <span className="text-slate-500 block">Effective Date</span>
@@ -215,7 +215,7 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                           <td className="p-2.5 font-medium text-slate-900">{m.material_name_snapshot || m.material_name || '-'}</td>
                           <td className="p-2.5 font-mono">{Number(m.percentage || 0).toFixed(2)}%</td>
                           <td className="p-2.5 font-mono">{Number(m.calculated_quantity || 0).toFixed(2)}</td>
-                          <td className="p-2.5 font-mono text-slate-600">{m.uom_snapshot || 'kg'}</td>
+                          <td className="p-2.5 font-mono text-slate-600 font-bold">g</td>
                         </tr>
                       ))}
                     </tbody>
