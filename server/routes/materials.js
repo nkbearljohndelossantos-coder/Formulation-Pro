@@ -274,7 +274,7 @@ router.post('/', authenticateToken, requireRoles('Super Admin', 'Formulator'), a
 });
 
 // PUT /api/v1/materials/:id - Edit Material (Tracks cost history automatically)
-router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'), async (req, res) => {
+router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator', 'Formulation Chemist', 'Production Supervisor', 'QC Specialist'), async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await db('materials').where({ id }).first();
@@ -301,20 +301,36 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       category,
     } = req.body;
 
-    if (code && code !== existing.code) {
-      const codeCheck = await db('materials').where({ code }).whereNot({ id }).first();
+    if (code && code.trim() !== existing.code) {
+      const codeCheck = await db('materials').where({ code: code.trim() }).whereNot({ id }).first();
       if (codeCheck) {
         return res.status(400).json({ success: false, message: `Material Code '${code}' is already used by another material.` });
       }
     }
 
     const uomCategory = uom ? (UOM_CATEGORIES[uom] || existing.uom_category) : existing.uom_category;
-    const newCostDec = cost !== undefined ? new Decimal(cost).toFixed(6) : existing.cost;
+
+    const newCostDec = (cost !== undefined && cost !== null && String(cost).trim() !== '')
+      ? new Decimal(cost).toFixed(6)
+      : (existing.cost ? new Decimal(existing.cost).toFixed(6) : '0.000000');
+
     const newCurrency = currencyCode || existing.currency_code;
-    const oldCostDec = existing.cost;
+    const oldCostDec = existing.cost ? new Decimal(existing.cost).toFixed(6) : '0.000000';
     const oldCurrency = existing.currency_code;
 
-    const activeStatus = isActive !== undefined ? Boolean(isActive) : (is_active !== undefined ? Boolean(is_active) : existing.is_active);
+    const activeStatus = isActive !== undefined ? Boolean(isActive) : (is_active !== undefined ? Boolean(is_active) : Boolean(existing.is_active));
+
+    const densityDec = (densityKgPerL !== undefined && densityKgPerL !== null && String(densityKgPerL).trim() !== '')
+      ? new Decimal(densityKgPerL).toFixed(6)
+      : (existing.density_kg_per_l ? new Decimal(existing.density_kg_per_l).toFixed(6) : '1.000000');
+
+    const sgDec = (specificGravity !== undefined && specificGravity !== null && String(specificGravity).trim() !== '')
+      ? new Decimal(specificGravity).toFixed(6)
+      : (existing.specific_gravity ? new Decimal(existing.specific_gravity).toFixed(6) : '1.000000');
+
+    const unitWtDec = (unitWeight !== undefined && unitWeight !== null && String(unitWeight).trim() !== '')
+      ? new Decimal(unitWeight).toFixed(6)
+      : existing.unit_weight;
 
     const updatePayload = {
       code: code ? code.trim() : existing.code,
@@ -322,16 +338,15 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       company_id: companyId !== undefined ? (companyId ? companyId : null) : existing.company_id,
       vendor_id: vendorId !== undefined ? (vendorId ? vendorId : null) : existing.vendor_id,
       uom: uom || existing.uom,
-      default_uom: uom || existing.default_uom || existing.uom,
       uom_category: uomCategory,
       cost: newCostDec,
       currency_code: newCurrency,
-      density_kg_per_l: densityKgPerL !== undefined && densityKgPerL !== null && densityKgPerL !== '' ? new Decimal(densityKgPerL).toFixed(6) : existing.density_kg_per_l,
-      specific_gravity: specificGravity !== undefined && specificGravity !== null && specificGravity !== '' ? new Decimal(specificGravity).toFixed(6) : existing.specific_gravity,
-      unit_weight: unitWeight !== undefined ? (unitWeight ? new Decimal(unitWeight).toFixed(6) : null) : existing.unit_weight,
+      density_kg_per_l: densityDec,
+      specific_gravity: sgDec,
+      unit_weight: unitWtDec,
       unit_weight_uom: unitWeightUom !== undefined ? unitWeightUom : existing.unit_weight_uom,
       description: description !== undefined ? description : existing.description,
-      is_inventoried: isInventoried !== undefined ? Boolean(isInventoried) : existing.is_inventoried,
+      is_inventoried: isInventoried !== undefined ? Boolean(isInventoried) : Boolean(existing.is_inventoried),
       is_active: activeStatus,
       updated_at: db.fn.now(),
     };
@@ -356,9 +371,10 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator'),
       });
     }
 
-    await logAudit(req, 'UPDATE_MATERIAL', 'Material', id, existing, { code, name, cost: newCostDec, currency: newCurrency });
+    await logAudit(req, 'UPDATE_MATERIAL', 'Material', id, existing, { code: updatePayload.code, name: updatePayload.name, cost: newCostDec, currency: newCurrency });
     return res.json({ success: true, message: 'Material updated successfully.' });
   } catch (err) {
+    console.error('Error updating material:', err);
     return res.status(500).json({ success: false, message: 'Failed to update material.', error: err.message });
   }
 });

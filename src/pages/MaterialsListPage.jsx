@@ -130,6 +130,7 @@ export function MaterialsListPage({ setCurrentPage }) {
           densityKgPerL: editFormData.densityKgPerL,
           specificGravity: editFormData.specificGravity,
           description: editFormData.description,
+          category: editFormData.category,
           isInventoried: editFormData.isInventoried,
           isActive: editFormData.isActive,
         }),
@@ -559,8 +560,21 @@ export function MaterialsListPage({ setCurrentPage }) {
                 </div>
               </div>
 
-              {/* Row 2: Company & Vendor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Row 2: Category, Company & Vendor */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Product Domain</label>
+                  <select
+                    value={editFormData.category || 'Cosmetic'}
+                    onChange={e => setEditFormData({ ...editFormData, category: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="Cosmetic">Cosmetic</option>
+                    <option value="Perfume">Perfume</option>
+                    <option value="Supplement">Supplement</option>
+                    <option value="All">All / Shared</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Company</label>
                   <select
