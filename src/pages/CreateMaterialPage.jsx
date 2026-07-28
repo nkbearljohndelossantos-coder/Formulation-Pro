@@ -336,20 +336,7 @@ export function CreateMaterialPage({ setCurrentPage }) {
             </div>
           </div>
 
-          {/* Density KG/L */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Density (KG/L) <span className="text-slate-500 font-normal">(Required for Weight ↔ Volume)</span>
-            </label>
-            <input
-              type="number"
-              step="0.000001"
-              placeholder="1.000000"
-              value={formData.densityKgPerL}
-              onChange={e => setFormData({ ...formData, densityKgPerL: e.target.value, specificGravity: e.target.value })}
-              className="w-full bg-white border border-slate-300 rounded-lg px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
-            />
-          </div>
+
 
           {/* Unit Weight (For Count conversions) */}
           {['pieces', 'capsules', 'tablets', 'sachets'].includes(formData.uom) && (
