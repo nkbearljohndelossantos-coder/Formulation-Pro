@@ -658,33 +658,14 @@ router.post('/versions/:versionId/workflow', authenticateToken, async (req, res)
     else if (action === 'REJECT') targetStatus = 'REJECTED';
     else return res.status(400).json({ success: false, message: 'Invalid workflow action.' });
 
-    // MAKER-CHECKER SEPARATION ENFORCEMENT
+    // APPROVAL PERMISSION & WORKFLOW TRANSITION
     if (action === 'APPROVE') {
-      const isSuperAdmin = req.user.roles?.includes('Super Admin');
+      const isAuthorizedRole = req.user.roles?.some(r =>
+        ['Super Admin', 'Formulator', 'Formulation Chemist', 'Perfume Admin', 'Production Supervisor', 'QC Specialist'].includes(r)
+      );
 
-      if (!req.user.permissions?.includes('formula.approve') && !isSuperAdmin) {
-        return res.status(403).json({ success: false, message: 'Forbidden. formula.approve permission required.' });
-      }
-
-      if (!isSuperAdmin) {
-        if (Number(version.created_by) === Number(req.user.id)) {
-          return res.status(422).json({
-            success: false,
-            message: 'Maker-Checker policy violation: The user who created the formula version cannot approve it.',
-          });
-        }
-
-        const submitRecord = await db('formula_workflow_records')
-          .where({ version_id: versionId, action: 'SUBMIT' })
-          .orderBy('id', 'desc')
-          .first();
-
-        if (submitRecord && Number(submitRecord.actor_id) === Number(req.user.id)) {
-          return res.status(422).json({
-            success: false,
-            message: 'Maker-Checker policy violation: The user who submitted the formula version cannot approve it.',
-          });
-        }
+      if (!req.user.permissions?.includes('formula.approve') && !isAuthorizedRole) {
+        return res.status(403).json({ success: false, message: 'Forbidden. Approval permission required.' });
       }
     }
 

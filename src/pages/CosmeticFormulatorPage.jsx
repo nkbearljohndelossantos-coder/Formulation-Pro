@@ -402,9 +402,9 @@ export function CosmeticFormulatorPage() {
                   Endorse for Approval
                 </button>
               )}
-              {activeVersion.version_status === 'FOR_APPROVAL' && (
-                <button onClick={() => handleWorkflow('APPROVE')} disabled={saving} className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50">
-                  Approve Version
+              {activeVersion.version_status !== 'APPROVED' && activeVersion.version_status !== 'SUPERSEDED' && activeVersion.version_status !== 'LOCKED' && (
+                <button onClick={() => handleWorkflow('APPROVE')} disabled={saving} className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-50 transition">
+                  <CheckCircle className="w-4 h-4" /> Approve Version
                 </button>
               )}
               {isReadOnly && (
