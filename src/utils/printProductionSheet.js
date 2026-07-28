@@ -19,7 +19,7 @@ export function printProductionSheet({ version, formula, materials, user }) {
   const formulaName = (formula?.name || version?.formula_name || 'Cosmetic Formulation').toUpperCase();
   const versionNum = `${version?.major_version || 1}.${version?.minor_version || 0}`;
 
-  const targetBatchSizeNum = parseFloat(version?.target_batch_size || 260000);
+  const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
   const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const batchUom = (version?.target_batch_uom || 'G').toUpperCase();
 
