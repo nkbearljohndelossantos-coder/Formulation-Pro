@@ -458,6 +458,7 @@ export function CosmeticFormulatorPage() {
                     <th className="p-3 text-right">Unit Cost (PHP/g)</th>
                     <th className="p-3 text-right">Line Cost (PHP)</th>
                     <th className="p-3">Percentage (%)</th>
+                    <th className="p-3 text-right">Req. Weight (g)</th>
                     <th className="p-3">Function</th>
                     <th className="p-3">UOM</th>
                     {!isReadOnly && <th className="p-3 text-center">Remove</th>}
@@ -524,6 +525,9 @@ export function CosmeticFormulatorPage() {
                             />
                           )}
                         </td>
+                        <td className="p-3 text-right font-mono text-emerald-800 font-bold">
+                          {reqWeightGrams.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g
+                        </td>
                         <td className="p-3">
                           {isReadOnly ? (
                             <span className="text-slate-800">{m.function_name}</span>
@@ -566,6 +570,9 @@ export function CosmeticFormulatorPage() {
                     </td>
                     <td className="p-3 font-mono text-indigo-700">
                       {totalPct}%
+                    </td>
+                    <td className="p-3 text-right font-mono text-emerald-900 font-extrabold text-sm">
+                      {parseFloat(activeVersion?.target_batch_size || 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g
                     </td>
                     <td className="p-3" colSpan={isReadOnly ? 2 : 3}></td>
                   </tr>
