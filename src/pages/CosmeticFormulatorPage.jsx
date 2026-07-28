@@ -176,6 +176,8 @@ export function CosmeticFormulatorPage() {
       method: 'PUT',
       body: JSON.stringify({
         lockVersion: activeVersion.lock_version,
+        targetBatchSize: activeVersion.target_batch_size,
+        targetBatchUom: activeVersion.target_batch_uom || 'g',
         materials,
         categoryDetails: cosmeticDetails,
       }),
@@ -240,6 +242,8 @@ export function CosmeticFormulatorPage() {
           method: 'PUT',
           body: JSON.stringify({
             lockVersion: activeVersion.lock_version,
+            targetBatchSize: activeVersion.target_batch_size,
+            targetBatchUom: activeVersion.target_batch_uom || 'g',
             materials,
             categoryDetails: cosmeticDetails,
           }),
@@ -339,8 +343,26 @@ export function CosmeticFormulatorPage() {
                 <span className="font-semibold text-slate-900">{activeVersion.brand_type || 'NKB Core'}</span>
               </div>
               <div>
-                <span className="text-slate-500 block font-medium">Ref. Batch Size</span>
-                <span className="font-mono font-bold text-slate-900">{Number(activeVersion.target_batch_size || 100).toFixed(2)} {activeVersion.target_batch_uom || 'g'}</span>
+                <span className="text-slate-500 block font-medium mb-1">Ref. Batch Size</span>
+                {!isReadOnly ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={activeVersion.target_batch_size || '100.00'}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setActiveVersion(prev => ({ ...prev, target_batch_size: val }));
+                      }}
+                      className="w-28 bg-white border border-blue-400 rounded px-2 py-1 font-mono font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600 shadow-xs"
+                      title="Edit Target Batch Size"
+                    />
+                    <span className="font-mono font-bold text-slate-700 text-xs">g</span>
+                  </div>
+                ) : (
+                  <span className="font-mono font-bold text-slate-900">{Number(activeVersion.target_batch_size || 100).toFixed(2)} {activeVersion.target_batch_uom || 'g'}</span>
+                )}
               </div>
               <div>
                 <span className="text-slate-500 block font-medium">Change Type</span>

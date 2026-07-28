@@ -209,7 +209,7 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
 router.put('/versions/:versionId', authenticateToken, async (req, res) => {
   try {
     const { versionId } = req.params;
-    const { materials, categoryDetails } = req.body;
+    const { materials, categoryDetails, targetBatchSize, target_batch_size, targetBatchUom, target_batch_uom } = req.body;
 
     const version = await db('formula_versions').where({ id: versionId }).first();
     if (!version) {
@@ -326,11 +326,19 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
         }
       }
 
+      const verUpdate = { updated_at: trx.fn.now() };
+      const newBatchSize = targetBatchSize || target_batch_size;
+      if (newBatchSize !== undefined && newBatchSize !== null && String(newBatchSize).trim() !== '') {
+        verUpdate.target_batch_size = new Decimal(newBatchSize).toFixed(6);
+      }
+      const newBatchUom = targetBatchUom || target_batch_uom;
+      if (newBatchUom) {
+        verUpdate.target_batch_uom = newBatchUom;
+      }
+
       await trx('formula_versions')
         .where({ id: versionId })
-        .update({
-          updated_at: trx.fn.now(),
-        });
+        .update(verUpdate);
 
       await AuditService.logEvent({
         trx,
