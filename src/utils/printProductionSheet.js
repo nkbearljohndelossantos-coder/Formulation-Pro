@@ -22,7 +22,10 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
 
   const formulaCode = formula?.code || version?.formula_code || '';
   const formulaName = (formula?.name || version?.formula_name || 'Cosmetic Formulation').toUpperCase();
-  const versionNum = `${version?.major_version || 1}.${version?.minor_version || 0}`;
+  let versionNum = version?.version || `${version?.major_version || 1}.${version?.minor_version || 0}`;
+  if (!String(versionNum).toLowerCase().startsWith('v')) {
+    versionNum = `V${versionNum}`;
+  }
 
   // Dynamic Compounding Control Number per formula/version/batch
   let compoundingNo = version?.compounding_number || version?.compoundingNo;
@@ -350,7 +353,8 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           <div class="meta-col-left">
             <div class="meta-line"><span class="meta-bold">Compounding Number:</span> ${compoundingNo}</div>
             <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}</div>
-            <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName} ${versionNum}</div>
+            <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
+            <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
           </div>
           <div class="meta-col-right">
             <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>

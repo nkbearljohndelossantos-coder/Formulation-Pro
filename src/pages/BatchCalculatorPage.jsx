@@ -205,7 +205,8 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                   })()}
                 </div>
                 <div><span className="font-bold text-slate-900">Target Quantity:</span> <span className="font-mono font-bold text-blue-700">{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom?.toUpperCase() || 'G'}</span></div>
-                <div><span className="font-bold text-slate-900">Formulation:</span> {batchResult.formula_name?.toUpperCase()} {batchResult.version || '1.0'}</div>
+                <div><span className="font-bold text-slate-900">Formulation:</span> {batchResult.formula_name?.toUpperCase()}</div>
+                <div><span className="font-bold text-slate-900">Version:</span> V{batchResult.version || '1.0'}</div>
               </div>
               <div className="space-y-1 text-right">
                 <div><span className="font-bold text-slate-900">Date:</span> {new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
