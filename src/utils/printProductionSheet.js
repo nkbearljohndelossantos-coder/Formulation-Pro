@@ -2,7 +2,7 @@
  * Production Sheet PDF Generator & Native Print Utility
  * Matches the official NKB Manufacturing Corporation Production Sheet document standard.
  */
-export function printProductionSheet({ version, formula, materials, user }) {
+export function printProductionSheet({ version, formula, materials, categoryDetails, user }) {
   if (!version || (version.version_status !== 'APPROVED' && version.status !== 'APPROVED')) {
     alert('Production Sheet (PDF) can only be printed once the formulation version is APPROVED.');
     return;
@@ -13,6 +13,12 @@ export function printProductionSheet({ version, formula, materials, user }) {
     alert('Popups are blocked by your browser. Please allow popups to generate the Production Sheet PDF.');
     return;
   }
+
+  const details = categoryDetails || version?.categoryDetails || version?.cosmeticDetails || {};
+  const targetPh = details.target_ph || details.target_ph_range || '4.5 TO 5.5';
+  const viscosity = details.viscosity_cp || details.target_viscosity || 'N/A';
+  const appearance = details.appearance || 'N/A';
+  const remarks = details.remarks || 'N/A';
 
   const formulaCode = formula?.code || version?.formula_code || 'CP-1794';
   const compoundingNo = formulaCode.startsWith('CP-') ? formulaCode : `CP-${version?.formula_id || version?.id || '1794'}`;
@@ -353,6 +359,31 @@ export function printProductionSheet({ version, formula, materials, user }) {
             </tr>
           </tbody>
         </table>
+
+        <!-- Quality Parameters & Specifications Table -->
+        <div style="margin-top: 15px; margin-bottom: 20px;">
+          <div style="font-weight: 800; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.3px; color: #000;">
+            QUALITY PARAMETERS & SPECIFICATIONS:
+          </div>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 12px;">
+            <tbody>
+              <tr>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${targetPh}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target Viscosity (cP):</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${viscosity}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Appearance:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db;" colspan="3">${appearance}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Remarks:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db;" colspan="3">${remarks}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Notes / Instructions -->
         <div class="notes-container">

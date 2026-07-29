@@ -307,6 +307,13 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
       const cat = formula?.product_category || 'Cosmetic';
 
       if (cat === 'Cosmetic' || cat === 'Cosmetics') {
+        const hasRemarks = await trx.schema.hasColumn('cosmetic_formula_details', 'remarks');
+        if (!hasRemarks) {
+          await trx.schema.alterTable('cosmetic_formula_details', table => {
+            table.text('remarks').nullable();
+          });
+        }
+
         const exists = await trx('cosmetic_formula_details').where({ version_id: versionId }).first();
         const detailsPayload = {
           target_ph: categoryDetails?.target_ph || null,
@@ -317,6 +324,7 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
           texture: categoryDetails?.texture || null,
           preservative_system: categoryDetails?.preservative_system || null,
           manufacturing_conditions: categoryDetails?.manufacturing_conditions || null,
+          remarks: categoryDetails?.remarks || null,
         };
 
         if (exists) {

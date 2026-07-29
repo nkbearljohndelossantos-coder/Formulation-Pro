@@ -26,6 +26,8 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Formula version not found.' });
     }
 
+    const categoryDetails = await db('cosmetic_formula_details').where({ version_id: versionId }).first();
+
     const materials = await db('formula_version_materials')
       .join('materials', 'formula_version_materials.material_id', 'materials.id')
       .where('formula_version_materials.version_id', versionId)
@@ -124,6 +126,7 @@ router.post('/', authenticateToken, async (req, res) => {
         scale_factor: scaleFactor.toFixed(2),
         total_batch_cost: totalBatchCost.toFixed(2),
         items,
+        categoryDetails,
       },
     });
   } catch (err) {

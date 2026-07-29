@@ -78,6 +78,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
         name: batchResult.formula_name,
       },
       materials: batchResult.items || [],
+      categoryDetails: batchResult.categoryDetails,
       user,
     });
   };
@@ -252,6 +253,31 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* Quality Parameters & Specifications Table */}
+            <div className="space-y-1.5 pt-1">
+              <div className="font-extrabold text-slate-900 text-xs tracking-wider uppercase">QUALITY PARAMETERS & SPECIFICATIONS:</div>
+              <div className="overflow-x-auto border border-slate-300 rounded">
+                <table className="w-full text-left text-xs">
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target pH Range:</td>
+                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.target_ph || '4.5 TO 5.5'}</td>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target Viscosity (cP):</td>
+                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.viscosity_cp || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900">Appearance:</td>
+                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.appearance || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900">Remarks:</td>
+                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.remarks || 'N/A'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Notes Section */}

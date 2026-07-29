@@ -411,7 +411,7 @@ export function CosmeticFormulatorPage() {
                 <>
                   {activeVersion.version_status === 'APPROVED' && (
                     <button
-                      onClick={() => printProductionSheet({ version: activeVersion, formula: { code: activeVersion.formula_code, name: activeVersion.formula_name }, materials, user })}
+                      onClick={() => printProductionSheet({ version: activeVersion, formula: { code: activeVersion.formula_code, name: activeVersion.formula_name }, materials, categoryDetails: cosmeticDetails, user })}
                       className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
                     >
                       <Printer className="w-4 h-4" /> Print Production Sheet (PDF)
@@ -618,6 +618,17 @@ export function CosmeticFormulatorPage() {
                   onChange={e => setCosmeticDetails({ ...cosmeticDetails, appearance: e.target.value })}
                   className={`w-full border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 ${isReadOnly ? 'bg-slate-50 cursor-not-allowed' : 'bg-white'}`}
                   placeholder="e.g. Clear viscous liquid"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-500 font-medium mb-1">Remarks</label>
+                <input
+                  type="text"
+                  readOnly={isReadOnly}
+                  value={cosmeticDetails.remarks || ''}
+                  onChange={e => setCosmeticDetails({ ...cosmeticDetails, remarks: e.target.value })}
+                  className={`w-full border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 ${isReadOnly ? 'bg-slate-50 cursor-not-allowed' : 'bg-white'}`}
+                  placeholder="e.g. Keep container tightly sealed."
                 />
               </div>
             </div>
