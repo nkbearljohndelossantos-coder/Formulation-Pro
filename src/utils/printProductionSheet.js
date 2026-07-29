@@ -15,10 +15,10 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   }
 
   const details = categoryDetails || version?.categoryDetails || version?.cosmeticDetails || {};
-  const targetPh = details.target_ph || details.target_ph_range || '4.5 TO 5.5';
-  const viscosity = details.viscosity_cp || details.target_viscosity || 'N/A';
-  const appearance = details.appearance || 'N/A';
-  const remarks = details.remarks || 'N/A';
+  const targetPh = details.target_ph || details.target_ph_range || '';
+  const viscosity = details.viscosity_cp || details.target_viscosity || '';
+  const appearance = details.appearance || '';
+  const remarks = details.remarks || '';
 
   const formulaCode = formula?.code || version?.formula_code || 'CP-1794';
   const compoundingNo = formulaCode.startsWith('CP-') ? formulaCode : `CP-${version?.formula_id || version?.id || '1794'}`;

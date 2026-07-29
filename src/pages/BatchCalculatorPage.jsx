@@ -263,17 +263,17 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                   <tbody className="divide-y divide-slate-200">
                     <tr>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target pH Range:</td>
-                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.target_ph || '4.5 TO 5.5'}</td>
+                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.target_ph || ''}</td>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target Viscosity (cP):</td>
-                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.viscosity_cp || 'N/A'}</td>
+                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.viscosity_cp || ''}</td>
                     </tr>
                     <tr>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900">Appearance:</td>
-                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.appearance || 'N/A'}</td>
+                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.appearance || ''}</td>
                     </tr>
                     <tr>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900">Remarks:</td>
-                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.remarks || 'N/A'}</td>
+                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.remarks || ''}</td>
                     </tr>
                   </tbody>
                 </table>

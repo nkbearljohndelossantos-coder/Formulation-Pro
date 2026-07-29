@@ -44,11 +44,12 @@ export function CosmeticFormulatorPage() {
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
   const [cosmeticDetails, setCosmeticDetails] = useState({
-    target_ph: '5.50 - 6.00',
-    viscosity_cp: '4500 - 6000 cP',
-    appearance: 'Clear gel liquid',
-    color: 'Water clear',
-    odor: 'Clean subtle characteristic',
+    target_ph: '',
+    viscosity_cp: '',
+    appearance: '',
+    color: '',
+    odor: '',
+    remarks: '',
   });
   const [saving, setSaving] = useState(false);
 
