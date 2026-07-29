@@ -20,10 +20,27 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   const appearance = details.appearance || '';
   const remarks = details.remarks || '';
 
-  const formulaCode = formula?.code || version?.formula_code || 'CP-1794';
-  const compoundingNo = formulaCode.startsWith('CP-') ? formulaCode : `CP-${version?.formula_id || version?.id || '1794'}`;
+  const formulaCode = formula?.code || version?.formula_code || '';
   const formulaName = (formula?.name || version?.formula_name || 'Cosmetic Formulation').toUpperCase();
   const versionNum = `${version?.major_version || 1}.${version?.minor_version || 0}`;
+
+  // Dynamic Compounding Control Number per formula/version/batch
+  let compoundingNo = version?.compounding_number || version?.compoundingNo;
+  if (!compoundingNo) {
+    if (version?.batch_number) {
+      compoundingNo = version.batch_number.replace(/^BAT-/, 'CP-');
+    } else {
+      const codeDigits = formulaCode.replace(/[^0-9]/g, '');
+      if (formulaCode.toUpperCase().startsWith('CP-')) {
+        compoundingNo = formulaCode.toUpperCase();
+      } else if (codeDigits) {
+        compoundingNo = `CP-${codeDigits}`;
+      } else {
+        const vId = version?.formula_id || version?.id || formula?.id;
+        compoundingNo = vId ? `CP-${String(Number(vId) + 1000)}` : `CP-${Date.now().toString().slice(-4)}`;
+      }
+    }
+  }
 
   const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
   const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

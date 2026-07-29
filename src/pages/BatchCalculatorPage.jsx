@@ -193,7 +193,17 @@ export function BatchCalculatorPage({ setCurrentPage }) {
             {/* Meta Section */}
             <div className="flex justify-between items-start text-xs border-b border-slate-200 pb-4">
               <div className="space-y-1">
-                <div><span className="font-bold text-slate-900">Compounding Number:</span> CP-{batchResult.formula_code?.replace(/[^0-9]/g, '') || '1794'}</div>
+                <div>
+                  <span className="font-bold text-slate-900">Compounding Number:</span>{' '}
+                  {(() => {
+                    const code = batchResult.formula_code || '';
+                    const digits = code.replace(/[^0-9]/g, '');
+                    if (code.toUpperCase().startsWith('CP-')) return code.toUpperCase();
+                    if (digits) return `CP-${digits}`;
+                    const calcId = batchResult.batchCalculationId || selectedVersionId;
+                    return calcId ? `CP-${String(Number(calcId) + 1000)}` : `CP-${Date.now().toString().slice(-4)}`;
+                  })()}
+                </div>
                 <div><span className="font-bold text-slate-900">Target Quantity:</span> <span className="font-mono font-bold text-blue-700">{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom?.toUpperCase() || 'G'}</span></div>
                 <div><span className="font-bold text-slate-900">Formulation:</span> {batchResult.formula_name?.toUpperCase()} {batchResult.version || '1.0'}</div>
               </div>
