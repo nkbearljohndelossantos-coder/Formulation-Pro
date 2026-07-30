@@ -304,7 +304,7 @@ export function CosmeticFormulatorPage() {
               {formulas.map(f =>
                 f.versions.map(v => (
                   <option key={v.id} value={v.id}>
-                    {f.code} — V{v.major_version}.{v.minor_version} ({v.version_status})
+                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
                   </option>
                 ))
               )}
