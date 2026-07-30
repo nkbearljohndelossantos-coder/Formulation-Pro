@@ -121,11 +121,13 @@ export function BatchCalculatorPage({ setCurrentPage }) {
             >
               <option value="">-- Select Approved Formula Version --</option>
               {formulas.map(f =>
-                f.versions.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
-                  </option>
-                ))
+                (f.versions || [])
+                  .filter(v => (v.version_status || '').toUpperCase() === 'APPROVED')
+                  .map(v => (
+                    <option key={v.id} value={v.id}>
+                      {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
+                    </option>
+                  ))
               )}
             </select>
           </div>

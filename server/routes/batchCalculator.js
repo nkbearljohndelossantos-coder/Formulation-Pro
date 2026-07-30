@@ -26,6 +26,10 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Formula version not found.' });
     }
 
+    if (version.version_status !== 'APPROVED') {
+      return res.status(400).json({ success: false, message: 'Only APPROVED formula versions can be selected for batch calculation.' });
+    }
+
     const categoryDetails = await db('cosmetic_formula_details').where({ version_id: versionId }).first();
 
     const materials = await db('formula_version_materials')
