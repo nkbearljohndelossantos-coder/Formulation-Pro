@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calculator, Printer } from 'lucide-react';
+import { Calculator, Printer, DollarSign } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
@@ -163,9 +163,99 @@ export function BatchCalculatorPage({ setCurrentPage }) {
         </button>
       </form>
 
-      {/* Production Sheet Document Preview */}
+      {/* Scaled Batch Costing Breakdown & Document Preview */}
       {batchResult && (
-        <div className="bg-white p-8 rounded-2xl border border-slate-300 shadow-md space-y-6 text-slate-900">
+        <div className="space-y-6">
+          {/* Scaled Batch Financial & Costing Breakdown Card */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-600" /> Scaled Batch Financial & Costing Summary
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Costing calculation for <span className="font-bold text-blue-700">{Number(batchResult.target_batch_qty).toLocaleString('en-US')} {batchResult.target_uom}</span> target batch
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl text-right">
+                  <span className="text-[10px] text-emerald-800 uppercase font-bold block">Total Batch Cost</span>
+                  <span className="font-mono text-base font-extrabold text-emerald-900">
+                    PHP {Number(batchResult.total_batch_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Batch Weight</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {Number(batchResult.target_batch_qty).toLocaleString('en-US')} {batchResult.target_uom}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Unit Cost (PHP / Gram)</span>
+                <span className="font-mono font-bold text-blue-700 text-sm">
+                  PHP {(Number(batchResult.total_batch_cost) / (Number(batchResult.target_batch_qty) || 1)).toFixed(4)} / g
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Unit Cost (PHP / Kilogram)</span>
+                <span className="font-mono font-bold text-indigo-700 text-sm">
+                  PHP {((Number(batchResult.total_batch_cost) / (Number(batchResult.target_batch_qty) || 1)) * 1000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / kg
+                </span>
+              </div>
+            </div>
+
+            {/* Material Line Costing Table */}
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase">
+                  <tr>
+                    <th className="p-2.5">Phase</th>
+                    <th className="p-2.5">Material Code & Name</th>
+                    <th className="p-2.5 text-right">Unit Cost (PHP/g)</th>
+                    <th className="p-2.5">Percentage (%)</th>
+                    <th className="p-2.5 text-right">Scaled Weight (g)</th>
+                    <th className="p-2.5 text-right">Scaled Line Cost (PHP)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {batchResult.items.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="p-2.5 font-semibold text-slate-800">{item.phase_name || 'Phase A'}</td>
+                      <td className="p-2.5 font-medium text-slate-900">
+                        <span className="font-mono text-blue-700 font-bold mr-1.5">{item.material_code_snapshot}</span>
+                        {item.material_name_snapshot}
+                      </td>
+                      <td className="p-2.5 text-right font-mono text-slate-600">PHP {Number(item.unit_cost_g || 0).toFixed(4)}</td>
+                      <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage).toFixed(2)}%</td>
+                      <td className="p-2.5 text-right font-mono text-emerald-800 font-bold">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g</td>
+                      <td className="p-2.5 text-right font-mono text-blue-800 font-bold">PHP {Number(item.line_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                  {/* Total Costing Summary Row */}
+                  <tr className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+                    <td colSpan="3" className="p-2.5">Total Scaled Batch Costing Summary</td>
+                    <td className="p-2.5 font-mono text-indigo-700">
+                      {batchResult.items.reduce((acc, i) => acc + (parseFloat(i.percentage) || 0), 0).toFixed(2)}%
+                    </td>
+                    <td className="p-2.5 text-right font-mono text-emerald-900 font-extrabold">
+                      {Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g
+                    </td>
+                    <td className="p-2.5 text-right font-mono text-blue-900 font-extrabold text-sm">
+                      PHP {Number(batchResult.total_batch_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Production Sheet Document Preview Box */}
+          <div className="bg-white p-8 rounded-2xl border border-slate-300 shadow-md space-y-6 text-slate-900">
           {/* Header Controls Bar */}
           <div className="flex justify-between items-center border-b border-slate-200 pb-4">
             <div>
@@ -322,6 +412,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
             </div>
           </div>
         </div>
+      </div>
       )}
     </div>
   );

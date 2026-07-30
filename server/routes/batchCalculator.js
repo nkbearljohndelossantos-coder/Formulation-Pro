@@ -64,23 +64,27 @@ router.post('/', authenticateToken, async (req, res) => {
     let totalBatchCost = new Decimal(0);
 
     for (const m of materials) {
-      const baseQty = new Decimal(m.calculated_quantity || '0');
-      // Scaled quantity in material default UOM = baseQty * scaleFactor * (1 + loss%)
-      const scaledQtyDec = baseQty.times(scaleFactor).times(lossMultiplier);
+      const pctDec = new Decimal(m.percentage || '0');
+      const scaledQtyDec = pctDec.div(100).times(targetQtyDec).times(lossMultiplier);
 
-      const unitCost = new Decimal(m.current_cost || m.cost_per_uom || '0');
-      const lineCostDec = scaledQtyDec.times(unitCost);
+      const rawCost = new Decimal(m.current_cost || m.cost || '0');
+      const rawUom = String(m.default_uom || m.uom || 'g').trim().toLowerCase();
+      const unitCostG = rawUom === 'kg' ? rawCost.div(1000) : rawCost;
+
+      const lineCostDec = scaledQtyDec.times(unitCostG);
       totalBatchCost = totalBatchCost.plus(lineCostDec);
 
       items.push({
         material_id: m.material_id,
         material_code_snapshot: m.material_code_snapshot || m.mat_code,
         material_name_snapshot: m.material_name_snapshot || m.mat_name,
-        percentage: new Decimal(m.percentage || '0').toFixed(6),
-        scaled_qty: scaledQtyDec.toFixed(6),
-        scaled_uom: m.uom_snapshot || m.default_uom || 'kg',
-        cost_per_uom: unitCost.toFixed(6),
-        line_cost: lineCostDec.toFixed(6),
+        phase_name: m.phase_name || 'Phase A - Water Phase',
+        percentage: pctDec.toFixed(4),
+        scaled_qty: scaledQtyDec.toFixed(2),
+        scaled_uom: 'g',
+        unit_cost_g: unitCostG.toFixed(4),
+        cost_per_uom: rawCost.toFixed(4),
+        line_cost: lineCostDec.toFixed(2),
         currency_code: m.currency_code || 'PHP',
       });
     }
