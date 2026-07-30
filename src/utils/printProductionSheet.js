@@ -180,8 +180,9 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           -webkit-font-smoothing: antialiased;
         }
         .num-font {
-          font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-          font-weight: 600;
+          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
         }
         .container {
           max-width: 780px;
@@ -269,10 +270,10 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           vertical-align: middle;
         }
         .qty-col {
-          font-weight: 600;
-          font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+          font-weight: 700;
+          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-variant-numeric: tabular-nums;
           white-space: nowrap;
-          letter-spacing: -0.2px;
         }
         .mat-col {
           font-weight: 600;
@@ -461,13 +462,13 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
             <tbody>
               <tr>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${targetPh}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${targetPh}</td>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Actual pH:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${actualPh || '[ ________ ]'}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${actualPh || '[ ________ ]'}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target Viscosity (cP):</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${viscosity}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${viscosity}</td>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Appearance:</td>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; width: 25%;">${appearance}</td>
               </tr>
