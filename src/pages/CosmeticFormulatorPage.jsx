@@ -611,7 +611,7 @@ export function CosmeticFormulatorPage() {
                 />
               </div>
               <div>
-                <label className="block text-slate-500 font-medium mb-1">Target Viscosity (cP)</label>
+                <label className="block text-slate-500 font-medium mb-1">Viscosity (cP)</label>
                 <input
                   type="text"
                   readOnly={isReadOnly}

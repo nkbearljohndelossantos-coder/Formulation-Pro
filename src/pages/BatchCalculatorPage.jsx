@@ -369,7 +369,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                       <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.actual_ph || '[ ________ ]'}</td>
                     </tr>
                     <tr>
-                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target Viscosity (cP):</td>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Viscosity (cP):</td>
                       <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.viscosity_cp || ''}</td>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Appearance:</td>
                       <td className="p-2 text-slate-900 w-1/4">{batchResult.categoryDetails?.appearance || ''}</td>
