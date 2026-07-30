@@ -152,6 +152,24 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     sigMarginTop = '8px';
   }
 
+  const selectedFontName = localStorage.getItem('nkb_document_font') || version?.document_font || 'Inter';
+  let googleFontUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+  let fontFamilyCss = "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+  if (selectedFontName === 'Roboto') {
+    googleFontUrl = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap';
+    fontFamilyCss = "'Roboto', system-ui, -apple-system, sans-serif";
+  } else if (selectedFontName === 'Outfit') {
+    googleFontUrl = 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap';
+    fontFamilyCss = "'Outfit', system-ui, -apple-system, sans-serif";
+  } else if (selectedFontName === 'Segoe UI') {
+    googleFontUrl = '';
+    fontFamilyCss = '"Segoe UI", Arial, Helvetica, sans-serif';
+  } else if (selectedFontName === 'Georgia') {
+    googleFontUrl = '';
+    fontFamilyCss = 'Georgia, "Times New Roman", Times, serif';
+  }
+
   const htmlDocument = `
     <!DOCTYPE html>
     <html>
@@ -160,7 +178,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
       <title>PRODUCTION SHEET — ${formulaCode}</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+      ${googleFontUrl ? `<link href="${googleFontUrl}" rel="stylesheet">` : ''}
       <style>
         @page {
           size: A4 portrait;
@@ -170,7 +188,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           box-sizing: border-box;
         }
         body {
-          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-family: ${fontFamilyCss};
           color: #0f172a;
           background-color: #ffffff;
           margin: 0;
@@ -180,7 +198,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           -webkit-font-smoothing: antialiased;
         }
         .num-font {
-          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: ${fontFamilyCss};
           font-weight: 700;
           font-variant-numeric: tabular-nums;
         }
@@ -271,7 +289,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         }
         .qty-col {
           font-weight: 700;
-          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: ${fontFamilyCss};
           font-variant-numeric: tabular-nums;
           white-space: nowrap;
         }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Save, Info, AlertTriangle } from 'lucide-react';
+import { Settings, Save, Info, AlertTriangle, Type } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +10,7 @@ export function SettingsPage() {
     rounding_mode: 'ROUND_HALF_UP',
     default_currency: 'PHP',
     formula_tolerance_pct: '0.01',
+    document_font: localStorage.getItem('nkb_document_font') || 'Inter',
   });
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -21,7 +22,11 @@ export function SettingsPage() {
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
-          setSettings(prev => ({ ...prev, ...d.data }));
+          setSettings(prev => ({
+            ...prev,
+            ...d.data,
+            document_font: d.data.document_font || localStorage.getItem('nkb_document_font') || 'Inter',
+          }));
         }
       });
   }, []);
@@ -30,6 +35,7 @@ export function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
+    localStorage.setItem('nkb_document_font', settings.document_font || 'Inter');
 
     apiFetch('/api/v1/settings', {
       method: 'PUT',
@@ -39,7 +45,7 @@ export function SettingsPage() {
       .then(d => {
         setSaving(false);
         if (d.success) {
-          setMessage({ type: 'success', text: 'System settings saved successfully!' });
+          setMessage({ type: 'success', text: 'System settings & font preferences saved successfully!' });
         } else {
           setMessage({ type: 'error', text: d.message });
         }
@@ -145,6 +151,60 @@ export function SettingsPage() {
               onChange={e => setSettings({ ...settings, formula_tolerance_pct: e.target.value })}
               className="w-full bg-white border border-slate-300 rounded p-2.5 text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-600"
             />
+          </div>
+        </div>
+
+        {/* Document & Print PDF Typography Settings */}
+        <div className="pt-4 border-t border-slate-200 space-y-4">
+          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2 flex items-center gap-2">
+            <Type className="w-4 h-4 text-blue-600" /> Document & Print PDF Typography Settings
+          </h3>
+          <p className="text-xs text-slate-500">Select the official font family for Production Sheets, PDF print exports, and batch calculator document previews.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1.5">Official Document Font Style</label>
+              <select
+                value={settings.document_font || 'Inter'}
+                onChange={e => {
+                  const newFont = e.target.value;
+                  setSettings({ ...settings, document_font: newFont });
+                  localStorage.setItem('nkb_document_font', newFont);
+                }}
+                className="w-full bg-white border border-slate-300 rounded p-2.5 text-slate-900 font-bold focus:outline-none focus:border-blue-600"
+              >
+                <option value="Inter">Inter (Modern Corporate Sans-Serif — Recommended)</option>
+                <option value="Roboto">Roboto (Clean Industrial Sans-Serif)</option>
+                <option value="Outfit">Outfit (Geometric Modern Sans-Serif)</option>
+                <option value="Segoe UI">Segoe UI / Arial (Standard Enterprise)</option>
+                <option value="Georgia">Georgia / Times New Roman (Classic Formal Serif)</option>
+              </select>
+            </div>
+
+            {/* Live Typography Preview Box */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Live Font Preview</span>
+              <div
+                className="text-sm font-bold text-slate-900"
+                style={{
+                  fontFamily:
+                    settings.document_font === 'Roboto'
+                      ? 'Roboto, sans-serif'
+                      : settings.document_font === 'Outfit'
+                      ? 'Outfit, sans-serif'
+                      : settings.document_font === 'Segoe UI'
+                      ? '"Segoe UI", Arial, sans-serif'
+                      : settings.document_font === 'Georgia'
+                      ? 'Georgia, serif'
+                      : 'Inter, sans-serif',
+                }}
+              >
+                NKB Manufacturing Corporation — PRODUCTION SHEET
+              </div>
+              <div className="text-xs text-slate-600 font-semibold">
+                Target Quantity: 10,000.00 g | Target pH: 5.50 - 6.00 | Compounding No: CP-1794
+              </div>
+            </div>
           </div>
         </div>
 
