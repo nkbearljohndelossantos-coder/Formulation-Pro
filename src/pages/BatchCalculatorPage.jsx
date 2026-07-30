@@ -365,12 +365,14 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                     <tr>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target pH Range:</td>
                       <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.target_ph || ''}</td>
-                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target Viscosity (cP):</td>
-                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.viscosity_cp || ''}</td>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Actual pH:</td>
+                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.actual_ph || '[ ________ ]'}</td>
                     </tr>
                     <tr>
-                      <td className="p-2 bg-slate-50 font-bold text-slate-900">Appearance:</td>
-                      <td className="p-2 text-slate-900" colSpan="3">{batchResult.categoryDetails?.appearance || ''}</td>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target Viscosity (cP):</td>
+                      <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.viscosity_cp || ''}</td>
+                      <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Appearance:</td>
+                      <td className="p-2 text-slate-900 w-1/4">{batchResult.categoryDetails?.appearance || ''}</td>
                     </tr>
                     <tr>
                       <td className="p-2 bg-slate-50 font-bold text-slate-900">Remarks:</td>

@@ -313,10 +313,17 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
             table.text('remarks').nullable();
           });
         }
+        const hasActualPh = await trx.schema.hasColumn('cosmetic_formula_details', 'actual_ph');
+        if (!hasActualPh) {
+          await trx.schema.alterTable('cosmetic_formula_details', table => {
+            table.string('actual_ph').nullable();
+          });
+        }
 
         const exists = await trx('cosmetic_formula_details').where({ version_id: versionId }).first();
         const detailsPayload = {
           target_ph: categoryDetails?.target_ph || null,
+          actual_ph: categoryDetails?.actual_ph || null,
           viscosity_cp: categoryDetails?.viscosity_cp || null,
           appearance: categoryDetails?.appearance || null,
           color: categoryDetails?.color || null,

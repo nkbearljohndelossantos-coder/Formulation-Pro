@@ -600,6 +600,17 @@ export function CosmeticFormulatorPage() {
                 />
               </div>
               <div>
+                <label className="block text-slate-500 font-medium mb-1">Actual pH</label>
+                <input
+                  type="text"
+                  readOnly={isReadOnly}
+                  value={cosmeticDetails.actual_ph || ''}
+                  onChange={e => setCosmeticDetails({ ...cosmeticDetails, actual_ph: e.target.value })}
+                  className={`w-full border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 font-mono ${isReadOnly ? 'bg-slate-50 cursor-not-allowed' : 'bg-white'}`}
+                  placeholder="e.g. 5.75"
+                />
+              </div>
+              <div>
                 <label className="block text-slate-500 font-medium mb-1">Target Viscosity (cP)</label>
                 <input
                   type="text"

@@ -16,6 +16,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
 
   const details = categoryDetails || version?.categoryDetails || version?.cosmeticDetails || {};
   const targetPh = details.target_ph || details.target_ph_range || '';
+  const actualPh = details.actual_ph || '';
   const viscosity = details.viscosity_cp || details.target_viscosity || '';
   const appearance = details.appearance || '';
   const remarks = details.remarks || '';
@@ -391,12 +392,14 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
               <tr>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${targetPh}</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target Viscosity (cP):</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${viscosity}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Actual pH:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${actualPh || '[ ________ ]'}</td>
               </tr>
               <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Appearance:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db;" colspan="3">${appearance}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target Viscosity (cP):</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-family: monospace; font-weight: 600; width: 25%;">${viscosity}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Appearance:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; width: 25%;">${appearance}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Remarks:</td>
