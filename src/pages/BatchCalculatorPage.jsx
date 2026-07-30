@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Calculator, Printer, DollarSign } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Calculator, Printer, DollarSign, Search, ChevronDown, Check, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
@@ -11,6 +11,10 @@ export function BatchCalculatorPage({ setCurrentPage }) {
   const [targetBatchQty, setTargetBatchQty] = useState('500.00');
   const [targetUom, setTargetUom] = useState('g');
   const [processLossPct, setProcessLossPct] = useState('0.00');
+
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef(null);
 
   const [batchResult, setBatchResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -24,6 +28,44 @@ export function BatchCalculatorPage({ setCurrentPage }) {
         }
       });
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter approved options for searchable selection dropdown
+  const approvedOptions = [];
+  formulas.forEach(f => {
+    (f.versions || []).forEach(v => {
+      if ((v.version_status || '').toUpperCase() === 'APPROVED') {
+        approvedOptions.push({
+          id: v.id,
+          formulaCode: f.code,
+          formulaName: f.name,
+          versionStr: `V${v.major_version}.${v.minor_version}`,
+          displayText: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version} APPROVED)`,
+        });
+      }
+    });
+  });
+
+  const filteredOptions = approvedOptions.filter(opt => {
+    const q = searchQuery.toLowerCase();
+    return (
+      opt.formulaCode.toLowerCase().includes(q) ||
+      opt.formulaName.toLowerCase().includes(q) ||
+      opt.versionStr.toLowerCase().includes(q) ||
+      opt.displayText.toLowerCase().includes(q)
+    );
+  });
+
+  const selectedOption = approvedOptions.find(opt => String(opt.id) === String(selectedVersionId));
 
   const runBatchScaling = (e) => {
     e.preventDefault();
@@ -112,24 +154,84 @@ export function BatchCalculatorPage({ setCurrentPage }) {
         <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2">Select Approved Formula & Target Batch Parameters</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 relative" ref={dropdownRef}>
             <label className="block text-slate-700 font-semibold mb-1.5">Approved Formula Version *</label>
-            <select
-              value={selectedVersionId}
-              onChange={e => setSelectedVersionId(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:outline-none focus:border-blue-600"
+            
+            {/* Dropdown Control Button */}
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-left text-slate-900 font-bold focus:outline-none focus:border-blue-600 flex justify-between items-center shadow-xs"
             >
-              <option value="">-- Select Approved Formula Version --</option>
-              {formulas.map(f =>
-                (f.versions || [])
-                  .filter(v => (v.version_status || '').toUpperCase() === 'APPROVED')
-                  .map(v => (
-                    <option key={v.id} value={v.id}>
-                      {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
-                    </option>
-                  ))
-              )}
-            </select>
+              <span className={selectedOption ? 'text-slate-900 font-extrabold' : 'text-slate-400 font-medium'}>
+                {selectedOption ? selectedOption.displayText : '-- Select Approved Formula Version --'}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Interactive Search Panel */}
+            {dropdownOpen && (
+              <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden p-2 space-y-2">
+                {/* Search Box */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="🔍 Search formula code, name, or version..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filtered Options List */}
+                <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100">
+                  {filteredOptions.length === 0 ? (
+                    <div className="p-3.5 text-center text-xs text-slate-400 font-medium">
+                      No matching approved formulas found
+                    </div>
+                  ) : (
+                    filteredOptions.map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVersionId(opt.id);
+                          setDropdownOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className={`w-full text-left p-2.5 text-xs flex justify-between items-center transition ${
+                          String(selectedVersionId) === String(opt.id)
+                            ? 'bg-blue-50 text-blue-900 font-bold'
+                            : 'hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <div>
+                          <span className="font-mono text-blue-700 font-bold mr-1.5">{opt.formulaCode}</span>
+                          <span>{opt.formulaName}</span>
+                          <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
+                            {opt.versionStr} APPROVED
+                          </span>
+                        </div>
+                        {String(selectedVersionId) === String(opt.id) && (
+                          <Check className="w-4 h-4 text-blue-600 shrink-0 ml-2" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
