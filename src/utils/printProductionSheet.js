@@ -112,17 +112,56 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
       phaseCounter++;
     });
   }
+  const totalItemCount = materials.length;
+
+  let pageMargin = '8mm 12mm';
+  let bodyPadding = '16px';
+  let headerMarginBottom = '14px';
+  let metaMarginBottom = '12px';
+  let tableMarginBottom = '12px';
+  let rowPadding = '5px 10px';
+  let rowFontSize = '12px';
+  let phasePadding = '4px 10px';
+  let notesMarginTop = '12px';
+  let notesMarginBottom = '12px';
+  let sigMarginTop = '20px';
+
+  if (totalItemCount > 10 && totalItemCount <= 16) {
+    pageMargin = '5mm 10mm';
+    bodyPadding = '10px';
+    headerMarginBottom = '8px';
+    metaMarginBottom = '8px';
+    tableMarginBottom = '8px';
+    rowPadding = '3.5px 8px';
+    rowFontSize = '11px';
+    phasePadding = '3px 8px';
+    notesMarginTop = '8px';
+    notesMarginBottom = '8px';
+    sigMarginTop = '12px';
+  } else if (totalItemCount > 16) {
+    pageMargin = '4mm 8mm';
+    bodyPadding = '6px';
+    headerMarginBottom = '4px';
+    metaMarginBottom = '6px';
+    tableMarginBottom = '6px';
+    rowPadding = '2px 6px';
+    rowFontSize = '10px';
+    phasePadding = '2px 6px';
+    notesMarginTop = '6px';
+    notesMarginBottom = '6px';
+    sigMarginTop = '8px';
+  }
 
   const htmlDocument = `
     <!DOCTYPE html>
-    <html lang="en">
+    <html>
     <head>
       <meta charset="UTF-8">
       <title>PRODUCTION SHEET — ${formulaCode}</title>
       <style>
         @page {
           size: A4 portrait;
-          margin: 12mm 15mm 15mm 15mm;
+          margin: ${pageMargin};
         }
         * {
           box-sizing: border-box;
@@ -132,9 +171,9 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           color: #000000;
           background-color: #ffffff;
           margin: 0;
-          padding: 24px;
-          font-size: 13px;
-          line-height: 1.35;
+          padding: ${bodyPadding};
+          font-size: ${rowFontSize};
+          line-height: 1.3;
         }
         .container {
           max-width: 780px;
@@ -143,17 +182,17 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         /* Top Header */
         .doc-header {
           text-align: center;
-          margin-bottom: 22px;
+          margin-bottom: ${headerMarginBottom};
         }
         .doc-header h1 {
-          font-size: 21px;
+          font-size: ${totalItemCount > 16 ? '17px' : '20px'};
           font-weight: 800;
-          margin: 0 0 4px 0;
+          margin: 0 0 2px 0;
           letter-spacing: 0.2px;
           color: #000;
         }
         .doc-header h2 {
-          font-size: 15px;
+          font-size: ${totalItemCount > 16 ? '13px' : '14px'};
           font-weight: 800;
           margin: 0;
           letter-spacing: 1px;
@@ -163,8 +202,8 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         .meta-section {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 16px;
-          font-size: 13px;
+          margin-bottom: ${metaMarginBottom};
+          font-size: ${totalItemCount > 16 ? '11px' : '12.5px'};
         }
         .meta-col-left {
           text-align: left;
@@ -173,7 +212,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           text-align: right;
         }
         .meta-line {
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
         .meta-bold {
           font-weight: 700;
@@ -183,14 +222,14 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           width: 100%;
           border-collapse: collapse;
           border: 1px solid #d1d5db;
-          margin-bottom: 20px;
+          margin-bottom: ${tableMarginBottom};
         }
         .sheet-table th {
           background-color: #ffffff;
           color: #000;
           font-weight: 700;
-          font-size: 13px;
-          padding: 8px 12px;
+          font-size: ${rowFontSize};
+          padding: ${rowPadding};
           border-bottom: 1px solid #d1d5db;
           text-align: left;
         }
@@ -200,24 +239,24 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         .phase-header-row td {
           background-color: #e5e7eb;
           font-weight: 800;
-          font-size: 13px;
-          padding: 6px 12px;
+          font-size: ${rowFontSize};
+          padding: ${phasePadding};
           border-top: 1px solid #d1d5db;
           border-bottom: 1px solid #d1d5db;
           color: #000;
         }
         .ingredient-row td {
-          padding: 7px 12px;
+          padding: ${rowPadding};
           border-bottom: 1px solid #f3f4f6;
-          font-size: 12.5px;
+          font-size: ${rowFontSize};
         }
         .ingredient-row:nth-child(even) td {
           background-color: #f9fafb;
         }
         .checkbox-box {
           display: inline-block;
-          font-size: 16px;
-          margin-right: 10px;
+          font-size: ${totalItemCount > 16 ? '13px' : '15px'};
+          margin-right: 8px;
           line-height: 1;
           vertical-align: middle;
         }
@@ -233,38 +272,38 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         .total-row td {
           background-color: #e5e7eb;
           font-weight: 800;
-          padding: 8px 12px;
-          font-size: 13.5px;
+          padding: ${rowPadding};
+          font-size: ${rowFontSize};
           border-top: 1px solid #9ca3af;
         }
 
         /* Notes & Instructions */
         .notes-container {
-          margin-top: 25px;
-          margin-bottom: 40px;
+          margin-top: ${notesMarginTop};
+          margin-bottom: ${notesMarginBottom};
         }
         .notes-heading {
           font-weight: 800;
-          font-size: 12px;
-          margin-bottom: 6px;
+          font-size: 11px;
+          margin-bottom: 4px;
           letter-spacing: 0.3px;
         }
         .notes-bullet {
-          font-size: 11.5px;
-          margin-bottom: 3px;
-          line-height: 1.5;
+          font-size: 10.5px;
+          margin-bottom: 2px;
+          line-height: 1.3;
         }
         .bullet-icon {
           display: inline-block;
           margin-right: 4px;
-          font-size: 10px;
+          font-size: 9px;
         }
 
         /* Signatures Footer */
         .signatures-row {
           display: flex;
           justify-content: space-between;
-          margin-top: 45px;
+          margin-top: ${sigMarginTop};
         }
         .sig-box {
           width: 30%;
@@ -272,25 +311,25 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         }
         .sig-title {
           text-align: left;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 500;
-          margin-bottom: 24px;
+          margin-bottom: ${totalItemCount > 16 ? '12px' : '18px'};
         }
         .sig-name {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           color: #000000;
-          margin-bottom: 4px;
-          min-height: 18px;
+          margin-bottom: 2px;
+          min-height: 15px;
           text-align: center;
         }
         .sig-line {
           border-bottom: 1.5px solid #000000;
           width: 100%;
-          margin-bottom: 4px;
+          margin-bottom: 3px;
         }
         .sig-subtext {
-          font-size: 10.5px;
+          font-size: 10px;
           color: #4b5563;
           text-align: center;
         }
@@ -322,11 +361,33 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         }
 
         @media print {
-          body {
-            padding: 0;
+          @page {
+            size: A4 portrait;
+            margin: ${pageMargin};
+          }
+          html, body {
+            height: 100% !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print-bar {
             display: none !important;
+          }
+          .container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          table, tr, td, th, .notes-container, .signatures-row {
+            page-break-inside: avoid !important;
           }
         }
       </style>
