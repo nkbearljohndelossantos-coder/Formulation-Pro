@@ -158,6 +158,9 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     <head>
       <meta charset="UTF-8">
       <title>PRODUCTION SHEET — ${formulaCode}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
       <style>
         @page {
           size: A4 portrait;
@@ -167,13 +170,18 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           box-sizing: border-box;
         }
         body {
-          font-family: Arial, Helvetica, sans-serif;
-          color: #000000;
+          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          color: #0f172a;
           background-color: #ffffff;
           margin: 0;
           padding: ${bodyPadding};
           font-size: ${rowFontSize};
-          line-height: 1.3;
+          line-height: 1.35;
+          -webkit-font-smoothing: antialiased;
+        }
+        .num-font {
+          font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+          font-weight: 600;
         }
         .container {
           max-width: 780px;
@@ -261,9 +269,10 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           vertical-align: middle;
         }
         .qty-col {
-          font-weight: 500;
-          font-family: Arial, sans-serif;
+          font-weight: 600;
+          font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
           white-space: nowrap;
+          letter-spacing: -0.2px;
         }
         .mat-col {
           font-weight: 600;
