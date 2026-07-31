@@ -47,8 +47,11 @@ router.post('/', authenticateToken, async (req, res) => {
         'materials.specific_gravity',
         'materials.unit_weight',
         'materials.unit_weight_uom',
-        'formula_phases.phase_name'
-      );
+        'formula_phases.phase_name',
+        'formula_phases.phase_order'
+      )
+      .orderBy('formula_version_materials.addition_order', 'asc')
+      .orderBy('formula_version_materials.id', 'asc');
 
     const targetQtyDec = new Decimal(targetBatchQty);
     const lossPctDec = new Decimal(processLossPct || '0');
