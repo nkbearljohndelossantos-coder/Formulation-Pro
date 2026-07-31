@@ -494,7 +494,7 @@ export function CosmeticFormulatorPage() {
                         </td>
                         <td className="p-3">
                           {isReadOnly ? (
-                            <span className="font-medium text-slate-900">{m.material_code_snapshot} — {m.material_name_snapshot}</span>
+                            <span className="font-medium text-slate-900">{m.material_name_snapshot}</span>
                           ) : (
                             <select
                               value={m.material_id}
@@ -502,7 +502,7 @@ export function CosmeticFormulatorPage() {
                               className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-medium w-64"
                             >
                               {availableMaterials.map(mat => (
-                                <option key={mat.id} value={mat.id}>{mat.code} — {mat.name}</option>
+                                <option key={mat.id} value={mat.id}>{mat.name}</option>
                               ))}
                             </select>
                           )}
