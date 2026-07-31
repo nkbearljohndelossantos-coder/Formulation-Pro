@@ -33,7 +33,8 @@ router.post('/', authenticateToken, async (req, res) => {
     const categoryDetails = await db('cosmetic_formula_details').where({ version_id: versionId }).first();
 
     const materials = await db('formula_version_materials')
-      .join('materials', 'formula_version_materials.material_id', 'materials.id')
+      .leftJoin('materials', 'formula_version_materials.material_id', 'materials.id')
+      .leftJoin('formula_phases', 'formula_version_materials.phase_id', 'formula_phases.id')
       .where('formula_version_materials.version_id', versionId)
       .select(
         'formula_version_materials.*',
@@ -45,7 +46,8 @@ router.post('/', authenticateToken, async (req, res) => {
         'materials.density_kg_per_l',
         'materials.specific_gravity',
         'materials.unit_weight',
-        'materials.unit_weight_uom'
+        'materials.unit_weight_uom',
+        'formula_phases.phase_name'
       );
 
     const targetQtyDec = new Decimal(targetBatchQty);

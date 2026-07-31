@@ -319,7 +319,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                 <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase">
                   <tr>
                     <th className="p-2.5">Phase</th>
-                    <th className="p-2.5">Material Code & Name</th>
+                    <th className="p-2.5">Raw Material</th>
                     <th className="p-2.5 text-right">Unit Cost (PHP/g)</th>
                     <th className="p-2.5">Percentage (%)</th>
                     <th className="p-2.5 text-right">Scaled Weight (g)</th>
@@ -330,10 +330,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                   {batchResult.items.map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="p-2.5 font-semibold text-slate-800">{item.phase_name || 'Phase A'}</td>
-                      <td className="p-2.5 font-medium text-slate-900">
-                        <span className="font-mono text-blue-700 font-bold mr-1.5">{item.material_code_snapshot}</span>
-                        {item.material_name_snapshot}
-                      </td>
+                      <td className="p-2.5 font-medium text-slate-900">{item.material_name_snapshot}</td>
                       <td className="p-2.5 text-right font-mono text-slate-600">PHP {Number(item.unit_cost_g || 0).toFixed(4)}</td>
                       <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage).toFixed(2)}%</td>
                       <td className="p-2.5 text-right font-mono text-emerald-800 font-bold">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g</td>
