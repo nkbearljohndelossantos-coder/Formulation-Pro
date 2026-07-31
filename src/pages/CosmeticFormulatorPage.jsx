@@ -148,8 +148,23 @@ export function CosmeticFormulatorPage() {
     ]);
   };
 
+  const isReadOnly = activeVersion && (activeVersion.version_status === 'APPROVED' || activeVersion.version_status === 'SUPERSEDED' || activeVersion.version_status === 'LOCKED');
+
   const removeLine = (idx) => {
-    setMaterials(materials.filter((_, i) => i !== idx));
+    const updated = materials.filter((_, i) => i !== idx);
+    setMaterials(updated);
+    if (!isReadOnly && selectedVersionId) {
+      apiFetch(`/api/v1/formulas/versions/${selectedVersionId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          lockVersion: activeVersion.lock_version,
+          targetBatchSize: activeVersion.target_batch_size,
+          targetBatchUom: activeVersion.target_batch_uom || 'g',
+          materials: updated,
+          categoryDetails: cosmeticDetails,
+        }),
+      });
+    }
   };
 
   const handleMaterialChange = (idx, field, val) => {
@@ -201,12 +216,15 @@ export function CosmeticFormulatorPage() {
       });
   };
 
-  const handleCreateRevision = () => {
+  const handleCreateRevision = async () => {
     if (!activeVersion?.formula_id) return;
+    if (activeVersion.version_status === 'DRAFT') {
+      await saveDraft();
+    }
     apiFetch(`/api/v1/formulas/${activeVersion.formula_id}/revisions`, {
       method: 'POST',
       body: JSON.stringify({
-        revisionReason: `Draft revision from Approved V${activeVersion.major_version}.${activeVersion.minor_version}`,
+        revisionReason: `Draft revision from V${activeVersion.major_version}.${activeVersion.minor_version}`,
         parentVersionId: activeVersion.id,
       }),
     })
@@ -279,8 +297,6 @@ export function CosmeticFormulatorPage() {
       alert(`Workflow Error: ${err.message}`);
     }
   };
-
-  const isReadOnly = activeVersion && (activeVersion.version_status === 'APPROVED' || activeVersion.version_status === 'SUPERSEDED' || activeVersion.version_status === 'LOCKED');
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">

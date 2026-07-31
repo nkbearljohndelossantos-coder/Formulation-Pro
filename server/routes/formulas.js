@@ -436,22 +436,38 @@ router.post('/:id/revisions', authenticateToken, async (req, res) => {
       const [newVersionId] = await trx('formula_versions').insert(insertVer).then(r => [r[0]]);
 
       if (sourceVersionId) {
-        // 1. Copy materials
+        // 1. Copy phases first to map old phase_id -> new phase_id for the new version
+        const phaseIdMap = {};
+        const oldPhases = await trx('formula_phases').where({ version_id: sourceVersionId });
+        for (const p of oldPhases) {
+          const { id, version_id, created_at, updated_at, ...phaseData } = p;
+          const [newPhaseId] = await trx('formula_phases').insert({
+            ...phaseData,
+            version_id: newVersionId,
+          }).then(r => [r[0]]);
+          if (id && newPhaseId) {
+            phaseIdMap[id] = newPhaseId;
+          }
+        }
+
+        // 2. Copy materials second with properly remapped phase_id
         const oldMats = await trx('formula_version_materials').where({ version_id: sourceVersionId });
         for (const m of oldMats) {
           const { id, version_id, created_at, updated_at, ...matData } = m;
+          const remappedPhaseId = matData.phase_id ? (phaseIdMap[matData.phase_id] || null) : null;
           await trx('formula_version_materials').insert({
             ...matData,
+            phase_id: remappedPhaseId,
             version_id: newVersionId,
           });
         }
 
-        // 2. Copy phases
-        const oldPhases = await trx('formula_phases').where({ version_id: sourceVersionId });
-        for (const p of oldPhases) {
-          const { id, version_id, created_at, updated_at, ...phaseData } = p;
-          await trx('formula_phases').insert({
-            ...phaseData,
+        // 3. Copy instructions
+        const oldInstructions = await trx('formula_instructions').where({ version_id: sourceVersionId });
+        for (const inst of oldInstructions) {
+          const { id, version_id, created_at, updated_at, ...instData } = inst;
+          await trx('formula_instructions').insert({
+            ...instData,
             version_id: newVersionId,
           });
         }
