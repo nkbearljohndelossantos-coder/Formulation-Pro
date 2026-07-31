@@ -174,6 +174,32 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
     const phases = await db('formula_phases').where({ version_id: versionId }).orderBy('phase_order', 'asc');
     const instructions = await db('formula_instructions').where({ version_id: versionId }).orderBy('step_number', 'asc');
 
+    // Auto-repair missing phase_id in database for legacy records
+    const missingPhase = materials.some(m => !m.phase_name);
+    if (missingPhase && materials.length > 0) {
+      let defaultPhase = phases[0];
+      if (!defaultPhase) {
+        const [newPId] = await db('formula_phases').insert({
+          version_id: versionId,
+          phase_name: 'Phase A - Water Phase',
+          phase_order: 1,
+        }).then(r => [r[0]]);
+        defaultPhase = { id: newPId, phase_name: 'Phase A - Water Phase' };
+        phases.push(defaultPhase);
+      }
+      await db('formula_version_materials')
+        .where({ version_id: versionId })
+        .whereNull('phase_id')
+        .update({ phase_id: defaultPhase.id });
+
+      materials.forEach(m => {
+        if (!m.phase_name) {
+          m.phase_name = defaultPhase.phase_name;
+          m.phase_id = defaultPhase.id;
+        }
+      });
+    }
+
     let categoryDetails = null;
     const cat = formula?.product_category || 'Cosmetic';
     if (cat === 'Cosmetic' || cat === 'Cosmetics') {

@@ -183,6 +183,19 @@ export function CosmeticFormulatorPage() {
       next[idx][field] = val;
     }
     setMaterials(next);
+
+    if (!isReadOnly && selectedVersionId) {
+      apiFetch(`/api/v1/formulas/versions/${selectedVersionId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          lockVersion: activeVersion.lock_version,
+          targetBatchSize: activeVersion.target_batch_size,
+          targetBatchUom: activeVersion.target_batch_uom || 'g',
+          materials: next,
+          categoryDetails: cosmeticDetails,
+        }),
+      });
+    }
   };
 
   const saveDraft = () => {
