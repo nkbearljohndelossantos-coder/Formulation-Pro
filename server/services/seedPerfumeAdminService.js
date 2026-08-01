@@ -52,25 +52,7 @@ export async function ensurePerfumeAdminAccounts() {
       }
     }
 
-    // 2. Ensure Perfume domain starts 100% CLEAN & EMPTY (Remove pre-seeded demo perfume vendors/materials)
-    const hasVendorCat = await db.schema.hasColumn('vendors', 'category');
-    if (hasVendorCat) {
-      await db('vendors').where('code', 'like', 'VEND-PRF%').orWhere({ category: 'Perfume' }).del();
-    }
-
-    const hasMatCat = await db.schema.hasColumn('materials', 'category');
-    if (hasMatCat) {
-      await db('materials').where('code', 'like', 'MAT-ETH%')
-        .orWhere('code', 'like', 'MAT-ROS%')
-        .orWhere('code', 'like', 'MAT-SND%')
-        .orWhere('code', 'like', 'MAT-DPG%')
-        .orWhere('code', 'like', 'MAT-ISO%')
-        .orWhere('code', 'like', 'MAT-MUS%')
-        .orWhere({ category: 'Perfume' })
-        .del();
-    }
-
-    console.log('✅ Perfume Admin accounts configured. Perfume domain initialized 100% clean & empty.');
+    console.log('✅ Perfume Admin accounts configured.');
   } catch (err) {
     console.error('⚠️ Note on Perfume Admin auto-seed:', err.message);
   }
