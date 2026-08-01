@@ -430,7 +430,17 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                       <React.Fragment key={pIdx}>
                         <tr className="bg-slate-200 font-extrabold text-slate-900">
                           <td colSpan="2" className="p-2 px-3">
-                            {pName.toLowerCase().startsWith('phase') ? pName : `Phase ${pIdx + 1} - ${pName}`}
+                            {(() => {
+                              const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
+                              if (match) return `Phase ${match[1].toUpperCase()}`;
+                              const lower = String(pName).toLowerCase();
+                              if (lower.includes('water')) return 'Phase A';
+                              if (lower.includes('surfactant') || lower.includes('oil')) return 'Phase B';
+                              if (lower.includes('active')) return 'Phase C';
+                              if (lower.includes('cooling')) return 'Phase D';
+                              if (lower.includes('post')) return 'Phase E';
+                              return pName.startsWith('Phase') ? pName : `Phase ${String.fromCharCode(65 + pIdx)}`;
+                            })()}
                           </td>
                         </tr>
                         {phaseMap[pName].map((item, idx) => (

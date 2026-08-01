@@ -98,6 +98,19 @@ export function CosmeticFormulatorPage() {
             brand_type: f.brand_type,
           });
 
+          const normalizePhase = (pName, idx) => {
+            if (!pName) return `Phase ${String.fromCharCode(65 + idx)}`;
+            const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
+            if (match) return `Phase ${match[1].toUpperCase()}`;
+            const lower = String(pName).toLowerCase();
+            if (lower.includes('water')) return 'Phase A';
+            if (lower.includes('surfactant') || lower.includes('oil')) return 'Phase B';
+            if (lower.includes('active')) return 'Phase C';
+            if (lower.includes('cooling')) return 'Phase D';
+            if (lower.includes('post')) return 'Phase E';
+            return pName.startsWith('Phase') ? pName : `Phase ${pName}`;
+          };
+
           const loadedMats = (d.data.materials || []).map((m, idx) => ({
             material_id: m.material_id,
             material_code_snapshot: m.material_code,
@@ -106,7 +119,7 @@ export function CosmeticFormulatorPage() {
             raw_uom: m.material_uom || m.uom || m.default_uom || 'g',
             percentage: String(m.percentage || '0.00'),
             function_name: m.function_name || 'Active',
-            phase_name: m.phase_name || 'Phase A - Water Phase',
+            phase_name: normalizePhase(m.phase_name, idx),
             cost: m.cost || '0.00',
             addition_order: idx + 1,
           }));

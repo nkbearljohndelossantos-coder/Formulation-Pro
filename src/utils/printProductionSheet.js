@@ -56,12 +56,24 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
 
   const dateStr = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
+  const formatPhaseTitle = (rawName, idx) => {
+    if (!rawName) return `Phase ${String.fromCharCode(65 + idx)}`;
+    const match = String(rawName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
+    if (match) return `Phase ${match[1].toUpperCase()}`;
+    const lower = String(rawName).toLowerCase();
+    if (lower.includes('water')) return 'Phase A';
+    if (lower.includes('surfactant') || lower.includes('oil')) return 'Phase B';
+    if (lower.includes('active')) return 'Phase C';
+    if (lower.includes('cooling')) return 'Phase D';
+    if (lower.includes('post')) return 'Phase E';
+    return rawName.startsWith('Phase') ? rawName : `Phase ${rawName}`;
+  };
+
   // Group materials by Phase
   const phaseMap = {};
   if (Array.isArray(materials)) {
-    materials.forEach(m => {
-      let pName = m.phase_name || 'Phase 1';
-      // Normalize Phase Names e.g. "Phase A - Water Phase" -> "Phase 1" if needed or keep descriptive phase
+    materials.forEach((m, idx) => {
+      let pName = formatPhaseTitle(m.phase_name, idx);
       if (!phaseMap[pName]) {
         phaseMap[pName] = [];
       }
@@ -70,21 +82,19 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   }
 
   let tableRowsHtml = '';
-  let phaseCounter = 1;
 
   const phaseKeys = Object.keys(phaseMap);
   if (phaseKeys.length === 0) {
     tableRowsHtml = `
-      <tr class="phase-header-row"><td colspan="2">Phase 1</td></tr>
+      <tr class="phase-header-row"><td colspan="2">Phase A</td></tr>
       <tr class="ingredient-row">
         <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty}</td>
         <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
       </tr>
     `;
   } else {
-    phaseKeys.forEach(pName => {
-      // Display Phase Header e.g. Phase 1, Phase 2, etc.
-      const phaseTitle = pName.toLowerCase().startsWith('phase') ? pName : `Phase ${phaseCounter} - ${pName}`;
+    phaseKeys.forEach((pName, pIdx) => {
+      const phaseTitle = formatPhaseTitle(pName, pIdx);
 
       tableRowsHtml += `
         <tr class="phase-header-row">
