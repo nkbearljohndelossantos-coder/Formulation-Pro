@@ -267,6 +267,27 @@ export function CosmeticFormulatorPage() {
       });
   };
 
+  const handleDeleteFormula = async () => {
+    if (!activeVersion?.formula_id) return;
+    const confirmed = window.confirm(`Are you sure you want to delete Formula ${activeVersion.formula_code} (${activeVersion.formula_name})?\n\nThis will permanently delete the formula and all its versions. This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const res = await apiFetch(`/api/v1/formulas/${activeVersion.formula_id}`, {
+        method: 'DELETE',
+      });
+      const d = await res.json();
+      if (d.success) {
+        alert(`Formula ${activeVersion.formula_code} deleted successfully.`);
+        fetchFormulas();
+      } else {
+        alert(`Delete Error: ${d.message}`);
+      }
+    } catch (err) {
+      alert(`Delete Error: ${err.message}`);
+    }
+  };
+
   const handleWorkflow = async (action) => {
     if (!selectedVersionId) return;
 
@@ -377,6 +398,14 @@ export function CosmeticFormulatorPage() {
                   V{activeVersion.major_version}.{activeVersion.minor_version}
                 </span>
                 <StatusBadge status={activeVersion.version_status} />
+                <button
+                  onClick={handleDeleteFormula}
+                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-md text-xs font-bold flex items-center gap-1 border border-rose-200 transition shadow-xs"
+                  title="Delete Formula"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Delete Formula</span>
+                </button>
               </div>
             </div>
 

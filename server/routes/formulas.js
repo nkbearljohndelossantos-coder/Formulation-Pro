@@ -611,6 +611,73 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/v1/formulas/:id (Delete master formula and all its versions)
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const formulaId = req.params.id;
+    const formula = await db('formulas').where({ id: formulaId }).first();
+    if (!formula) {
+      return res.status(404).json({ success: false, message: 'Formula not found' });
+    }
+
+    await db.transaction(async (trx) => {
+      const versions = await trx('formula_versions').where({ formula_id: formulaId });
+      const versionIds = versions.map(v => v.id);
+
+      if (versionIds.length > 0) {
+        await trx('formula_version_materials').whereIn('version_id', versionIds).del();
+        await trx('formula_phases').whereIn('version_id', versionIds).del();
+        await trx('formula_instructions').whereIn('version_id', versionIds).del();
+        await trx('cosmetic_formula_details').whereIn('version_id', versionIds).del();
+        await trx('perfume_formula_details').whereIn('version_id', versionIds).del();
+        await trx('supplement_formula_details').whereIn('version_id', versionIds).del();
+        await trx('formula_versions').whereIn('id', versionIds).del();
+      }
+
+      await trx('formulas').where({ id: formulaId }).del();
+
+      await AuditService.logEvent({
+        trx,
+        userId: req.user.id,
+        userRole: req.user.roles[0] || 'User',
+        action: 'DELETE_FORMULA',
+        entityType: 'Formula',
+        entityId: formulaId,
+        newValues: { code: formula.code, name: formula.name },
+      });
+    });
+
+    return res.json({ success: true, message: `Formula ${formula.code} deleted successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete formula', error: err.message });
+  }
+});
+
+// DELETE /api/v1/formulas/versions/:versionId (Delete specific formula version)
+router.delete('/versions/:versionId', authenticateToken, async (req, res) => {
+  try {
+    const { versionId } = req.params;
+    const version = await db('formula_versions').where({ id: versionId }).first();
+    if (!version) {
+      return res.status(404).json({ success: false, message: 'Formula version not found' });
+    }
+
+    await db.transaction(async (trx) => {
+      await trx('formula_version_materials').where({ version_id: versionId }).del();
+      await trx('formula_phases').where({ version_id: versionId }).del();
+      await trx('formula_instructions').where({ version_id: versionId }).del();
+      await trx('cosmetic_formula_details').where({ version_id: versionId }).del();
+      await trx('perfume_formula_details').where({ version_id: versionId }).del();
+      await trx('supplement_formula_details').where({ version_id: versionId }).del();
+      await trx('formula_versions').where({ id: versionId }).del();
+    });
+
+    return res.json({ success: true, message: `Formula version V${version.major_version}.${version.minor_version} deleted successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete formula version', error: err.message });
+  }
+});
+
 // 6. POST /api/v1/formulas (Create master formula & initial v1.0 draft - STRICT MYSQL COMPATIBLE)
 router.post('/', authenticateToken, async (req, res) => {
   try {
