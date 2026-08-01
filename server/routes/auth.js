@@ -8,7 +8,7 @@ import { AuditService } from '../services/AuditService.js';
 const router = express.Router();
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'nkb_access_super_secret_key_2026_change_in_production';
-const ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '30d';
+const ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || '36500d'; // 100 Years (Permanent Non-Expiring Session)
 
 async function getUserPermissions(userId, roleNames) {
   if (roleNames.includes('Super Admin')) {
@@ -47,7 +47,7 @@ async function generateTokenPair(user, req) {
 
   const rawRefreshToken = crypto.randomBytes(40).toString('hex');
   const refreshTokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
-  const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
 
   const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress;
   const userAgent = req.headers['user-agent'];

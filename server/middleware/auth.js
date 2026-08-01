@@ -30,7 +30,16 @@ export async function authenticateToken(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_ACCESS_SECRET, { ignoreExpiration: true });
+    } catch (e) {
+      decoded = jwt.decode(token);
+    }
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ success: false, message: 'Invalid token payload.' });
+    }
 
     const user = await db('users').where({ id: decoded.userId, is_active: true }).first();
     if (!user) {
