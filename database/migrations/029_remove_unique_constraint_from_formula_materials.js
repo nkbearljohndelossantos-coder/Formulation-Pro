@@ -2,15 +2,13 @@
  * Migration 029: Remove Unique Constraint from formula_version_materials to allow split/duplicate material additions in same phase
  */
 export async function up(knex) {
-  const hasTable = await knex.schema.hasTable('formula_version_materials');
-  if (hasTable) {
-    try {
-      await knex.schema.alterTable('formula_version_materials', (table) => {
-        table.dropUnique(['version_id', 'material_id', 'phase_id'], 'uq_version_mat_phase');
-      });
-    } catch (err) {
-      // Ignore if index does not exist or already dropped
+  try {
+    const clientName = (knex.client && knex.client.config && knex.client.config.client) ? String(knex.client.config.client) : '';
+    if (clientName.includes('mysql')) {
+      await knex.raw('ALTER TABLE formula_version_materials DROP INDEX uq_version_mat_phase;').catch(() => {});
     }
+  } catch (err) {
+    console.log('Migration 029 non-blocking note:', err.message);
   }
 }
 
