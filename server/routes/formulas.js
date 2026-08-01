@@ -251,13 +251,31 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
 
     await db.transaction(async (trx) => {
       // 1. Resolve and create formula phases dynamically based on materials phase names
+      const normalizePhaseName = (pName) => {
+        if (!pName) return 'Phase A';
+        const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
+        if (match) return `Phase ${match[1].toUpperCase()}`;
+        const lower = String(pName).toLowerCase();
+        if (lower.includes('water')) return 'Phase A';
+        if (lower.includes('surfactant') || lower.includes('oil')) return 'Phase B';
+        if (lower.includes('active')) return 'Phase C';
+        if (lower.includes('cooling')) return 'Phase D';
+        if (lower.includes('post')) return 'Phase E';
+        return pName.startsWith('Phase') ? pName : `Phase ${pName}`;
+      };
+
       const existingPhases = await trx('formula_phases').where({ version_id: versionId });
       const phaseMap = {};
-      existingPhases.forEach(p => {
+      for (const p of existingPhases) {
+        const normName = normalizePhaseName(p.phase_name);
         phaseMap[p.phase_name] = p.id;
-      });
+        phaseMap[normName] = p.id;
+        if (p.phase_name !== normName) {
+          await trx('formula_phases').where({ id: p.id }).update({ phase_name: normName }).catch(() => {});
+        }
+      }
 
-      const uniquePhaseNames = [...new Set((materials || []).map(m => m.phase_name).filter(Boolean))];
+      const uniquePhaseNames = [...new Set((materials || []).map(m => normalizePhaseName(m.phase_name)).filter(Boolean))];
       let order = 1;
       if (existingPhases.length > 0) {
         const orders = existingPhases.map(p => Number(p.phase_order) || 0);
@@ -266,12 +284,19 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
 
       for (const pName of uniquePhaseNames) {
         if (!phaseMap[pName]) {
-          const [newPhaseId] = await trx('formula_phases').insert({
-            version_id: versionId,
-            phase_name: pName,
-            phase_order: order++,
-          }).then(res => [res[0]]);
-          phaseMap[pName] = newPhaseId;
+          try {
+            const [newPhaseId] = await trx('formula_phases').insert({
+              version_id: versionId,
+              phase_name: pName,
+              phase_order: order++,
+            }).then(res => [res[0]]);
+            phaseMap[pName] = newPhaseId;
+          } catch (e) {
+            const existing = await trx('formula_phases').where({ version_id: versionId, phase_name: pName }).first();
+            if (existing) {
+              phaseMap[pName] = existing.id;
+            }
+          }
         }
       }
 
@@ -406,13 +431,7 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
     return res.json({ success: true, message: 'Formula draft version updated successfully' });
   } catch (err) {
     console.error('Error updating formula version:', err);
-    if (err.code === 'ER_DUP_ENTRY' || err.message?.includes('unique') || err.message?.includes('Duplicate')) {
-      return res.status(422).json({
-        success: false,
-        message: 'Duplicate raw material detected in the same phase. Please combine duplicate material lines inside the same phase before saving.'
-      });
-    }
-    return res.status(500).json({ success: false, message: 'Database operation failed', error: err.message });
+    return res.status(500).json({ success: false, message: err.message || 'Database operation failed', error: err.message });
   }
 });
 
