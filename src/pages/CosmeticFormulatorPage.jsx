@@ -129,7 +129,7 @@ export function CosmeticFormulatorPage() {
   const totalPct = materials.reduce((acc, m) => acc + (parseFloat(m.percentage) || 0), 0).toFixed(2);
   const isValidPct = Math.abs(parseFloat(totalPct) - 100) < 0.05;
 
-  const addLine = (phaseName = 'Phase A - Water Phase') => {
+  const addLine = (phaseName = 'Phase A') => {
     const mat = availableMaterials[0] || { id: 1, code: 'MAT-001', name: 'Material', uom: 'g', cost: '0.00' };
     setMaterials([
       ...materials,
@@ -473,7 +473,7 @@ export function CosmeticFormulatorPage() {
             <div className="flex justify-between items-center border-b border-slate-200 pb-3">
               <h3 className="font-bold text-slate-900 text-sm">Phase-Based Composition Table</h3>
               {!isReadOnly && (
-                <button onClick={() => addLine('Phase A - Water Phase')} className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold flex items-center gap-1 border border-blue-200">
+                <button onClick={() => addLine('Phase A')} className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold flex items-center gap-1 border border-blue-200">
                   <Plus className="w-3.5 h-3.5" /> Add Material Line
                 </button>
               )}
@@ -518,15 +518,12 @@ export function CosmeticFormulatorPage() {
                                 className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-600 w-48 shadow-xs"
                               />
                               <datalist id={`phase-list-${idx}`}>
-                                <option value="Phase A - Water Phase" />
-                                <option value="Phase B - Surfactant Phase" />
-                                <option value="Phase C - Active Phase" />
-                                <option value="Cooling Phase" />
-                                <option value="Post-Addition Phase" />
-                                <option value="Phase D - Fragrance Phase" />
-                                <option value="Premix Phase" />
-                                <option value="Oil Phase" />
-                                <option value="Heating Phase" />
+                                <option value="Phase A" />
+                                <option value="Phase B" />
+                                <option value="Phase C" />
+                                <option value="Phase D" />
+                                <option value="Phase E" />
+                                <option value="Phase F" />
                               </datalist>
                             </div>
                           )}

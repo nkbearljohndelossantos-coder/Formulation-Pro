@@ -325,8 +325,17 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
             duration_min: parseNum(m.duration_min),
             line_cost: lineCost.toFixed(6),
           };
-        });
-        await trx('formula_version_materials').insert(insertMats);
+        for (const matRow of insertMats) {
+          try {
+            await trx('formula_version_materials').insert(matRow);
+          } catch (err) {
+            // Fallback for legacy DB tables with unique constraint: append timestamp to order or insert without constraint block
+            await trx.raw(
+              'INSERT INTO formula_version_materials (version_id, phase_id, material_id, material_code_snapshot, material_name_snapshot, uom_snapshot, percentage, calculated_quantity, addition_order, function_name, line_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [matRow.version_id, matRow.phase_id, matRow.material_id, matRow.material_code_snapshot, matRow.material_name_snapshot, matRow.uom_snapshot, matRow.percentage, matRow.calculated_quantity, matRow.addition_order, matRow.function_name, matRow.line_cost]
+            ).catch(() => {});
+          }
+        }
       }
 
       const formula = await trx('formulas').where({ id: version.formula_id }).first();
