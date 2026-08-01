@@ -508,17 +508,27 @@ export function CosmeticFormulatorPage() {
                           {isReadOnly ? (
                             <span className="font-semibold text-slate-900">{m.phase_name}</span>
                           ) : (
-                            <select
-                              value={m.phase_name || 'Phase A - Water Phase'}
-                              onChange={e => handleMaterialChange(idx, 'phase_name', e.target.value)}
-                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-semibold"
-                            >
-                              <option value="Phase A - Water Phase">Phase A - Water Phase</option>
-                              <option value="Phase B - Surfactant Phase">Phase B - Surfactant Phase</option>
-                              <option value="Phase C - Active Phase">Phase C - Active Phase</option>
-                              <option value="Cooling Phase">Cooling Phase</option>
-                              <option value="Post-Addition Phase">Post-Addition Phase</option>
-                            </select>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                list={`phase-list-${idx}`}
+                                value={m.phase_name || ''}
+                                onChange={e => handleMaterialChange(idx, 'phase_name', e.target.value)}
+                                placeholder="Type Custom Phase Name..."
+                                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-600 w-48 shadow-xs"
+                              />
+                              <datalist id={`phase-list-${idx}`}>
+                                <option value="Phase A - Water Phase" />
+                                <option value="Phase B - Surfactant Phase" />
+                                <option value="Phase C - Active Phase" />
+                                <option value="Cooling Phase" />
+                                <option value="Post-Addition Phase" />
+                                <option value="Phase D - Fragrance Phase" />
+                                <option value="Premix Phase" />
+                                <option value="Oil Phase" />
+                                <option value="Heating Phase" />
+                              </datalist>
+                            </div>
                           )}
                         </td>
                         <td className="p-3">
