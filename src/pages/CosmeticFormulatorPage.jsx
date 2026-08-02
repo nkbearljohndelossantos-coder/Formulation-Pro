@@ -17,6 +17,7 @@ import {
   GitBranch,
   Printer,
   FileText,
+  Search,
 } from 'lucide-react';
 
 function StatusBadge({ status }) {
