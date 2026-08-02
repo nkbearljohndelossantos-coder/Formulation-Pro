@@ -573,13 +573,4 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   printWindow.document.open();
   printWindow.document.write(htmlDocument);
   printWindow.document.close();
-
-  setTimeout(() => {
-    try {
-      printWindow.focus();
-      printWindow.print();
-    } catch (e) {
-      console.warn('Print focus trigger warning:', e);
-    }
-  }, 400);
 }
