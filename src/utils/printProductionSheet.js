@@ -270,7 +270,10 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           text-align: left;
         }
         .sheet-table th.qty-header {
-          width: 32%;
+          width: 20%;
+        }
+        .sheet-table th.mat-header {
+          width: 55%;
         }
         .phase-header-row td {
           background-color: #e5e7eb;
@@ -297,12 +300,14 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           vertical-align: middle;
         }
         .qty-col {
+          width: 20%;
           font-weight: 700;
           font-family: ${fontFamilyCss};
           font-variant-numeric: tabular-nums;
           white-space: nowrap;
         }
         .mat-col {
+          width: 55%;
           font-weight: 600;
           color: #000;
         }
@@ -471,7 +476,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           <thead>
             <tr>
               <th class="qty-header">Quantity</th>
-              <th>Raw Material</th>
+              <th class="mat-header">Raw Material</th>
             </tr>
           </thead>
           <tbody>
