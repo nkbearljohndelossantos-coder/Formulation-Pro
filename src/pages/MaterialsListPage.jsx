@@ -25,7 +25,7 @@ export function MaterialsListPage({ setCurrentPage }) {
     name: '',
     companyId: '',
     vendorId: '',
-    uom: 'g',
+    uom: 'kg',
     cost: '0.00',
     currencyCode: 'PHP',
     densityKgPerL: '1.00',
@@ -93,7 +93,7 @@ export function MaterialsListPage({ setCurrentPage }) {
       name: m.name || '',
       companyId: m.company_id ? String(m.company_id) : '',
       vendorId: m.vendor_id ? String(m.vendor_id) : '',
-      uom: m.uom || m.default_uom || 'g',
+      uom: m.uom || m.default_uom || 'kg',
       cost: m.cost !== undefined && m.cost !== null ? String(m.cost) : '0.00',
       currencyCode: m.currency_code || 'PHP',
       densityKgPerL: m.density_kg_per_l !== undefined && m.density_kg_per_l !== null ? String(m.density_kg_per_l) : '1.00',
@@ -613,8 +613,8 @@ export function MaterialsListPage({ setCurrentPage }) {
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
                   >
                     <optgroup label="Mass Units">
-                      <option value="g">g (Grams)</option>
                       <option value="kg">kg (Kilograms)</option>
+                      <option value="g">g (Grams)</option>
                       <option value="mg">mg (Milligrams)</option>
                     </optgroup>
                     <optgroup label="Volume Units">
