@@ -80,9 +80,8 @@ export function CosmeticFormulatorPage() {
               break;
             }
           }
-          const targetId = firstApprovedId || d.data[0].versions[0]?.id;
-          if (targetId && !selectedVersionId) {
-            loadVersion(targetId);
+          if (firstApprovedId && !selectedVersionId) {
+            loadVersion(firstApprovedId);
           }
         }
       });
@@ -368,10 +367,9 @@ export function CosmeticFormulatorPage() {
             >
               {formulas.map(f => {
                 const approvedVersions = (f.versions || []).filter(v => v.version_status === 'APPROVED');
-                const versionsToRender = approvedVersions.length > 0 ? approvedVersions : f.versions;
-                return versionsToRender.map(v => (
+                return approvedVersions.map(v => (
                   <option key={v.id} value={v.id}>
-                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
+                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
                   </option>
                 ));
               })}
