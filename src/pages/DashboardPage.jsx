@@ -152,7 +152,6 @@ export function DashboardPage({ setCurrentPage }) {
           <table className="w-full text-left text-sm text-slate-700">
             <thead className="bg-slate-100 text-xs uppercase text-slate-600 font-semibold border-b border-slate-200">
               <tr>
-                <th className="p-3">Code</th>
                 <th className="p-3">Formula Name</th>
                 <th className="p-3">Category</th>
                 <th className="p-3">Version</th>
@@ -162,7 +161,6 @@ export function DashboardPage({ setCurrentPage }) {
             <tbody className="divide-y divide-slate-200">
               {recentFormulas.map(f => (
                 <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-3 font-mono text-xs font-bold text-blue-700">{f.code}</td>
                   <td className="p-3 font-medium text-slate-900">{f.name}</td>
                   <td className="p-3 text-xs text-slate-600">{f.product_category || f.category}</td>
                   <td className="p-3 font-mono text-xs text-slate-700">
