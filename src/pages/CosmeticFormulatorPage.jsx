@@ -415,7 +415,7 @@ export function CosmeticFormulatorPage() {
                     const approvedVersions = (f.versions || []).filter(v => v.version_status === 'APPROVED');
                     return approvedVersions.map(v => (
                       <option key={v.id} value={v.id}>
-                        {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
+                        {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
                       </option>
                     ));
                   })
@@ -424,7 +424,7 @@ export function CosmeticFormulatorPage() {
                     const draftVersions = (f.versions || []).filter(v => v.version_status !== 'APPROVED');
                     return draftVersions.map(v => (
                       <option key={v.id} value={v.id}>
-                        {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
+                        {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
                       </option>
                     ));
                   })
