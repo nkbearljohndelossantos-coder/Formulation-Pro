@@ -45,6 +45,8 @@ export function CosmeticFormulatorPage() {
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
   const [activeTab, setActiveTab] = useState('APPROVED'); // 'APPROVED' | 'DRAFT'
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [cosmeticDetails, setCosmeticDetails] = useState({
     target_ph: '',
     viscosity_cp: '',
@@ -59,6 +61,28 @@ export function CosmeticFormulatorPage() {
     fetchAvailableMaterials();
     fetchFormulas();
   }, []);
+
+  const getFilteredDropdownVersions = () => {
+    const list = [];
+    formulas.forEach(f => {
+      const targetVersions = (f.versions || []).filter(v =>
+        activeTab === 'APPROVED' ? v.version_status === 'APPROVED' : v.version_status !== 'APPROVED'
+      );
+      targetVersions.forEach(v => {
+        const text = `${f.code} ${f.name} V${v.major_version}.${v.minor_version} ${v.version_status}`.toLowerCase();
+        if (!searchQuery || text.includes(searchQuery.toLowerCase().trim())) {
+          list.push({
+            versionId: v.id,
+            formulaCode: f.code,
+            formulaName: f.name,
+            versionStr: `V${v.major_version}.${v.minor_version}`,
+            status: v.version_status,
+          });
+        }
+      });
+    });
+    return list;
+  };
 
   const fetchAvailableMaterials = () => {
     apiFetch('/api/v1/materials')
@@ -403,34 +427,69 @@ export function CosmeticFormulatorPage() {
             </button>
           </div>
 
+          {/* Searchable Custom Formula Dropdown */}
           {activeVersion && (
-            <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-xs">
-              <select
-                value={selectedVersionId || ''}
-                onChange={e => loadVersion(e.target.value)}
-                className="bg-white border border-slate-300 text-xs font-bold text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none"
-              >
-                {activeTab === 'APPROVED' ? (
-                  formulas.map(f => {
-                    const approvedVersions = (f.versions || []).filter(v => v.version_status === 'APPROVED');
-                    return approvedVersions.map(v => (
-                      <option key={v.id} value={v.id}>
-                        {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
-                      </option>
-                    ));
-                  })
-                ) : (
-                  formulas.map(f => {
-                    const draftVersions = (f.versions || []).filter(v => v.version_status !== 'APPROVED');
-                    return draftVersions.map(v => (
-                      <option key={v.id} value={v.id}>
-                        {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
-                      </option>
-                    ));
-                  })
-                )}
-              </select>
-              <StatusBadge status={activeVersion.version_status} />
+            <div className="relative">
+              <div className="flex items-center gap-2.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-300 transition text-xs font-bold text-slate-900 shadow-2xs"
+                >
+                  <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span className="max-w-[280px] sm:max-w-xs truncate">
+                    {activeVersion.formula_name} (V{activeVersion.major_version}.{activeVersion.minor_version} {activeVersion.version_status})
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1" />
+                </button>
+                <StatusBadge status={activeVersion.version_status} />
+              </div>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-96 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                  {/* Search Header */}
+                  <div className="p-2.5 border-b border-slate-100 bg-slate-50">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Search formula name or version..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium shadow-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Options List */}
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                    {getFilteredDropdownVersions().length === 0 ? (
+                      <div className="p-4 text-xs text-slate-400 text-center font-medium">
+                        No matching formulas found
+                      </div>
+                    ) : (
+                      getFilteredDropdownVersions().map(item => (
+                        <button
+                          key={item.versionId}
+                          type="button"
+                          onClick={() => {
+                            loadVersion(item.versionId);
+                            setIsDropdownOpen(false);
+                            setSearchQuery('');
+                          }}
+                          className={`w-full text-left p-2.5 text-xs hover:bg-blue-50 transition flex items-center justify-between gap-2 ${
+                            item.versionId === selectedVersionId ? 'bg-blue-50/80 font-bold text-blue-900' : 'text-slate-700'
+                          }`}
+                        >
+                          <span className="truncate font-semibold">{item.formulaName} ({item.versionStr})</span>
+                          <StatusBadge status={item.status} />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
