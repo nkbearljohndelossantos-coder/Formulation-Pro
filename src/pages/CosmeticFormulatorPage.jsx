@@ -143,7 +143,7 @@ export function CosmeticFormulatorPage() {
     return c;
   };
 
-  const totalPct = materials.reduce((acc, m) => acc + (parseFloat(m.percentage) || 0), 0).toFixed(2);
+  const totalPct = materials.reduce((acc, m) => acc + (parseFloat(m.percentage) || 0), 0).toFixed(1);
   const isValidPct = Math.abs(parseFloat(totalPct) - 100) < 0.05;
 
   const addLine = (phaseName = 'Phase A') => {
@@ -437,7 +437,7 @@ export function CosmeticFormulatorPage() {
                     <span className="font-mono font-bold text-slate-700 text-xs">g</span>
                   </div>
                 ) : (
-                  <span className="font-mono font-bold text-slate-900">{Number(activeVersion.target_batch_size || 100).toFixed(2)} {activeVersion.target_batch_uom || 'g'}</span>
+                  <span className="font-mono font-bold text-slate-900">{Number(activeVersion.target_batch_size || 100).toFixed(1)} {activeVersion.target_batch_uom || 'g'}</span>
                 )}
               </div>
               <div>
@@ -582,18 +582,18 @@ export function CosmeticFormulatorPage() {
                           )}
                         </td>
                         <td className="p-3 text-right font-mono text-slate-600 font-semibold">
-                          PHP {unitCostG.toFixed(4)}
+                          PHP {unitCostG.toFixed(1)}
                         </td>
                         <td className="p-3 text-right font-mono text-blue-700 font-bold">
-                          PHP {lineCost.toFixed(2)}
+                          PHP {lineCost.toFixed(1)}
                         </td>
                         <td className="p-3">
                           {isReadOnly ? (
-                            <span className="font-mono font-bold text-slate-900">{Number(m.percentage).toFixed(4)}%</span>
+                            <span className="font-mono font-bold text-slate-900">{Number(m.percentage).toFixed(1)}%</span>
                           ) : (
                             <input
                               type="number"
-                              step="0.0001"
+                              step="0.1"
                               value={m.percentage}
                               onChange={e => handleMaterialChange(idx, 'percentage', e.target.value)}
                               className="w-28 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-bold"
@@ -601,7 +601,7 @@ export function CosmeticFormulatorPage() {
                           )}
                         </td>
                         <td className="p-3 text-right font-mono text-emerald-800 font-bold">
-                          {reqWeightGrams.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g
+                          {reqWeightGrams.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
                         </td>
                         <td className="p-3">
                           {isReadOnly ? (
@@ -641,13 +641,13 @@ export function CosmeticFormulatorPage() {
                         const unitCostG = getCostPerGram(m);
                         const batchSize = parseFloat(activeVersion?.target_batch_size) || 100;
                         return acc + (pct / 100) * batchSize * unitCostG;
-                      }, 0).toFixed(2)}
+                      }, 0).toFixed(1)}
                     </td>
                     <td className="p-3 font-mono text-indigo-700">
                       {totalPct}%
                     </td>
                     <td className="p-3 text-right font-mono text-emerald-900 font-extrabold text-sm">
-                      {parseFloat(activeVersion?.target_batch_size || 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g
+                      {parseFloat(activeVersion?.target_batch_size || 100).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
                     </td>
                     <td className="p-3" colSpan={isReadOnly ? 2 : 3}></td>
                   </tr>

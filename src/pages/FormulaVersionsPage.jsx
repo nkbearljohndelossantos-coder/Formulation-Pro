@@ -213,8 +213,8 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                         <tr key={m.id}>
                           <td className="p-2.5 font-mono text-blue-700 font-bold">{m.material_code_snapshot || m.material_code || '-'}</td>
                           <td className="p-2.5 font-medium text-slate-900">{m.material_name_snapshot || m.material_name || '-'}</td>
-                          <td className="p-2.5 font-mono">{Number(m.percentage || 0).toFixed(2)}%</td>
-                          <td className="p-2.5 font-mono">{Number(m.calculated_quantity || 0).toFixed(2)}</td>
+                          <td className="p-2.5 font-mono">{Number(m.percentage || 0).toFixed(1)}%</td>
+                          <td className="p-2.5 font-mono">{Number(m.calculated_quantity || 0).toFixed(1)}</td>
                           <td className="p-2.5 font-mono text-slate-600 font-bold">g</td>
                         </tr>
                       ))}

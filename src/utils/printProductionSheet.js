@@ -48,7 +48,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   }
 
   const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
-  const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const batchUom = (version?.target_batch_uom || 'G').toUpperCase();
 
   const preparedByName = user?.first_name || user?.firstName
@@ -106,7 +106,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
       phaseMap[pName].forEach(m => {
         const pct = parseFloat(m.percentage || 0);
         const calcWeight = (pct / 100) * targetBatchSizeNum;
-        const formattedQty = calcWeight.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedQty = calcWeight.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
         const matName = (m.material_name_snapshot || m.material_name || m.material_code || m.code || 'RAW MATERIAL').toUpperCase();
 
         tableRowsHtml += `

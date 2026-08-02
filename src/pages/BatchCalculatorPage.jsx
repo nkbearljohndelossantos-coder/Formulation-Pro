@@ -331,10 +331,10 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="p-2.5 font-semibold text-slate-800">{item.phase_name || 'Phase A'}</td>
                       <td className="p-2.5 font-medium text-slate-900">{item.material_name_snapshot}</td>
-                      <td className="p-2.5 text-right font-mono text-slate-600">PHP {Number(item.unit_cost_g || 0).toFixed(4)}</td>
-                      <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage).toFixed(2)}%</td>
-                      <td className="p-2.5 text-right font-mono text-emerald-800 font-bold">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g</td>
-                      <td className="p-2.5 text-right font-mono text-blue-800 font-bold">PHP {Number(item.line_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-2.5 text-right font-mono text-slate-600">PHP {Number(item.unit_cost_g || 0).toFixed(1)}</td>
+                      <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage).toFixed(1)}%</td>
+                      <td className="p-2.5 text-right font-mono text-emerald-800 font-bold">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g</td>
+                      <td className="p-2.5 text-right font-mono text-blue-800 font-bold">PHP {Number(item.line_cost).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
                     </tr>
                   ))}
                   {/* Total Costing Summary Row */}
@@ -447,7 +447,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                           <tr key={idx} className="hover:bg-slate-50">
                             <td className="p-2.5 font-mono">
                               <span className="inline-block text-slate-400 mr-2">☐</span>
-                              <span className="font-bold text-slate-900">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className="font-bold text-slate-900">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
                             </td>
                             <td className="p-2.5 font-bold text-slate-900 uppercase">{item.material_name_snapshot}</td>
                           </tr>
@@ -460,7 +460,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                   <tr className="bg-slate-200 font-extrabold text-slate-900 text-sm">
                     <td colSpan="2" className="p-2.5 px-3 font-mono">
                       <span className="invisible mr-2">☐</span>
-                      <span>{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span>{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
                     </td>
                   </tr>
                 </tbody>
