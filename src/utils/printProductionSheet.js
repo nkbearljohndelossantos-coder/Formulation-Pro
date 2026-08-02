@@ -27,7 +27,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   if (!String(versionNum).toLowerCase().startsWith('v')) {
     versionNum = `V${versionNum}`;
   }
-  const defaultPdfFilename = `${formulaCode ? `${formulaCode} - ` : ''}${formulaName} ${versionNum}`.trim();
+  const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
 
   // Dynamic Compounding Control Number per formula/version/batch
   let compoundingNo = version?.compounding_number || version?.compoundingNo;
