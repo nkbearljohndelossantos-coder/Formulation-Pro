@@ -55,6 +55,7 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setErrorMessage('');
     setSuccessData(null);
     setLoading(true);

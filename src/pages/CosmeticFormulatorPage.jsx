@@ -170,18 +170,6 @@ export function CosmeticFormulatorPage() {
   const removeLine = (idx) => {
     const updated = materials.filter((_, i) => i !== idx);
     setMaterials(updated);
-    if (!isReadOnly && selectedVersionId) {
-      apiFetch(`/api/v1/formulas/versions/${selectedVersionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          lockVersion: activeVersion.lock_version,
-          targetBatchSize: activeVersion.target_batch_size,
-          targetBatchUom: activeVersion.target_batch_uom || 'g',
-          materials: updated,
-          categoryDetails: cosmeticDetails,
-        }),
-      });
-    }
   };
 
   const handleMaterialChange = (idx, field, val) => {
@@ -200,23 +188,10 @@ export function CosmeticFormulatorPage() {
       next[idx][field] = val;
     }
     setMaterials(next);
-
-    if (!isReadOnly && selectedVersionId) {
-      apiFetch(`/api/v1/formulas/versions/${selectedVersionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          lockVersion: activeVersion.lock_version,
-          targetBatchSize: activeVersion.target_batch_size,
-          targetBatchUom: activeVersion.target_batch_uom || 'g',
-          materials: next,
-          categoryDetails: cosmeticDetails,
-        }),
-      });
-    }
   };
 
   const saveDraft = () => {
-    if (!selectedVersionId) return;
+    if (!selectedVersionId || saving) return Promise.resolve(false);
     setSaving(true);
     return apiFetch(`/api/v1/formulas/versions/${selectedVersionId}`, {
       method: 'PUT',
@@ -247,28 +222,33 @@ export function CosmeticFormulatorPage() {
   };
 
   const handleCreateRevision = async () => {
-    if (!activeVersion?.formula_id) return;
-    if (activeVersion.version_status === 'DRAFT') {
-      await saveDraft();
-    }
-    apiFetch(`/api/v1/formulas/${activeVersion.formula_id}/revisions`, {
-      method: 'POST',
-      body: JSON.stringify({
-        revisionReason: `Draft revision from V${activeVersion.major_version}.${activeVersion.minor_version}`,
-        parentVersionId: activeVersion.id,
-      }),
-    })
-      .then(res => res.json())
-      .then(d => {
-        if (d.success && (d.data?.version_id || d.versionId)) {
-          const newVerId = d.data?.version_id || d.versionId;
-          alert(`New draft version ${d.data?.version || 'V2.0'} created successfully!`);
-          fetchFormulas();
-          loadVersion(newVerId);
-        } else {
-          alert(`Revision Error: ${d.message}`);
-        }
+    if (!activeVersion?.formula_id || saving) return;
+    setSaving(true);
+    try {
+      if (activeVersion.version_status === 'DRAFT') {
+        await saveDraft();
+      }
+      const res = await apiFetch(`/api/v1/formulas/${activeVersion.formula_id}/revisions`, {
+        method: 'POST',
+        body: JSON.stringify({
+          revisionReason: `Draft revision from V${activeVersion.major_version}.${activeVersion.minor_version}`,
+          parentVersionId: activeVersion.id,
+        }),
       });
+      const d = await res.json();
+      if (d.success && (d.data?.version_id || d.versionId)) {
+        const newVerId = d.data?.version_id || d.versionId;
+        alert(`New draft version ${d.data?.version || 'V2.0'} created successfully!`);
+        await fetchFormulas();
+        await loadVersion(newVerId);
+      } else {
+        alert(`Revision Error: ${d.message}`);
+      }
+    } catch (err) {
+      alert(`Revision Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteFormula = async () => {
