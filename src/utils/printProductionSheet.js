@@ -270,10 +270,11 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           text-align: left;
         }
         .sheet-table th.qty-header {
-          width: 20%;
+          width: 125px;
+          white-space: nowrap;
         }
         .sheet-table th.mat-header {
-          width: 55%;
+          padding-left: 10px;
         }
         .phase-header-row td {
           background-color: #e5e7eb;
@@ -294,22 +295,23 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         }
         .checkbox-box {
           display: inline-block;
-          font-size: ${totalItemCount > 16 ? '13px' : '15px'};
-          margin-right: 8px;
+          font-size: ${totalItemCount > 16 ? '12px' : '14px'};
+          margin-right: 5px;
           line-height: 1;
           vertical-align: middle;
         }
         .qty-col {
-          width: 20%;
+          width: 125px;
           font-weight: 700;
           font-family: ${fontFamilyCss};
           font-variant-numeric: tabular-nums;
           white-space: nowrap;
+          padding-right: 10px;
         }
         .mat-col {
-          width: 55%;
           font-weight: 600;
           color: #000;
+          padding-left: 10px;
         }
         .total-row td {
           background-color: #e5e7eb;
