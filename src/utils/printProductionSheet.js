@@ -70,11 +70,17 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     return rawName.startsWith('Phase') ? rawName : `Phase ${rawName}`;
   };
 
-  // Group materials by Phase
+  // Group materials by Phase with strict deduplication
   const phaseMap = {};
   if (Array.isArray(materials)) {
+    const seenItems = new Set();
     materials.forEach((m, idx) => {
-      let pName = formatPhaseTitle(m.phase_name, idx);
+      const pName = formatPhaseTitle(m.phase_name, idx);
+      const matId = m.material_id || m.id || m.material_code_snapshot || m.material_name_snapshot || idx;
+      const uniqueKey = `${pName}_${matId}`;
+      if (seenItems.has(uniqueKey)) return;
+      seenItems.add(uniqueKey);
+
       if (!phaseMap[pName]) {
         phaseMap[pName] = [];
       }

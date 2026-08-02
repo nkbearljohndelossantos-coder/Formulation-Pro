@@ -115,18 +115,28 @@ export function CosmeticFormulatorPage() {
             return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
           };
 
-          const loadedMats = (d.data.materials || []).map((m, idx) => ({
-            material_id: m.material_id,
-            material_code_snapshot: m.material_code,
-            material_name_snapshot: m.material_name,
-            uom_snapshot: 'g',
-            raw_uom: m.material_uom || m.uom || m.default_uom || 'g',
-            percentage: String(m.percentage || '0.00'),
-            function_name: m.function_name || 'Active',
-            phase_name: normalizePhase(m.phase_name, idx),
-            cost: m.cost || '0.00',
-            addition_order: idx + 1,
-          }));
+          const seenLoaded = new Set();
+          const loadedMats = [];
+          (d.data.materials || []).forEach((m, idx) => {
+            const pName = normalizePhase(m.phase_name, idx);
+            const mId = m.material_id || m.id || m.material_code;
+            const uKey = `${pName}_${mId}`;
+            if (seenLoaded.has(uKey)) return;
+            seenLoaded.add(uKey);
+
+            loadedMats.push({
+              material_id: m.material_id,
+              material_code_snapshot: m.material_code,
+              material_name_snapshot: m.material_name,
+              uom_snapshot: 'g',
+              raw_uom: m.material_uom || m.uom || m.default_uom || 'g',
+              percentage: String(m.percentage || '0.00'),
+              function_name: m.function_name || 'Active',
+              phase_name: pName,
+              cost: m.cost || '0.00',
+              addition_order: loadedMats.length + 1,
+            });
+          });
 
           setMaterials(loadedMats);
           if (d.data.categoryDetails) {

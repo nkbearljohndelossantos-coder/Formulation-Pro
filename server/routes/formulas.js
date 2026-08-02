@@ -318,10 +318,17 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
 
       // 4. Insert resolved composition rows
       if (Array.isArray(materials) && materials.length > 0) {
-        const insertMats = materials.map((m, idx) => {
-          const pId = phaseMap[m.phase_name] || null;
-          const pctDec = new Decimal(m.percentage || '0');
+        const seenMatKeys = new Set();
+        const insertMats = [];
+        materials.forEach((m, idx) => {
           const mId = m.material_id || m.id;
+          const pName = normalizePhaseName(m.phase_name);
+          const uKey = `${pName}_${mId}`;
+          if (seenMatKeys.has(uKey)) return;
+          seenMatKeys.add(uKey);
+
+          const pId = phaseMap[m.phase_name] || phaseMap[pName] || null;
+          const pctDec = new Decimal(m.percentage || '0');
           const costPerG = materialCostMap[mId] || new Decimal(0);
           const reqWeight = pctDec.div(100).times(batchSizeDec);
           const lineCost = reqWeight.times(costPerG);
@@ -334,7 +341,7 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
             return isNaN(parsed) ? null : parsed;
           };
 
-          return {
+          insertMats.push({
             version_id: versionId,
             phase_id: pId,
             material_id: mId,
@@ -343,13 +350,13 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
             uom_snapshot: 'g',
             percentage: pctDec.toFixed(6),
             calculated_quantity: reqWeight.toFixed(6),
-            addition_order: m.addition_order || (idx + 1),
+            addition_order: insertMats.length + 1,
             function_name: m.function_name || null,
             temp_c: parseNum(m.temp_c),
             mixing_speed_rpm: parseNum(m.mixing_speed_rpm),
             duration_min: parseNum(m.duration_min),
             line_cost: lineCost.toFixed(6),
-          };
+          });
         });
 
         for (const matRow of insertMats) {
