@@ -3,12 +3,12 @@
  * Matches the official NKB Manufacturing Corporation Production Sheet document standard.
  */
 export function printProductionSheet({ version, formula, materials, categoryDetails, user }) {
-  if (!version || (version.version_status !== 'APPROVED' && version.status !== 'APPROVED')) {
-    alert('Production Sheet (PDF) can only be printed once the formulation version is APPROVED.');
+  if (!version) {
+    alert('Invalid formula version selected.');
     return;
   }
 
-  const printWindow = window.open('', '_blank', 'width=900,height=1050');
+  const printWindow = window.open('', '_blank', 'width=950,height=1100');
   if (!printWindow) {
     alert('Popups are blocked by your browser. Please allow popups to generate the Production Sheet PDF.');
     return;
@@ -542,14 +542,27 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
       </div>
 
       <script>
-        window.onload = function() {
-          setTimeout(function() { window.print(); }, 400);
-        };
+        document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(function() {
+            window.focus();
+            window.print();
+          }, 300);
+        });
       </script>
     </body>
     </html>
   `;
 
+  printWindow.document.open();
   printWindow.document.write(htmlDocument);
   printWindow.document.close();
+
+  setTimeout(() => {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch (e) {
+      console.warn('Print focus trigger warning:', e);
+    }
+  }, 400);
 }
