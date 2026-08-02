@@ -99,16 +99,20 @@ export function CosmeticFormulatorPage() {
           });
 
           const normalizePhase = (pName, idx) => {
-            if (!pName) return `Phase ${String.fromCharCode(65 + idx)}`;
+            if (!pName) return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
             const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
-            if (match) return `Phase ${match[1].toUpperCase()}`;
+            if (match) {
+              const letter = match[1].toUpperCase();
+              if (/^[A-F]$/.test(letter)) return `Phase ${letter}`;
+            }
             const lower = String(pName).toLowerCase();
-            if (lower.includes('water')) return 'Phase A';
-            if (lower.includes('surfactant') || lower.includes('oil')) return 'Phase B';
-            if (lower.includes('active')) return 'Phase C';
-            if (lower.includes('cooling')) return 'Phase D';
-            if (lower.includes('post')) return 'Phase E';
-            return pName.startsWith('Phase') ? pName : `Phase ${pName}`;
+            if (lower.includes('water') || lower.includes('phase a')) return 'Phase A';
+            if (lower.includes('surfactant') || lower.includes('oil') || lower.includes('phase b')) return 'Phase B';
+            if (lower.includes('active') || lower.includes('phase c')) return 'Phase C';
+            if (lower.includes('cooling') || lower.includes('phase d')) return 'Phase D';
+            if (lower.includes('post') || lower.includes('phase e')) return 'Phase E';
+            if (lower.includes('phase f')) return 'Phase F';
+            return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
           };
 
           const loadedMats = (d.data.materials || []).map((m, idx) => ({
@@ -548,24 +552,18 @@ export function CosmeticFormulatorPage() {
                           {isReadOnly ? (
                             <span className="font-semibold text-slate-900">{m.phase_name}</span>
                           ) : (
-                            <div className="relative">
-                              <input
-                                type="text"
-                                list={`phase-list-${idx}`}
-                                value={m.phase_name || ''}
-                                onChange={e => handleMaterialChange(idx, 'phase_name', e.target.value)}
-                                placeholder="Type Custom Phase Name..."
-                                className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-600 w-48 shadow-xs"
-                              />
-                              <datalist id={`phase-list-${idx}`}>
-                                <option value="Phase A" />
-                                <option value="Phase B" />
-                                <option value="Phase C" />
-                                <option value="Phase D" />
-                                <option value="Phase E" />
-                                <option value="Phase F" />
-                              </datalist>
-                            </div>
+                            <select
+                              value={['Phase A', 'Phase B', 'Phase C', 'Phase D', 'Phase E', 'Phase F'].includes(m.phase_name) ? m.phase_name : `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`}
+                              onChange={e => handleMaterialChange(idx, 'phase_name', e.target.value)}
+                              className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-600 w-32 shadow-xs"
+                            >
+                              <option value="Phase A">Phase A</option>
+                              <option value="Phase B">Phase B</option>
+                              <option value="Phase C">Phase C</option>
+                              <option value="Phase D">Phase D</option>
+                              <option value="Phase E">Phase E</option>
+                              <option value="Phase F">Phase F</option>
+                            </select>
                           )}
                         </td>
                         <td className="p-3">
