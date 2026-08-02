@@ -16,6 +16,7 @@ import {
   Clock,
   GitBranch,
   Printer,
+  FileText,
 } from 'lucide-react';
 
 function StatusBadge({ status }) {
