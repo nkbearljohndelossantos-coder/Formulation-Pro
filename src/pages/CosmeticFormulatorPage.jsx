@@ -43,6 +43,7 @@ export function CosmeticFormulatorPage() {
   const [activeVersion, setActiveVersion] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
+  const [activeTab, setActiveTab] = useState('APPROVED'); // 'APPROVED' | 'DRAFT'
   const [cosmeticDetails, setCosmeticDetails] = useState({
     target_ph: '',
     viscosity_cp: '',
@@ -256,6 +257,7 @@ export function CosmeticFormulatorPage() {
       if (d.success && (d.data?.version_id || d.versionId)) {
         const newVerId = d.data?.version_id || d.versionId;
         alert(`New draft version ${d.data?.version || 'V2.0'} created successfully!`);
+        setActiveTab('DRAFT');
         await fetchFormulas();
         await loadVersion(newVerId);
       } else {
@@ -357,26 +359,80 @@ export function CosmeticFormulatorPage() {
           </p>
         </div>
 
-        {/* Formula Picker & Status */}
-        {activeVersion && (
-          <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-xs">
-            <select
-              value={selectedVersionId || ''}
-              onChange={e => loadVersion(e.target.value)}
-              className="bg-white border border-slate-300 text-xs font-bold text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none"
+        {/* Formula Picker & Mode Tabs */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-xs">
+            <button
+              onClick={() => {
+                setActiveTab('APPROVED');
+                let firstApp = null;
+                for (const f of formulas) {
+                  const app = (f.versions || []).find(v => v.version_status === 'APPROVED');
+                  if (app) { firstApp = app.id; break; }
+                }
+                if (firstApp) loadVersion(firstApp);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'APPROVED'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
             >
-              {formulas.map(f => {
-                const approvedVersions = (f.versions || []).filter(v => v.version_status === 'APPROVED');
-                return approvedVersions.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
-                  </option>
-                ));
-              })}
-            </select>
-            <StatusBadge status={activeVersion.version_status} />
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>Approved Formulations</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('DRAFT');
+                let firstDraft = null;
+                for (const f of formulas) {
+                  const d = (f.versions || []).find(v => v.version_status !== 'APPROVED');
+                  if (d) { firstDraft = d.id; break; }
+                }
+                if (firstDraft) loadVersion(firstDraft);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'DRAFT'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Draft Revisions ({formulas.flatMap(f => (f.versions || []).filter(v => v.version_status !== 'APPROVED')).length})</span>
+            </button>
           </div>
-        )}
+
+          {activeVersion && (
+            <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-xs">
+              <select
+                value={selectedVersionId || ''}
+                onChange={e => loadVersion(e.target.value)}
+                className="bg-white border border-slate-300 text-xs font-bold text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none"
+              >
+                {activeTab === 'APPROVED' ? (
+                  formulas.map(f => {
+                    const approvedVersions = (f.versions || []).filter(v => v.version_status === 'APPROVED');
+                    return approvedVersions.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
+                      </option>
+                    ));
+                  })
+                ) : (
+                  formulas.map(f => {
+                    const draftVersions = (f.versions || []).filter(v => v.version_status !== 'APPROVED');
+                    return draftVersions.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
+                      </option>
+                    ));
+                  })
+                )}
+              </select>
+              <StatusBadge status={activeVersion.version_status} />
+            </div>
+          )}
+        </div>
       </div>
 
       {activeVersion && (
