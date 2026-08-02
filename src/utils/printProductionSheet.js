@@ -431,12 +431,17 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     <body>
       <div class="no-print-bar">
         <div>
-          <strong style="font-size: 13px;">Official Approved Production Sheet PDF</strong>
-          <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Document status: APPROVED (Immutable Master Sheet)</div>
+          <strong style="font-size: 13px; display: block; margin-bottom: 2px;">📄 Formula Production Sheet — ${formulaCode}</strong>
+          <div style="font-size: 11px; opacity: 0.9;">💡 <strong>To Save as PDF:</strong> Click <strong>Save as PDF / Print</strong> $\rightarrow$ Select <strong>Save as PDF</strong> under Destination $\rightarrow$ Click <strong>Save</strong>.</div>
         </div>
-        <button class="print-btn" onclick="window.print()">
-          🖨️ Print / Save as PDF
-        </button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="print-btn" style="background-color: #059669;" onclick="window.print()">
+            💾 Save as PDF / Print
+          </button>
+          <button class="print-btn" style="background-color: #475569;" onclick="window.close()">
+            ✖ Close
+          </button>
+        </div>
       </div>
 
       <div class="container">

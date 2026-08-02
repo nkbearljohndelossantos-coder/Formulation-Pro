@@ -485,7 +485,7 @@ export function CosmeticFormulatorPage() {
                 onClick={() => printProductionSheet({ version: activeVersion, formula: { code: activeVersion.formula_code, name: activeVersion.formula_name }, materials, categoryDetails: cosmeticDetails, user })}
                 className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
               >
-                <Printer className="w-4 h-4" /> Print Production Sheet (PDF)
+                <Printer className="w-4 h-4" /> Save / Export PDF
               </button>
                   <button
                     onClick={handleCreateRevision}

@@ -369,7 +369,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
               onClick={handlePrintPdf}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
             >
-              <Printer className="w-4 h-4" /> Print Production Sheet (PDF)
+              <Printer className="w-4 h-4" /> Save / Export PDF
             </button>
           </div>
 
