@@ -27,6 +27,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   if (!String(versionNum).toLowerCase().startsWith('v')) {
     versionNum = `V${versionNum}`;
   }
+  const defaultPdfFilename = `${formulaCode ? `${formulaCode} - ` : ''}${formulaName} ${versionNum}`.trim();
 
   // Dynamic Compounding Control Number per formula/version/batch
   let compoundingNo = version?.compounding_number || version?.compoundingNo;
@@ -183,7 +184,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>PRODUCTION SHEET — ${formulaCode}</title>
+      <title>${defaultPdfFilename}</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       ${googleFontUrl ? `<link href="${googleFontUrl}" rel="stylesheet">` : ''}
