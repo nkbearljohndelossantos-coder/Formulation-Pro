@@ -442,9 +442,6 @@ export function CosmeticFormulatorPage() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-extrabold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
-                  {activeVersion.formula_code}
-                </span>
                 <div>
                   <h2 className="text-base font-bold text-slate-900">{activeVersion.formula_name}</h2>
                   <p className="text-xs text-slate-500">
