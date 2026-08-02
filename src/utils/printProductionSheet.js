@@ -118,8 +118,6 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           </tr>
         `;
       });
-
-      phaseCounter++;
     });
   }
   const totalItemCount = materials.length;
