@@ -72,9 +72,17 @@ export function CosmeticFormulatorPage() {
       .then(d => {
         if (d.success && d.data?.length) {
           setFormulas(d.data);
-          const firstVerId = d.data[0].versions[0]?.id;
-          if (firstVerId && !selectedVersionId) {
-            loadVersion(firstVerId);
+          let firstApprovedId = null;
+          for (const f of d.data) {
+            const app = (f.versions || []).find(v => v.version_status === 'APPROVED');
+            if (app) {
+              firstApprovedId = app.id;
+              break;
+            }
+          }
+          const targetId = firstApprovedId || d.data[0].versions[0]?.id;
+          if (targetId && !selectedVersionId) {
+            loadVersion(targetId);
           }
         }
       });
@@ -358,13 +366,15 @@ export function CosmeticFormulatorPage() {
               onChange={e => loadVersion(e.target.value)}
               className="bg-white border border-slate-300 text-xs font-bold text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none"
             >
-              {formulas.map(f =>
-                f.versions.map(v => (
+              {formulas.map(f => {
+                const approvedVersions = (f.versions || []).filter(v => v.version_status === 'APPROVED');
+                const versionsToRender = approvedVersions.length > 0 ? approvedVersions : f.versions;
+                return versionsToRender.map(v => (
                   <option key={v.id} value={v.id}>
                     {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
                   </option>
-                ))
-              )}
+                ));
+              })}
             </select>
             <StatusBadge status={activeVersion.version_status} />
           </div>
@@ -523,7 +533,6 @@ export function CosmeticFormulatorPage() {
                     <th className="p-3 text-right">Line Cost (PHP)</th>
                     <th className="p-3">Percentage (%)</th>
                     <th className="p-3 text-right">Req. Weight (g)</th>
-                    <th className="p-3">Function</th>
                     <th className="p-3">UOM</th>
                     {!isReadOnly && <th className="p-3 text-center">Remove</th>}
                   </tr>
@@ -593,18 +602,6 @@ export function CosmeticFormulatorPage() {
                         <td className="p-3 text-right font-mono text-emerald-800 font-bold">
                           {reqWeightGrams.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
                         </td>
-                        <td className="p-3">
-                          {isReadOnly ? (
-                            <span className="text-slate-800">{m.function_name}</span>
-                          ) : (
-                            <input
-                              type="text"
-                              value={m.function_name}
-                              onChange={e => handleMaterialChange(idx, 'function_name', e.target.value)}
-                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 w-40"
-                            />
-                          )}
-                        </td>
                         <td className="p-3 font-mono text-slate-700 font-bold">g</td>
                         {!isReadOnly && (
                           <td className="p-3 text-center">
@@ -639,7 +636,7 @@ export function CosmeticFormulatorPage() {
                     <td className="p-3 text-right font-mono text-emerald-900 font-extrabold text-sm">
                       {parseFloat(activeVersion?.target_batch_size || 100).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
                     </td>
-                    <td className="p-3" colSpan={isReadOnly ? 2 : 3}></td>
+                    <td className="p-3" colSpan={isReadOnly ? 1 : 2}></td>
                   </tr>
                 </tbody>
               </table>
