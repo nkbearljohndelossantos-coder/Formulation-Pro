@@ -229,6 +229,61 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to fetch formula version', error: err.message });
   }
+// PUT /api/v1/formulas/:id (Rename / Update Formula Master Name & Details)
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const formulaId = req.params.id;
+    const { name, code, product_subcategory, brand_type } = req.body;
+
+    const formula = await db('formulas').where({ id: formulaId }).first();
+    if (!formula) {
+      return res.status(404).json({ success: false, message: 'Formula not found.' });
+    }
+
+    const updatePayload = { updated_at: db.fn.now() };
+    if (name && String(name).trim()) updatePayload.name = String(name).trim();
+    if (code && String(code).trim()) updatePayload.code = String(code).trim();
+    if (product_subcategory !== undefined) updatePayload.product_subcategory = product_subcategory;
+    if (brand_type !== undefined) updatePayload.brand_type = brand_type;
+
+    await db('formulas').where({ id: formulaId }).update(updatePayload);
+
+    return res.json({ success: true, message: 'Formula renamed successfully' });
+  } catch (err) {
+    console.error('Error renaming formula:', err);
+    return res.status(500).json({ success: false, message: 'Failed to rename formula', error: err.message });
+  }
+});
+
+// PUT /api/v1/formulas/versions/:versionId/rename (Rename / Update Version Numbers & Reason)
+router.put('/versions/:versionId/rename', authenticateToken, async (req, res) => {
+  try {
+    const { versionId } = req.params;
+    const { majorVersion, minorVersion, revisionReason } = req.body;
+
+    const version = await db('formula_versions').where({ id: versionId }).first();
+    if (!version) {
+      return res.status(404).json({ success: false, message: 'Formula version not found' });
+    }
+
+    const updatePayload = { updated_at: db.fn.now() };
+    if (majorVersion !== undefined && !isNaN(Number(majorVersion))) {
+      updatePayload.major_version = Number(majorVersion);
+    }
+    if (minorVersion !== undefined && !isNaN(Number(minorVersion))) {
+      updatePayload.minor_version = Number(minorVersion);
+    }
+    if (revisionReason !== undefined) {
+      updatePayload.revision_reason = revisionReason;
+    }
+
+    await db('formula_versions').where({ id: versionId }).update(updatePayload);
+
+    return res.json({ success: true, message: 'Formula version updated successfully' });
+  } catch (err) {
+    console.error('Error updating version number:', err);
+    return res.status(500).json({ success: false, message: 'Failed to update version number', error: err.message });
+  }
 });
 
 // PUT /api/v1/formulas/versions/:versionId (Save draft version composition & specs)

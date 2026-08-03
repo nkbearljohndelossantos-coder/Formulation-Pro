@@ -18,6 +18,7 @@ import {
   Printer,
   FileText,
   Search,
+  Edit3,
 } from 'lucide-react';
 
 function StatusBadge({ status }) {
@@ -48,6 +49,11 @@ export function CosmeticFormulatorPage() {
   const [activeTab, setActiveTab] = useState('APPROVED'); // 'APPROVED' | 'DRAFT'
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editMajorVer, setEditMajorVer] = useState(1);
+  const [editMinorVer, setEditMinorVer] = useState(0);
+  const [editReason, setEditReason] = useState('');
   const [cosmeticDetails, setCosmeticDetails] = useState({
     target_ph: '',
     viscosity_cp: '',
@@ -317,6 +323,52 @@ export function CosmeticFormulatorPage() {
     }
   };
 
+  const handleOpenRenameModal = () => {
+    if (!activeVersion) return;
+    setEditName(activeVersion.formula_name || '');
+    setEditMajorVer(activeVersion.major_version ?? 1);
+    setEditMinorVer(activeVersion.minor_version ?? 0);
+    setEditReason(activeVersion.revision_reason || '');
+    setIsRenameModalOpen(true);
+  };
+
+  const handleSaveRename = async () => {
+    if (!activeVersion || saving) return;
+    setSaving(true);
+    try {
+      // 1. Rename formula master name if changed
+      if (editName && editName.trim() !== activeVersion.formula_name) {
+        const res1 = await apiFetch(`/api/v1/formulas/${activeVersion.formula_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: editName.trim() }),
+        });
+        const d1 = await res1.json();
+        if (!d1.success) throw new Error(d1.message);
+      }
+
+      // 2. Rename version numbers & reason
+      const res2 = await apiFetch(`/api/v1/formulas/versions/${activeVersion.id}/rename`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          majorVersion: editMajorVer,
+          minorVersion: editMinorVer,
+          revisionReason: editReason,
+        }),
+      });
+      const d2 = await res2.json();
+      if (!d2.success) throw new Error(d2.message);
+
+      alert('Formula name and version updated successfully!');
+      setIsRenameModalOpen(false);
+      await fetchFormulas();
+      await loadVersion(activeVersion.id);
+    } catch (err) {
+      alert(`Rename Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleWorkflow = async (action) => {
     if (!selectedVersionId) return;
 
@@ -514,6 +566,14 @@ export function CosmeticFormulatorPage() {
                   V{activeVersion.major_version}.{activeVersion.minor_version}
                 </span>
                 <StatusBadge status={activeVersion.version_status} />
+                <button
+                  onClick={handleOpenRenameModal}
+                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-xs font-bold flex items-center gap-1 border border-blue-200 transition shadow-xs"
+                  title="Rename Formula & Version"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Rename / Edit</span>
+                </button>
                 <button
                   onClick={handleDeleteFormula}
                   className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-md text-xs font-bold flex items-center gap-1 border border-rose-200 transition shadow-xs"
@@ -819,6 +879,92 @@ export function CosmeticFormulatorPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Rename Formula & Version Modal */}
+      {isRenameModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-blue-600" />
+                Rename Formula & Version
+              </h3>
+              <button
+                onClick={() => setIsRenameModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Formula Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Enter formula name..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-semibold focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Major Version</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editMajorVer}
+                    onChange={e => setEditMajorVer(Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono font-bold focus:bg-white focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Minor Version</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editMinorVer}
+                    onChange={e => setEditMinorVer(Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono font-bold focus:bg-white focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Revision Reason / Remarks</label>
+                <textarea
+                  rows="2"
+                  value={editReason}
+                  onChange={e => setEditReason(e.target.value)}
+                  placeholder="Optional revision reason..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-medium focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleSaveRename}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{saving ? 'Saving...' : 'Save Changes'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
