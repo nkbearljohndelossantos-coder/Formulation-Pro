@@ -268,6 +268,22 @@ router.put('/versions/:versionId/rename', authenticateToken, async (req, res) =>
       return res.status(404).json({ success: false, message: 'Formula version not found' });
     }
 
+    const targetMajor = (majorVersion !== undefined && !isNaN(Number(majorVersion))) ? Number(majorVersion) : version.major_version;
+    const targetMinor = (minorVersion !== undefined && !isNaN(Number(minorVersion))) ? Number(minorVersion) : version.minor_version;
+
+    if (targetMajor !== version.major_version || targetMinor !== version.minor_version) {
+      const collision = await db('formula_versions')
+        .where({ formula_id: version.formula_id, major_version: targetMajor, minor_version: targetMinor })
+        .whereNot({ id: versionId })
+        .first();
+      if (collision) {
+        return res.status(400).json({
+          success: false,
+          message: `Version V${targetMajor}.${targetMinor} already exists for this formula. Please specify a unique version number.`,
+        });
+      }
+    }
+
     const updatePayload = { updated_at: db.fn.now() };
     if (majorVersion !== undefined && !isNaN(Number(majorVersion))) {
       updatePayload.major_version = Number(majorVersion);
@@ -535,7 +551,13 @@ router.post('/:id/revisions', authenticateToken, async (req, res) => {
 
     const parentVer = sourceVersionId ? await db('formula_versions').where({ id: sourceVersionId }).first() : null;
 
-    const nextMajor = (parentVer?.major_version || 1) + 1;
+    const maxVerRow = await db('formula_versions')
+      .where({ formula_id: formulaId })
+      .max('major_version as maxMajor')
+      .first();
+
+    const currentMax = (maxVerRow?.maxMajor !== undefined && maxVerRow?.maxMajor !== null) ? Number(maxVerRow.maxMajor) : (parentVer?.major_version || 1);
+    const nextMajor = currentMax + 1;
     const nextMinor = 0;
 
     const result = await db.transaction(async (trx) => {
@@ -550,7 +572,7 @@ router.post('/:id/revisions', authenticateToken, async (req, res) => {
         target_batch_size: parentVer?.target_batch_size || '100.000000',
         target_batch_uom: parentVer?.target_batch_uom || 'g',
         expected_yield: '100.000000',
-        created_by: req.user.id,
+        created_by: req.user?.id || null,
       };
 
       const [newVersionId] = await trx('formula_versions').insert(insertVer).then(r => [r[0]]);
@@ -623,8 +645,8 @@ router.post('/:id/revisions', authenticateToken, async (req, res) => {
 
       await AuditService.logEvent({
         trx,
-        userId: req.user.id,
-        userRole: req.user.roles[0] || 'Chemist',
+        userId: req.user?.id || null,
+        userRole: (req.user?.roles && req.user.roles[0]) || 'Chemist',
         action: 'CREATE_REVISION',
         entityType: 'FormulaVersion',
         entityId: newVersionId,
