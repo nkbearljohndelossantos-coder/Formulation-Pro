@@ -19,6 +19,9 @@ import {
   FileText,
   Search,
   Edit3,
+  ArrowLeft,
+  FolderOpen,
+  List,
 } from 'lucide-react';
 
 function StatusBadge({ status }) {
@@ -47,6 +50,7 @@ export function CosmeticFormulatorPage() {
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
   const [activeTab, setActiveTab] = useState('APPROVED'); // 'APPROVED' | 'DRAFT'
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'editor'
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
@@ -76,12 +80,14 @@ export function CosmeticFormulatorPage() {
         activeTab === 'APPROVED' ? v.version_status === 'APPROVED' : v.version_status !== 'APPROVED'
       );
       targetVersions.forEach(v => {
-        const text = `${f.code} ${f.name} V${v.major_version}.${v.minor_version} ${v.version_status}`.toLowerCase();
+        const text = `${f.code || ''} ${f.name || ''} ${f.product_category || ''} ${f.product_subcategory || ''} V${v.major_version}.${v.minor_version} ${v.version_status}`.toLowerCase();
         if (!searchQuery || text.includes(searchQuery.toLowerCase().trim())) {
           list.push({
             versionId: v.id,
             formulaCode: f.code,
             formulaName: f.name,
+            product_category: f.product_category,
+            product_subcategory: f.product_subcategory,
             versionStr: `V${v.major_version}.${v.minor_version}`,
             status: v.version_status,
           });
@@ -89,6 +95,15 @@ export function CosmeticFormulatorPage() {
       });
     });
     return list;
+  };
+
+  const handleSelectFormula = (versionId) => {
+    loadVersion(versionId);
+    setViewMode('editor');
+  };
+
+  const handleBackToList = () => {
+    setViewMode('list');
   };
 
   const fetchAvailableMaterials = () => {
@@ -105,17 +120,6 @@ export function CosmeticFormulatorPage() {
       .then(d => {
         if (d.success && d.data?.length) {
           setFormulas(d.data);
-          let firstApprovedId = null;
-          for (const f of d.data) {
-            const app = (f.versions || []).find(v => v.version_status === 'APPROVED');
-            if (app) {
-              firstApprovedId = app.id;
-              break;
-            }
-          }
-          if (firstApprovedId && !selectedVersionId) {
-            loadVersion(firstApprovedId);
-          }
         }
       });
   };
@@ -428,7 +432,7 @@ export function CosmeticFormulatorPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
+      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Cosmetic Formulation Workspace</h1>
@@ -437,118 +441,130 @@ export function CosmeticFormulatorPage() {
           </p>
         </div>
 
-        {/* Formula Picker & Mode Tabs */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-xs">
-            <button
-              onClick={() => {
-                setActiveTab('APPROVED');
-                let firstApp = null;
-                for (const f of formulas) {
-                  const app = (f.versions || []).find(v => v.version_status === 'APPROVED');
-                  if (app) { firstApp = app.id; break; }
-                }
-                if (firstApp) loadVersion(firstApp);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                activeTab === 'APPROVED'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-              }`}
-            >
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span>Approved Formulations</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('DRAFT');
-                let firstDraft = null;
-                for (const f of formulas) {
-                  const d = (f.versions || []).find(v => v.version_status !== 'APPROVED');
-                  if (d) { firstDraft = d.id; break; }
-                }
-                if (firstDraft) loadVersion(firstDraft);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                activeTab === 'DRAFT'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Draft Revisions ({formulas.flatMap(f => (f.versions || []).filter(v => v.version_status !== 'APPROVED')).length})</span>
-            </button>
-          </div>
-
-          {/* Searchable Custom Formula Dropdown */}
-          {activeVersion && (
-            <div className="relative">
-              <div className="flex items-center gap-2.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs">
-                <button
-                  type="button"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-300 transition text-xs font-bold text-slate-900 shadow-2xs"
-                >
-                  <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                  <span className="max-w-[280px] sm:max-w-xs truncate">
-                    {activeVersion.formula_name} (V{activeVersion.major_version}.{activeVersion.minor_version} {activeVersion.version_status})
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1" />
-                </button>
-                <StatusBadge status={activeVersion.version_status} />
-              </div>
-
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                  {/* Search Header */}
-                  <div className="p-2.5 border-b border-slate-100 bg-slate-50">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="Search formula name or version..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium shadow-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Options List */}
-                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
-                    {getFilteredDropdownVersions().length === 0 ? (
-                      <div className="p-4 text-xs text-slate-400 text-center font-medium">
-                        No matching formulas found
-                      </div>
-                    ) : (
-                      getFilteredDropdownVersions().map(item => (
-                        <button
-                          key={item.versionId}
-                          type="button"
-                          onClick={() => {
-                            loadVersion(item.versionId);
-                            setIsDropdownOpen(false);
-                            setSearchQuery('');
-                          }}
-                          className={`w-full text-left p-2.5 text-xs hover:bg-blue-50 transition flex items-center justify-between gap-2 ${
-                            item.versionId === selectedVersionId ? 'bg-blue-50/80 font-bold text-blue-900' : 'text-slate-700'
-                          }`}
-                        >
-                          <span className="truncate font-semibold">{item.formulaName} ({item.versionStr})</span>
-                          <StatusBadge status={item.status} />
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {viewMode === 'editor' && activeVersion && (
+          <button
+            onClick={handleBackToList}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-2 border border-slate-300 shadow-xs"
+          >
+            <ArrowLeft className="w-4 h-4 text-slate-600" />
+            <span>← Back to Formula List</span>
+          </button>
+        )}
       </div>
 
-      {activeVersion && (
+      {/* VIEW MODE 1: Master Formulation Directory List */}
+      {(viewMode === 'list' || !activeVersion) ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
+          {/* Directory Header & Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-blue-600" />
+                Cosmetic Master Formulation Directory
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Click any formulation below to open and edit its workspace.
+              </p>
+            </div>
+
+            {/* Approved vs Draft Tabs */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-xs">
+              <button
+                onClick={() => setActiveTab('APPROVED')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  activeTab === 'APPROVED'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>Approved Formulations</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('DRAFT')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  activeTab === 'DRAFT'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Draft Revisions ({formulas.flatMap(f => (f.versions || []).filter(v => v.version_status !== 'APPROVED')).length})</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              placeholder="Search formula by name or category..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 font-medium focus:bg-white focus:border-blue-600 focus:outline-none shadow-xs"
+            />
+          </div>
+
+          {/* Formula List Table */}
+          <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
+                <tr>
+                  <th className="p-3.5">Formula Name</th>
+                  <th className="p-3.5">Category / Subcategory</th>
+                  <th className="p-3.5">Version</th>
+                  <th className="p-3.5">Status</th>
+                  <th className="p-3.5 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {getFilteredDropdownVersions().length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="p-8 text-center text-slate-400 font-semibold">
+                      No formulations found in this list.
+                    </td>
+                  </tr>
+                ) : (
+                  getFilteredDropdownVersions().map(item => (
+                    <tr
+                      key={item.versionId}
+                      onClick={() => handleSelectFormula(item.versionId)}
+                      className="hover:bg-blue-50/70 cursor-pointer transition-colors group"
+                    >
+                      <td className="p-3.5 font-bold text-slate-900 group-hover:text-blue-700">
+                        {item.formulaName}
+                      </td>
+                      <td className="p-3.5 text-slate-600">
+                        {item.product_category || 'Cosmetic'} {item.product_subcategory ? `• ${item.product_subcategory}` : ''}
+                      </td>
+                      <td className="p-3.5 font-mono font-bold text-slate-800">
+                        {item.versionStr}
+                      </td>
+                      <td className="p-3.5">
+                        <StatusBadge status={item.status} />
+                      </td>
+                      <td className="p-3.5 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectFormula(item.versionId);
+                          }}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs transition inline-flex items-center gap-1.5 shadow-xs"
+                        >
+                          <span>Open Formulation</span>
+                          <span>→</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* VIEW MODE 2: Opened Formulation Editor Workspace */
         <>
           {/* Selected Formula Master Details Banner */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
