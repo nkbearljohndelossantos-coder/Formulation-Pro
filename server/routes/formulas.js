@@ -1,4 +1,4 @@
-import express from 'express';
+import { express } from '../cjsRequire.js';
 import crypto from 'crypto';
 import Decimal from 'decimal.js';
 import db from '../db.js';
@@ -229,6 +229,8 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to fetch formula version', error: err.message });
   }
+});
+
 // PUT /api/v1/formulas/:id (Rename / Update Formula Master Name & Details)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
