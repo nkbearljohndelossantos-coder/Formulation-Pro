@@ -35,6 +35,7 @@ export function App() {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [selectedBatchId, setSelectedBatchId] = useState(1);
+  const [activeFormulaVersionId, setActiveFormulaVersionId] = useState(null);
 
   const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
                         user?.email?.toLowerCase().includes('perfume') ||
@@ -134,8 +135,24 @@ export function App() {
               {currentPage === 'create-material' && <CreateMaterialPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-vendor' && <CreateVendorPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-company' && <CreateCompanyPage setCurrentPage={setCurrentPage} />}
-              {currentPage === 'create-formula' && <CreateFormulaPage setCurrentPage={setCurrentPage} />}
-              {currentPage === 'formulation-cosmetic' && <CosmeticFormulatorPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'create-formula' && (
+                <CreateFormulaPage
+                  setCurrentPage={setCurrentPage}
+                  onFormulaCreated={(createdData) => {
+                    const vId = createdData?.version_id || createdData?.data?.version_id;
+                    if (vId) {
+                      setActiveFormulaVersionId(vId);
+                    }
+                  }}
+                />
+              )}
+              {currentPage === 'formulation-cosmetic' && (
+                <CosmeticFormulatorPage
+                  setCurrentPage={setCurrentPage}
+                  initialVersionId={activeFormulaVersionId}
+                  onClearInitialVersion={() => setActiveFormulaVersionId(null)}
+                />
+              )}
               {currentPage === 'formulation-perfume-no-brand' && <PerfumeNoBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-perfume-brand' && <PerfumeBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-supplement' && <FoodSupplementPage setCurrentPage={setCurrentPage} />}

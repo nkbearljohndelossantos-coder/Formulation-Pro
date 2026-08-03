@@ -92,7 +92,7 @@ export function CreateFormulaPage({ setCurrentPage, onFormulaCreated }) {
 
       setTimeout(() => {
         setCurrentPage(isPerfumeUser ? 'formulation-perfume-no-brand' : 'formulation-cosmetic');
-      }, 600);
+      }, 150);
 
     } catch (err) {
       setErrorMessage(err.message || 'Database operation failed');

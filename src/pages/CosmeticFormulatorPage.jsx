@@ -42,7 +42,7 @@ function StatusBadge({ status }) {
   );
 }
 
-export function CosmeticFormulatorPage() {
+export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onClearInitialVersion }) {
   const { user } = useAuth();
   const [formulas, setFormulas] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState(null);
@@ -50,7 +50,7 @@ export function CosmeticFormulatorPage() {
   const [materials, setMaterials] = useState([]);
   const [availableMaterials, setAvailableMaterials] = useState([]);
   const [activeTab, setActiveTab] = useState('APPROVED'); // 'APPROVED' | 'DRAFT'
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'editor'
+  const [viewMode, setViewMode] = useState(initialVersionId ? 'editor' : 'list'); // 'list' | 'editor'
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
@@ -71,7 +71,14 @@ export function CosmeticFormulatorPage() {
   useEffect(() => {
     fetchAvailableMaterials();
     fetchFormulas();
-  }, []);
+    if (initialVersionId) {
+      loadVersion(initialVersionId);
+      setViewMode('editor');
+      if (typeof onClearInitialVersion === 'function') {
+        onClearInitialVersion();
+      }
+    }
+  }, [initialVersionId]);
 
   const getFilteredDropdownVersions = () => {
     const list = [];
