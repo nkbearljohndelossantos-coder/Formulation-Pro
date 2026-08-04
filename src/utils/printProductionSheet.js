@@ -212,6 +212,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     const copyCompoundingNo = `CP-${numStr}`;
     const copyBatchNo = `BAT-${numStr}`;
     const copyBadgeLabel = copiesCount > 1 ? `<span style="font-size: 11px; color: #475569; font-weight: 600;">(Copy ${i + 1} of ${copiesCount})</span>` : '';
+    const copyFooterLabel = copiesCount > 1 ? `<div>Copy ${i + 1} of ${copiesCount}</div>` : '<div></div>';
 
     pagesHtml += `
       <div class="container sheet-page">
@@ -317,7 +318,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         <!-- Page Printable Footer -->
         <div class="print-page-footer">
           <div>NKB Manufacturing Corporation • Production Sheet (${copyCompoundingNo}) — Batch: ${copyBatchNo}</div>
-          <div>Copy ${i + 1} of ${copiesCount}</div>
+          ${copyFooterLabel}
         </div>
       </div>
     `;
