@@ -125,7 +125,7 @@ export async function printProductionSheet({ version, formula, materials, catego
 
   // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
   const formatBaseCompoundingNo = () => {
-    let raw = version?.compounding_number || version?.compoundingNo || version?.compounding_code;
+    let raw = version?.compounding_code || version?.compounding_number || version?.compoundingNo;
     if (!raw && version?.batch_number) {
       raw = version.batch_number;
     }

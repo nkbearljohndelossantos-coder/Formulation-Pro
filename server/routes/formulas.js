@@ -129,6 +129,7 @@ router.get('/', authenticateToken, async (req, res) => {
           major_version: v.major_version ?? 1,
           minor_version: v.minor_version ?? 0,
           version_status: v.version_status || 'DRAFT',
+          compounding_code: v.compounding_code || null,
           target_batch_size: v.target_batch_size || '100.00',
           target_batch_uom: v.target_batch_uom || 'g',
           created_at: v.created_at,
@@ -483,24 +484,24 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
         }
       }
 
-      const verUpdate = { updated_at: trx.fn.now() };
-      if (!version.compounding_code) {
-        const compoundingCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
-        verUpdate.compounding_code = compoundingCode;
+      const compoundingCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
+      const verUpdate = {
+        updated_at: trx.fn.now(),
+        compounding_code: compoundingCode,
+      };
 
-        await trx('compounding_code_logs').insert({
-          compounding_code: compoundingCode,
-          batch_number: compoundingCode.replace('CP-', 'BAT-'),
-          formula_code: formula?.code || null,
-          formula_name: formula?.name || null,
-          formula_version: `V${version.major_version}.${version.minor_version}`,
-          target_batch_size: targetBatchSize || target_batch_size || version.target_batch_size,
-          target_batch_uom: targetBatchUom || target_batch_uom || version.target_batch_uom || 'g',
-          printed_by_id: req.user?.id || null,
-          printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
-          created_at: trx.fn.now(),
-        }).catch(() => {});
-      }
+      await trx('compounding_code_logs').insert({
+        compounding_code: compoundingCode,
+        batch_number: compoundingCode.replace('CP-', 'BAT-'),
+        formula_code: formula?.code || null,
+        formula_name: formula?.name || null,
+        formula_version: `V${version.major_version}.${version.minor_version}`,
+        target_batch_size: targetBatchSize || target_batch_size || version.target_batch_size,
+        target_batch_uom: targetBatchUom || target_batch_uom || version.target_batch_uom || 'g',
+        printed_by_id: req.user?.id || null,
+        printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
+        created_at: trx.fn.now(),
+      }).catch(() => {});
 
       const newBatchSize = targetBatchSize || target_batch_size;
       if (newBatchSize !== undefined && newBatchSize !== null && String(newBatchSize).trim() !== '') {
@@ -522,11 +523,17 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
         action: 'UPDATE_FORMULA_VERSION',
         entityType: 'FormulaVersion',
         entityId: versionId,
-        newValues: { materials_count: materials?.length || 0 },
+        newValues: { materials_count: materials?.length || 0, compounding_code: compoundingCode },
       });
+
+      req._assignedCompoundingCode = compoundingCode;
     });
 
-    return res.json({ success: true, message: 'Formula draft version updated successfully' });
+    return res.json({
+      success: true,
+      message: 'Formula draft version updated successfully',
+      data: { compounding_code: req._assignedCompoundingCode },
+    });
   } catch (err) {
     console.error('Error updating formula version:', err);
     return res.status(500).json({ success: false, message: err.message || 'Database operation failed', error: err.message });
