@@ -2,10 +2,21 @@
  * Production Sheet PDF Generator & Native Print Utility
  * Matches the official NKB Manufacturing Corporation Production Sheet document standard.
  */
-export function printProductionSheet({ version, formula, materials, categoryDetails, user }) {
+export function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies }) {
   if (!version) {
     alert('Invalid formula version selected.');
     return;
+  }
+
+  let copiesCount = parseInt(requestedCopies, 10);
+  if (isNaN(copiesCount) || copiesCount < 1) {
+    const inputStr = prompt(
+      'Enter total Production Sheet copies to print:\n(Each copy will be assigned a UNIQUE sequential Compounding Code CP-xxxx)',
+      '1'
+    );
+    if (inputStr === null) return; // User cancelled
+    copiesCount = parseInt(inputStr, 10);
+    if (isNaN(copiesCount) || copiesCount < 1) copiesCount = 1;
   }
 
   const printWindow = window.open('', '_blank', 'width=950,height=1100');
@@ -29,8 +40,8 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   }
   const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
 
-  // Dynamic Compounding Control Number (CP-xxxx format with minimum 4 digits)
-  const formatCompoundingNo = () => {
+  // Base Compounding Control Number (CP-xxxx format with minimum 4 digits)
+  const formatBaseCompoundingNo = () => {
     let raw = version?.compounding_number || version?.compoundingNo || version?.compounding_code;
     if (!raw && version?.batch_number) {
       raw = version.batch_number;
@@ -41,30 +52,30 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
       str = str.replace(/^(BAT|CP)-?/, '');
       const digits = str.replace(/[^0-9]/g, '');
       if (digits) {
-        const numStr = digits.length > 4 ? digits.slice(-4) : digits.padStart(4, '0');
-        return `CP-${numStr}`;
+        return {
+          baseNum: parseInt(digits, 10) || 1,
+          padLen: Math.max(digits.length, 4),
+        };
       }
     }
 
     const codeDigits = (formulaCode || '').replace(/[^0-9]/g, '');
     if (codeDigits) {
-      const numStr = codeDigits.length > 4 ? codeDigits.slice(-4) : codeDigits.padStart(4, '0');
-      return `CP-${numStr}`;
+      return {
+        baseNum: parseInt(codeDigits, 10) || 1,
+        padLen: Math.max(codeDigits.length, 4),
+      };
     }
 
     const vId = version?.formula_id || version?.id || formula?.id;
     const idDigits = String(vId || 1).replace(/[^0-9]/g, '');
-    const numStr = idDigits ? idDigits.padStart(4, '0') : '0001';
-    return `CP-${numStr}`;
+    return {
+      baseNum: parseInt(idDigits, 10) || 1,
+      padLen: 4,
+    };
   };
 
-  const compoundingNo = formatCompoundingNo();
-
-  let batchNo = version?.batch_number || version?.batchNo || version?.batch_code;
-  if (!batchNo) {
-    const rawNum = compoundingNo.replace('CP-', '');
-    batchNo = `BAT-${rawNum}`;
-  }
+  const { baseNum, padLen } = formatBaseCompoundingNo();
 
   const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
   const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -146,7 +157,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
       });
     });
   }
-  const totalItemCount = materials.length;
+  const totalItemCount = (materials || []).length;
 
   let pageMargin = '8mm 12mm';
   let bodyPadding = '16px';
@@ -204,12 +215,131 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     fontFamilyCss = 'Georgia, "Times New Roman", Times, serif';
   }
 
+  // Generate HTML Pages for requested copies (Each page gets its UNIQUE CP-xxxx Code)
+  let pagesHtml = '';
+  for (let i = 0; i < copiesCount; i++) {
+    const currentNum = baseNum + i;
+    const numStr = String(currentNum).padStart(padLen, '0');
+    const copyCompoundingNo = `CP-${numStr}`;
+    const copyBatchNo = `BAT-${numStr}`;
+    const copyBadgeLabel = copiesCount > 1 ? `<span style="font-size: 11px; color: #475569; font-weight: 600;">(Copy ${i + 1} of ${copiesCount})</span>` : '';
+
+    pagesHtml += `
+      <div class="container sheet-page">
+        <!-- Header -->
+        <div class="doc-header">
+          <h1>NKB Manufacturing Corporation</h1>
+          <h2>PRODUCTION SHEET ${copyBadgeLabel}</h2>
+        </div>
+
+        <!-- Meta Info -->
+        <div class="meta-section">
+          <div class="meta-col-left">
+            <div class="meta-line"><span class="meta-bold">Compounding Code:</span> <span class="num-font" style="color: #0369a1; font-weight: 800;">${copyCompoundingNo}</span></div>
+            <div class="meta-line"><span class="meta-bold">Batch Number:</span> <span class="num-font" style="color: #0f172a;">${copyBatchNo}</span></div>
+            <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}</div>
+            <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
+          </div>
+          <div class="meta-col-right">
+            <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
+            <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>
+            <div class="meta-line"><span class="meta-bold">Prepared By:</span> ${preparedByName}</div>
+          </div>
+        </div>
+
+        <!-- Sheet Table -->
+        <table class="sheet-table">
+          <thead>
+            <tr>
+              <th class="qty-header">Quantity</th>
+              <th class="mat-header">Raw Material</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml}
+            <tr class="total-row">
+              <td colspan="2">
+                <span class="checkbox-box" style="visibility: hidden;">☐</span>
+                <span>${formattedTargetQty}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Quality Parameters & Specifications Table -->
+        <div style="margin-top: 15px; margin-bottom: 20px;">
+          <div style="font-weight: 800; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.3px; color: #000;">
+            QUALITY PARAMETERS & SPECIFICATIONS:
+          </div>
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 12px;">
+            <tbody>
+              <tr>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${targetPh}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Actual pH:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${actualPh || '[ ________ ]'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Viscosity (cP):</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${viscosity}</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Appearance:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; width: 25%;">${appearance}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Remarks:</td>
+                <td style="padding: 6px 10px; border: 1px solid #d1d5db;" colspan="3">${remarks}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Notes / Instructions -->
+        <div class="notes-container">
+          <div class="notes-heading">NOTES / INSTRUCTIONS:</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow the step order as indicated</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Verify all quantities before processing</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Record actual quantities used</div>
+        </div>
+
+        <!-- Signatures Row -->
+        <div class="signatures-row">
+          <div class="sig-box">
+            <div class="sig-title">Prepared by:</div>
+            <div class="sig-name">${preparedByName}</div>
+            <div class="sig-line"></div>
+            <div class="sig-subtext">Name & Signature</div>
+          </div>
+
+          <div class="sig-box">
+            <div class="sig-title">Checked by:</div>
+            <div class="sig-name">&nbsp;</div>
+            <div class="sig-line"></div>
+            <div class="sig-subtext">QC Name & Signature</div>
+          </div>
+
+          <div class="sig-box">
+            <div class="sig-title">Completed by:</div>
+            <div class="sig-name">&nbsp;</div>
+            <div class="sig-line"></div>
+            <div class="sig-subtext">Production Team & Date</div>
+          </div>
+        </div>
+
+        <!-- Page Printable Footer -->
+        <div class="print-page-footer">
+          <div>NKB Manufacturing Corporation • Production Sheet (${copyCompoundingNo}) — Batch: ${copyBatchNo}</div>
+          <div>Copy ${i + 1} of ${copiesCount}</div>
+        </div>
+      </div>
+    `;
+  }
+
   const htmlDocument = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>${defaultPdfFilename}</title>
+      <title>${defaultPdfFilename} (${copiesCount} Copies)</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       ${googleFontUrl ? `<link href="${googleFontUrl}" rel="stylesheet">` : ''}
@@ -240,6 +370,16 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           max-width: 780px;
           margin: 0 auto;
         }
+        .sheet-page {
+          page-break-after: always;
+          break-after: page;
+          padding-bottom: 12px;
+        }
+        .sheet-page:last-child {
+          page-break-after: avoid;
+          break-after: avoid;
+        }
+
         /* Top Header */
         .doc-header {
           text-align: center;
@@ -404,11 +544,8 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         }
 
         /* Printable Footer & Page Numbers */
-        body {
-          counter-reset: page;
-        }
         .print-page-footer {
-          margin-top: 20px;
+          margin-top: 15px;
           padding-top: 6px;
           border-top: 1px dashed #cbd5e1;
           display: flex;
@@ -416,9 +553,6 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           font-size: 9.5px;
           color: #475569;
           font-family: ${fontFamilyCss};
-        }
-        .print-page-footer .page-number::after {
-          content: counter(page);
         }
 
         /* Screen Print Bar Controls */
@@ -451,23 +585,11 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           @page {
             size: A4 portrait;
             margin: ${pageMargin};
-            @bottom-right {
-              content: "Page " counter(page) " of " counter(pages);
-              font-size: 9px;
-              color: #475569;
-              font-family: ${fontFamilyCss};
-            }
-            @bottom-left {
-              content: "NKB Manufacturing Corporation • ${compoundingNo}";
-              font-size: 9px;
-              color: #475569;
-              font-family: ${fontFamilyCss};
-            }
           }
           html, body {
-            height: 100% !important;
-            max-height: 100vh !important;
-            overflow: hidden !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
             padding: 0 !important;
             margin: 0 !important;
             background: #ffffff !important;
@@ -477,25 +599,11 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           .no-print-bar {
             display: none !important;
           }
-          .print-page-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #ffffff;
-            margin-top: 0;
-            padding-bottom: 4px;
-          }
           .container {
             width: 100% !important;
             max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-          }
-          table, tr, td, th, .notes-container, .signatures-row {
-            page-break-inside: avoid !important;
           }
         }
       </style>
@@ -503,10 +611,17 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     <body>
       <div class="no-print-bar">
         <div>
-          <strong style="font-size: 13px; display: block; margin-bottom: 2px;">📄 Formula Production Sheet — ${formulaCode}</strong>
-          <div style="font-size: 11px; opacity: 0.9;">💡 <strong>To Save as PDF:</strong> Click <strong>Save as PDF / Print</strong> $\rightarrow$ Select <strong>Save as PDF</strong> under Destination $\rightarrow$ Click <strong>Save</strong>.</div>
+          <strong style="font-size: 13px; display: block; margin-bottom: 2px;">📄 Production Sheet Batch Copies — ${formulaCode}</strong>
+          <div style="font-size: 11px; opacity: 0.9;">💡 <strong>Unique Compounding Codes:</strong> ${copiesCount} copy/ies generated with unique sequential <strong>CP-xxxx</strong> control codes.</div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 6px;">
+            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1;">Copies:</label>
+            <input type="number" id="copyCountInput" min="1" max="50" value="${copiesCount}" style="width: 45px; padding: 4px; border-radius: 4px; border: 1px solid #475569; font-weight: bold; text-align: center; color: #000;" />
+            <button class="print-btn" style="background-color: #3b82f6; padding: 5px 10px; font-size: 11px;" onclick="promptUpdateCopies()">
+              🔄 Change Copies
+            </button>
+          </div>
           <button class="print-btn" style="background-color: #059669;" onclick="window.print()">
             💾 Save as PDF / Print
           </button>
@@ -516,114 +631,20 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         </div>
       </div>
 
-      <div class="container">
-        <!-- Header -->
-        <div class="doc-header">
-          <h1>NKB Manufacturing Corporation</h1>
-          <h2>PRODUCTION SHEET</h2>
-        </div>
-
-        <!-- Meta Info -->
-        <div class="meta-section">
-          <div class="meta-col-left">
-            <div class="meta-line"><span class="meta-bold">Compounding Code:</span> <span class="num-font" style="color: #0369a1;">${compoundingNo}</span></div>
-            <div class="meta-line"><span class="meta-bold">Batch Number:</span> <span class="num-font" style="color: #0f172a;">${batchNo}</span></div>
-            <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}</div>
-            <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
-          </div>
-          <div class="meta-col-right">
-            <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
-            <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>
-            <div class="meta-line"><span class="meta-bold">Prepared By:</span> ${preparedByName}</div>
-          </div>
-        </div>
-
-        <!-- Sheet Table -->
-        <table class="sheet-table">
-          <thead>
-            <tr>
-              <th class="qty-header">Quantity</th>
-              <th class="mat-header">Raw Material</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRowsHtml}
-            <tr class="total-row">
-              <td colspan="2">
-                <span class="checkbox-box" style="visibility: hidden;">☐</span>
-                <span>${formattedTargetQty}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Quality Parameters & Specifications Table -->
-        <div style="margin-top: 15px; margin-bottom: 20px;">
-          <div style="font-weight: 800; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.3px; color: #000;">
-            QUALITY PARAMETERS & SPECIFICATIONS:
-          </div>
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 12px;">
-            <tbody>
-              <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${targetPh}</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Actual pH:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${actualPh || '[ ________ ]'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Viscosity (cP):</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${viscosity}</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Appearance:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; width: 25%;">${appearance}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Remarks:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db;" colspan="3">${remarks}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Notes / Instructions -->
-        <div class="notes-container">
-          <div class="notes-heading">NOTES / INSTRUCTIONS:</div>
-          <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow the step order as indicated</div>
-          <div class="notes-bullet"><span class="bullet-icon">◆</span> Verify all quantities before processing</div>
-          <div class="notes-bullet"><span class="bullet-icon">◆</span> Record actual quantities used</div>
-        </div>
-
-        <!-- Signatures Row -->
-        <div class="signatures-row">
-          <div class="sig-box">
-            <div class="sig-title">Prepared by:</div>
-            <div class="sig-name">${preparedByName}</div>
-            <div class="sig-line"></div>
-            <div class="sig-subtext">Name & Signature</div>
-          </div>
-
-          <div class="sig-box">
-            <div class="sig-title">Checked by:</div>
-            <div class="sig-name">&nbsp;</div>
-            <div class="sig-line"></div>
-            <div class="sig-subtext">QC Name & Signature</div>
-          </div>
-
-          <div class="sig-box">
-            <div class="sig-title">Completed by:</div>
-            <div class="sig-name">&nbsp;</div>
-            <div class="sig-line"></div>
-            <div class="sig-subtext">Production Team & Date</div>
-          </div>
-        </div>
-
-        <!-- Page Printable Footer -->
-        <div class="print-page-footer">
-          <div>NKB Manufacturing Corporation • Production Sheet (${compoundingNo}) — Batch: ${batchNo}</div>
-          <div>Page <span class="page-number"></span></div>
-        </div>
-      </div>
+      ${pagesHtml}
 
       <script>
+        function promptUpdateCopies() {
+          const val = parseInt(document.getElementById('copyCountInput').value, 10);
+          if (!isNaN(val) && val >= 1) {
+            if (window.opener && typeof window.opener.__PRINT_WITH_COPIES__ === 'function') {
+              window.opener.__PRINT_WITH_COPIES__(val);
+              window.close();
+            } else {
+              alert('To change copy quantity, please re-click Print from the main application.');
+            }
+          }
+        }
         document.addEventListener('DOMContentLoaded', function() {
           setTimeout(function() {
             window.focus();
@@ -634,6 +655,13 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     </body>
     </html>
   `;
+
+  // Attach global helper to opener for copy count re-generation
+  if (typeof window !== 'undefined') {
+    window.__PRINT_WITH_COPIES__ = function(newCopies) {
+      printProductionSheet({ version, formula, materials, categoryDetails, user, copies: newCopies });
+    };
+  }
 
   printWindow.document.open();
   printWindow.document.write(htmlDocument);
