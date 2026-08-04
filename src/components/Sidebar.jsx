@@ -7,6 +7,7 @@ import {
   History,
   GitCompare,
   FileSpreadsheet,
+  FileText,
   Users,
   Settings,
   Building,
@@ -320,6 +321,17 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                     >
                       <Activity className="w-3.5 h-3.5 text-slate-400" />
                       <span>Compounding Portal</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('compounding-logs')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                        isCurrent('compounding-logs')
+                          ? 'bg-slate-800 text-blue-400 font-semibold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Compounding Code Storage</span>
                     </button>
                   </div>
                 )}

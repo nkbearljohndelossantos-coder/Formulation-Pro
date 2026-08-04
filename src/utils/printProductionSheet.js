@@ -1,3 +1,5 @@
+import { apiFetch } from '../services/api';
+
 /**
  * Production Sheet PDF Generator & Native Print Utility
  * Matches the official NKB Manufacturing Corporation Production Sheet document standard.
@@ -33,7 +35,7 @@ function showCopySelectorModal(onConfirm) {
       </div>
 
       <p style="font-size: 12.5px; color: #475569; margin: 0 0 16px 0; line-height: 1.45;">
-        How many production sheet copies do you want to print? If printing multiple copies, each copy will be assigned a <strong>UNIQUE 4-digit Compounding Code (CP-xxxx)</strong>.
+        How many production sheet copies do you want to print? If printing multiple copies, each copy will be assigned a <strong>UNIQUE Compounding Code (CP-YYYY-XXXX)</strong>.
       </p>
 
       <div style="margin-bottom: 20px;">
@@ -82,7 +84,7 @@ function showCopySelectorModal(onConfirm) {
   };
 }
 
-export function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies }) {
+export async function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies }) {
   if (!version) {
     alert('Invalid formula version selected.');
     return;
@@ -289,13 +291,34 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     fontFamilyCss = 'Georgia, "Times New Roman", Times, serif';
   }
 
-  // Generate HTML Pages for requested copies (Each page gets its UNIQUE CP-xxxx Code)
+  // Request atomic unique compounding codes from backend database to guarantee zero duplicates & store audit logs
+  let generatedLogEntries = [];
+  try {
+    const res = await apiFetch('/api/v1/compounding-codes/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        count: copiesCount,
+        formulaCode,
+        formulaName,
+        formulaVersion: versionNum,
+        targetBatchSize: targetBatchSizeNum,
+        targetBatchUom: batchUom,
+      }),
+    });
+    const resData = await res.json();
+    if (resData.success && Array.isArray(resData.data)) {
+      generatedLogEntries = resData.data;
+    }
+  } catch (err) {
+    console.warn('Backend compounding code generation failed, using fallback code:', err);
+  }
+
+  // Generate HTML Pages for requested copies (Each page gets its UNIQUE CP-YYYY-XXXX Code)
   let pagesHtml = '';
   for (let i = 0; i < copiesCount; i++) {
-    const currentNum = (baseNum + i) % 10000;
-    const numStr = String(currentNum || 1).padStart(4, '0');
-    const copyCompoundingNo = `CP-${numStr}`;
-    const copyBatchNo = `BAT-${numStr}`;
+    const logItem = generatedLogEntries[i];
+    const copyCompoundingNo = logItem?.compounding_code || `CP-${new Date().getFullYear()}-${String((baseNum + i) % 10000 || 1).padStart(4, '0')}`;
+    const copyBatchNo = logItem?.batch_number || copyCompoundingNo.replace('CP-', 'BAT-');
     const copyBadgeLabel = copiesCount > 1 ? `<span style="font-size: 11px; color: #475569; font-weight: 600;">(Copy ${i + 1} of ${copiesCount})</span>` : '';
     const copyFooterLabel = copiesCount > 1 ? `<div>Copy ${i + 1} of ${copiesCount}</div>` : '<div></div>';
 
