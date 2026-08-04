@@ -2,11 +2,101 @@
  * Production Sheet PDF Generator & Native Print Utility
  * Matches the official NKB Manufacturing Corporation Production Sheet document standard.
  */
+function showCopySelectorModal(onConfirm) {
+  if (typeof document === 'undefined') {
+    onConfirm(1);
+    return;
+  }
+
+  let modal = document.getElementById('nkb_copy_selector_modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'nkb_copy_selector_modal';
+  modal.style.position = 'fixed';
+  modal.style.inset = '0';
+  modal.style.zIndex = '999999';
+  modal.style.backgroundColor = 'rgba(15, 23, 42, 0.65)';
+  modal.style.backdropFilter = 'blur(4px)';
+  modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+  modal.style.padding = '16px';
+
+  modal.innerHTML = `
+    <div style="background: #ffffff; width: 100%; max-width: 420px; border-radius: 20px; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #e2e8f0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+          🖨️ Set Production Sheet Copies
+        </h3>
+        <button id="nkb_modal_close_btn" style="background: #f1f5f9; border: none; font-size: 14px; color: #64748b; cursor: pointer; font-weight: bold; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✕</button>
+      </div>
+
+      <p style="font-size: 12.5px; color: #475569; margin: 0 0 16px 0; line-height: 1.45;">
+        How many production sheet copies do you want to print? If printing multiple copies, each copy will be assigned a <strong>UNIQUE 4-digit Compounding Code (CP-xxxx)</strong>.
+      </p>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Number of Copies to Print *</label>
+        <input type="number" id="nkb_copy_count_input" min="1" max="50" value="1" style="width: 100%; padding: 10px 14px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 15px; font-weight: 800; color: #0f172a; box-sizing: border-box; outline: none; transition: border-color 0.2s;" />
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="nkb_modal_cancel_btn" style="padding: 9px 18px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 12.5px; font-weight: 700; cursor: pointer;">
+          Cancel
+        </button>
+        <button id="nkb_modal_confirm_btn" style="padding: 9px 22px; background: #059669; color: #ffffff; border: none; border-radius: 10px; font-size: 12.5px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.25);">
+          🖨️ Generate PDF / Print
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const inputEl = document.getElementById('nkb_copy_count_input');
+  if (inputEl) {
+    inputEl.focus();
+    inputEl.select();
+  }
+
+  const closeModal = () => modal.remove();
+
+  document.getElementById('nkb_modal_close_btn').onclick = closeModal;
+  document.getElementById('nkb_modal_cancel_btn').onclick = closeModal;
+
+  document.getElementById('nkb_modal_confirm_btn').onclick = () => {
+    const val = parseInt(inputEl.value, 10) || 1;
+    closeModal();
+    onConfirm(val);
+  };
+
+  inputEl.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      const val = parseInt(inputEl.value, 10) || 1;
+      closeModal();
+      onConfirm(val);
+    } else if (e.key === 'Escape') {
+      closeModal();
+    }
+  };
+}
+
 export function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies }) {
   if (!version) {
     alert('Invalid formula version selected.');
     return;
   }
+
+  // If copy count hasn't been set by user, show the in-app copy selector modal first!
+  if (typeof requestedCopies !== 'number' || requestedCopies < 1) {
+    showCopySelectorModal((selectedCopies) => {
+      printProductionSheet({ version, formula, materials, categoryDetails, user, copies: selectedCopies });
+    });
+    return;
+  }
+
+  const copiesCount = requestedCopies;
 
   // Attempt to open new window for print preview
   let printWindow = null;
@@ -14,11 +104,6 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     printWindow = window.open('', '_blank', 'width=950,height=1100');
   } catch (e) {
     printWindow = null;
-  }
-
-  let copiesCount = parseInt(requestedCopies, 10);
-  if (isNaN(copiesCount) || copiesCount < 1) {
-    copiesCount = 1;
   }
 
   const details = categoryDetails || version?.categoryDetails || version?.cosmeticDetails || {};
