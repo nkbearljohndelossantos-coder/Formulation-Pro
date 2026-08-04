@@ -29,22 +29,41 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   }
   const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
 
-  // Dynamic Compounding Control Number per formula/version/batch
-  let compoundingNo = version?.compounding_number || version?.compoundingNo;
-  if (!compoundingNo) {
-    if (version?.batch_number) {
-      compoundingNo = version.batch_number.replace(/^BAT-/, 'CP-');
-    } else {
-      const codeDigits = formulaCode.replace(/[^0-9]/g, '');
-      if (formulaCode.toUpperCase().startsWith('CP-')) {
-        compoundingNo = formulaCode.toUpperCase();
-      } else if (codeDigits) {
-        compoundingNo = `CP-${codeDigits}`;
-      } else {
-        const vId = version?.formula_id || version?.id || formula?.id;
-        compoundingNo = vId ? `CP-${String(Number(vId) + 1000)}` : `CP-${Date.now().toString().slice(-4)}`;
+  // Dynamic Compounding Control Number (CP-xxxx format with minimum 4 digits)
+  const formatCompoundingNo = () => {
+    let raw = version?.compounding_number || version?.compoundingNo || version?.compounding_code;
+    if (!raw && version?.batch_number) {
+      raw = version.batch_number;
+    }
+
+    if (raw) {
+      let str = String(raw).trim().toUpperCase();
+      str = str.replace(/^(BAT|CP)-?/, '');
+      const digits = str.replace(/[^0-9]/g, '');
+      if (digits) {
+        const numStr = digits.length > 4 ? digits.slice(-4) : digits.padStart(4, '0');
+        return `CP-${numStr}`;
       }
     }
+
+    const codeDigits = (formulaCode || '').replace(/[^0-9]/g, '');
+    if (codeDigits) {
+      const numStr = codeDigits.length > 4 ? codeDigits.slice(-4) : codeDigits.padStart(4, '0');
+      return `CP-${numStr}`;
+    }
+
+    const vId = version?.formula_id || version?.id || formula?.id;
+    const idDigits = String(vId || 1).replace(/[^0-9]/g, '');
+    const numStr = idDigits ? idDigits.padStart(4, '0') : '0001';
+    return `CP-${numStr}`;
+  };
+
+  const compoundingNo = formatCompoundingNo();
+
+  let batchNo = version?.batch_number || version?.batchNo || version?.batch_code;
+  if (!batchNo) {
+    const rawNum = compoundingNo.replace('CP-', '');
+    batchNo = `BAT-${rawNum}`;
   }
 
   const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
@@ -384,6 +403,24 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           text-align: center;
         }
 
+        /* Printable Footer & Page Numbers */
+        body {
+          counter-reset: page;
+        }
+        .print-page-footer {
+          margin-top: 20px;
+          padding-top: 6px;
+          border-top: 1px dashed #cbd5e1;
+          display: flex;
+          justify-content: space-between;
+          font-size: 9.5px;
+          color: #475569;
+          font-family: ${fontFamilyCss};
+        }
+        .print-page-footer .page-number::after {
+          content: counter(page);
+        }
+
         /* Screen Print Bar Controls */
         .no-print-bar {
           background-color: #1e293b;
@@ -414,6 +451,18 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           @page {
             size: A4 portrait;
             margin: ${pageMargin};
+            @bottom-right {
+              content: "Page " counter(page) " of " counter(pages);
+              font-size: 9px;
+              color: #475569;
+              font-family: ${fontFamilyCss};
+            }
+            @bottom-left {
+              content: "NKB Manufacturing Corporation • ${compoundingNo}";
+              font-size: 9px;
+              color: #475569;
+              font-family: ${fontFamilyCss};
+            }
           }
           html, body {
             height: 100% !important;
@@ -427,6 +476,15 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
           }
           .no-print-bar {
             display: none !important;
+          }
+          .print-page-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            margin-top: 0;
+            padding-bottom: 4px;
           }
           .container {
             width: 100% !important;
@@ -468,12 +526,13 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
         <!-- Meta Info -->
         <div class="meta-section">
           <div class="meta-col-left">
-            <div class="meta-line"><span class="meta-bold">Compounding Number:</span> ${compoundingNo}</div>
+            <div class="meta-line"><span class="meta-bold">Compounding Code:</span> <span class="num-font" style="color: #0369a1;">${compoundingNo}</span></div>
+            <div class="meta-line"><span class="meta-bold">Batch Number:</span> <span class="num-font" style="color: #0f172a;">${batchNo}</span></div>
             <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}</div>
             <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
-            <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
           </div>
           <div class="meta-col-right">
+            <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
             <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>
             <div class="meta-line"><span class="meta-bold">Prepared By:</span> ${preparedByName}</div>
           </div>
@@ -555,6 +614,12 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
             <div class="sig-line"></div>
             <div class="sig-subtext">Production Team & Date</div>
           </div>
+        </div>
+
+        <!-- Page Printable Footer -->
+        <div class="print-page-footer">
+          <div>NKB Manufacturing Corporation • Production Sheet (${compoundingNo}) — Batch: ${batchNo}</div>
+          <div>Page <span class="page-number"></span></div>
         </div>
       </div>
 
