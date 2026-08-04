@@ -8,17 +8,17 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     return;
   }
 
-  // Open window IMMEDIATELY on user click event to prevent browser popup blocker
-  const printWindow = window.open('', '_blank', 'width=950,height=1100');
+  // Attempt to open new window for print preview
+  let printWindow = null;
+  try {
+    printWindow = window.open('', '_blank', 'width=950,height=1100');
+  } catch (e) {
+    printWindow = null;
+  }
 
   let copiesCount = parseInt(requestedCopies, 10);
   if (isNaN(copiesCount) || copiesCount < 1) {
     copiesCount = 1;
-  }
-
-  if (!printWindow) {
-    alert('Popups are currently blocked by your browser. Please allow popups for this site in your browser URL bar (look for the pop-up icon in the top right address bar).');
-    return;
   }
 
   const details = categoryDetails || version?.categoryDetails || version?.cosmeticDetails || {};
@@ -659,7 +659,47 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     };
   }
 
-  printWindow.document.open();
-  printWindow.document.write(htmlDocument);
-  printWindow.document.close();
+  if (printWindow && !printWindow.closed) {
+    try {
+      printWindow.document.open();
+      printWindow.document.write(htmlDocument);
+      printWindow.document.close();
+      return;
+    } catch (err) {
+      console.warn('Pop-up window writing failed, using iframe print fallback:', err);
+    }
+  }
+
+  // FALLBACK FOR POPUP BLOCKERS: Print directly in-page using hidden iframe
+  let iframe = document.getElementById('nkb_production_sheet_print_iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'nkb_production_sheet_print_iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+  }
+
+  try {
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(htmlDocument);
+    iframeDoc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.error('Iframe print error:', e);
+      }
+    }, 400);
+  } catch (e) {
+    alert('Print Error: Unable to open print preview. Please check browser print permissions.');
+  }
 }
