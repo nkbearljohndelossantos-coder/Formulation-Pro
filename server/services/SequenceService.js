@@ -42,6 +42,9 @@ export class SequenceService {
     }
 
     const paddedVal = String(nextVal).padStart(4, '0');
+    if (sequenceName === 'COMPOUNDING_CODE') {
+      return `${prefix}-${paddedVal}`;
+    }
     return `${prefix}-${currentYear}-${paddedVal}`;
   }
 }

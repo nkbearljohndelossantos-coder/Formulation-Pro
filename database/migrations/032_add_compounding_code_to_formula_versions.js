@@ -33,7 +33,7 @@ export async function up(knex) {
     }
 
     const paddedVal = String(nextVal).padStart(4, '0');
-    const code = `CP-${currentYear}-${paddedVal}`;
+    const code = `CP-${paddedVal}`;
 
     await knex('formula_versions')
       .where({ id: v.id })

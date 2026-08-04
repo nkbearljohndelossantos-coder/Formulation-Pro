@@ -137,7 +137,7 @@ export function CompoundingLogsPage() {
             Compounding Code Storage & Repository
           </h1>
           <p className="text-xs text-slate-500">
-            Registry of all generated unique compounding control codes (<span className="font-mono text-blue-600 font-bold">CP-YYYY-XXXX</span>), print audit trail, and parameter comparison.
+            Registry of all generated unique compounding control codes (<span className="font-mono text-blue-600 font-bold">CP-XXXX</span>), print audit trail, and parameter comparison.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -241,7 +241,7 @@ export function CompoundingLogsPage() {
           <div>
             <span className="text-xs text-slate-500 font-medium block">Latest Sequence</span>
             <span className="text-xs font-extrabold text-amber-900 font-mono block">
-              {logs[0]?.compounding_code || 'CP-2026-0001'}
+              {logs[0]?.compounding_code || 'CP-0001'}
             </span>
           </div>
         </div>

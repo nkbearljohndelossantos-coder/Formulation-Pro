@@ -20,9 +20,9 @@ describe('Compounding Code Unique Generator & Storage', () => {
     });
 
     expect(records).toHaveLength(3);
-    expect(records[0].compounding_code).toMatch(/^CP-\d{4}-\d{4}$/);
-    expect(records[1].compounding_code).toMatch(/^CP-\d{4}-\d{4}$/);
-    expect(records[2].compounding_code).toMatch(/^CP-\d{4}-\d{4}$/);
+    expect(records[0].compounding_code).toMatch(/^CP-\d{4}$/);
+    expect(records[1].compounding_code).toMatch(/^CP-\d{4}$/);
+    expect(records[2].compounding_code).toMatch(/^CP-\d{4}$/);
 
     // Verify all generated codes in the batch are distinct and unique
     const uniqueCodesSet = new Set(records.map((r) => r.compounding_code));

@@ -317,7 +317,7 @@ export async function printProductionSheet({ version, formula, materials, catego
   let pagesHtml = '';
   for (let i = 0; i < copiesCount; i++) {
     const logItem = generatedLogEntries[i];
-    const copyCompoundingNo = logItem?.compounding_code || `CP-${new Date().getFullYear()}-${String((baseNum + i) % 10000 || 1).padStart(4, '0')}`;
+    const copyCompoundingNo = logItem?.compounding_code || `CP-${String((baseNum + i) % 10000 || 1).padStart(4, '0')}`;
     const copyBatchNo = logItem?.batch_number || copyCompoundingNo.replace('CP-', 'BAT-');
     const copyBadgeLabel = copiesCount > 1 ? `<span style="font-size: 11px; color: #475569; font-weight: 600;">(Copy ${i + 1} of ${copiesCount})</span>` : '';
     const copyFooterLabel = copiesCount > 1 ? `<div>Copy ${i + 1} of ${copiesCount}</div>` : '<div></div>';

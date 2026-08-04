@@ -388,7 +388,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                 <div>
                   <span className="font-bold text-slate-900">Compounding Number:</span>{' '}
                   <span className="font-mono font-extrabold text-blue-700">
-                    {batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-2026-0001')}
+                    {batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-0001')}
                   </span>
                 </div>
                 <div><span className="font-bold text-slate-900">Target Quantity:</span> <span className="font-mono font-bold text-blue-700">{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom?.toUpperCase() || 'G'}</span></div>

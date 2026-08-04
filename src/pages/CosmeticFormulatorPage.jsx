@@ -586,7 +586,7 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-mono shadow-xs" title="Unique Compounding Control Code">
-                  {activeVersion.compounding_code || 'CP-2026-0001'}
+                  {activeVersion.compounding_code || 'CP-0001'}
                 </span>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-mono">
                   V{activeVersion.major_version}.{activeVersion.minor_version}
