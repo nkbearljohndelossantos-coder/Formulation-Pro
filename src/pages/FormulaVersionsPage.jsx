@@ -147,6 +147,9 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                   <p className="text-xs text-slate-500">{versionDetail.formula?.name || 'Formula Details'}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 font-mono shadow-xs" title="Compounding Control Code">
+                    {versionDetail.version?.compounding_code || 'CP-2026-0001'}
+                  </span>
                   <StatusBadge status={versionDetail.version.version_status} />
                   {versionDetail.version.version_status === 'APPROVED' && (
                     <button

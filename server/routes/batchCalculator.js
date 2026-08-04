@@ -4,6 +4,7 @@ import db from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { convertUnit } from '../services/unitConversionService.js';
 import { logAudit } from '../middleware/audit.js';
+import { SequenceService } from '../services/SequenceService.js';
 
 const router = express.Router();
 
@@ -98,8 +99,11 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Save batch calculation record
+    // Save batch calculation record & generate unique compounding code
+    let generatedCpCode = '';
     const batchCalcId = await db.transaction(async trx => {
+      generatedCpCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
+
       const insertRes = await trx('batch_calculations').insert({
         version_id: versionId,
         target_batch_qty: targetQtyDec.toFixed(2),
@@ -121,15 +125,31 @@ router.post('/', authenticateToken, async (req, res) => {
           line_cost: item.line_cost,
         });
       }
+
+      await trx('compounding_code_logs').insert({
+        compounding_code: generatedCpCode,
+        batch_number: generatedCpCode.replace('CP-', 'BAT-'),
+        formula_code: version.formula_code,
+        formula_name: version.formula_name,
+        formula_version: `V${version.major_version}.${version.minor_version}`,
+        target_batch_size: targetQtyDec.toFixed(2),
+        target_batch_uom: targetUom,
+        printed_by_id: req.user.id,
+        printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
+        created_at: trx.fn.now(),
+      }).catch(() => {});
+
       return id;
     });
 
-    await logAudit(req, 'CALCULATE_BATCH', 'BatchCalculation', batchCalcId, null, { versionId, targetBatchQty, targetUom });
+    await logAudit(req, 'CALCULATE_BATCH', 'BatchCalculation', batchCalcId, null, { versionId, targetBatchQty, targetUom, compounding_code: generatedCpCode });
 
     return res.json({
       success: true,
       batchCalculationId: batchCalcId,
       data: {
+        compounding_code: generatedCpCode,
+        batch_number: generatedCpCode.replace('CP-', 'BAT-'),
         formula_code: version.formula_code,
         formula_name: version.formula_name,
         version: `${version.major_version}.${version.minor_version}`,
