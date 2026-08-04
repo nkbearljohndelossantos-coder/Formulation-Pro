@@ -36,7 +36,7 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   }
   const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
 
-  // Base Compounding Control Number (CP-xxxx format with minimum 4 digits)
+  // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
   const formatBaseCompoundingNo = () => {
     let raw = version?.compounding_number || version?.compoundingNo || version?.compounding_code;
     if (!raw && version?.batch_number) {
@@ -44,34 +44,27 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     }
 
     if (raw) {
-      let str = String(raw).trim().toUpperCase();
-      str = str.replace(/^(BAT|CP)-?/, '');
+      const str = String(raw).trim().toUpperCase().replace(/^(BAT|CP)-?/, '');
       const digits = str.replace(/[^0-9]/g, '');
       if (digits) {
-        return {
-          baseNum: parseInt(digits, 10) || 1,
-          padLen: Math.max(digits.length, 4),
-        };
+        const last4 = digits.length > 4 ? digits.slice(-4) : digits;
+        return parseInt(last4, 10) || 1;
       }
     }
 
     const codeDigits = (formulaCode || '').replace(/[^0-9]/g, '');
     if (codeDigits) {
-      return {
-        baseNum: parseInt(codeDigits, 10) || 1,
-        padLen: Math.max(codeDigits.length, 4),
-      };
+      const last4 = codeDigits.length > 4 ? codeDigits.slice(-4) : codeDigits;
+      return parseInt(last4, 10) || 1;
     }
 
     const vId = version?.formula_id || version?.id || formula?.id;
     const idDigits = String(vId || 1).replace(/[^0-9]/g, '');
-    return {
-      baseNum: parseInt(idDigits, 10) || 1,
-      padLen: 4,
-    };
+    const last4 = idDigits.length > 4 ? idDigits.slice(-4) : idDigits;
+    return parseInt(last4, 10) || 1;
   };
 
-  const { baseNum, padLen } = formatBaseCompoundingNo();
+  const baseNum = formatBaseCompoundingNo();
 
   const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
   const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -214,8 +207,8 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
   // Generate HTML Pages for requested copies (Each page gets its UNIQUE CP-xxxx Code)
   let pagesHtml = '';
   for (let i = 0; i < copiesCount; i++) {
-    const currentNum = baseNum + i;
-    const numStr = String(currentNum).padStart(padLen, '0');
+    const currentNum = (baseNum + i) % 10000;
+    const numStr = String(currentNum || 1).padStart(4, '0');
     const copyCompoundingNo = `CP-${numStr}`;
     const copyBatchNo = `BAT-${numStr}`;
     const copyBadgeLabel = copiesCount > 1 ? `<span style="font-size: 11px; color: #475569; font-weight: 600;">(Copy ${i + 1} of ${copiesCount})</span>` : '';
