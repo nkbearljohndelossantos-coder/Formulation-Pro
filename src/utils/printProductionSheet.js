@@ -8,20 +8,16 @@ export function printProductionSheet({ version, formula, materials, categoryDeta
     return;
   }
 
+  // Open window IMMEDIATELY on user click event to prevent browser popup blocker
+  const printWindow = window.open('', '_blank', 'width=950,height=1100');
+
   let copiesCount = parseInt(requestedCopies, 10);
   if (isNaN(copiesCount) || copiesCount < 1) {
-    const inputStr = prompt(
-      'Enter total Production Sheet copies to print:\n(Each copy will be assigned a UNIQUE sequential Compounding Code CP-xxxx)',
-      '1'
-    );
-    if (inputStr === null) return; // User cancelled
-    copiesCount = parseInt(inputStr, 10);
-    if (isNaN(copiesCount) || copiesCount < 1) copiesCount = 1;
+    copiesCount = 1;
   }
 
-  const printWindow = window.open('', '_blank', 'width=950,height=1100');
   if (!printWindow) {
-    alert('Popups are blocked by your browser. Please allow popups to generate the Production Sheet PDF.');
+    alert('Popups are currently blocked by your browser. Please allow popups for this site in your browser URL bar (look for the pop-up icon in the top right address bar).');
     return;
   }
 
