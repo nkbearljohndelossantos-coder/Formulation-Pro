@@ -60,9 +60,18 @@ export class CompoundingCodeService {
           created_at: db.fn.now(),
         };
 
-        const [insertedId] = await trx('compounding_code_logs').insert(logEntry);
+        const insertRes = await trx('compounding_code_logs').insert(logEntry);
+        let insertedId = null;
+        if (Array.isArray(insertRes)) {
+          insertedId = typeof insertRes[0] === 'object' ? insertRes[0]?.id : insertRes[0];
+        } else if (typeof insertRes === 'object' && insertRes !== null) {
+          insertedId = insertRes.id;
+        } else {
+          insertedId = insertRes;
+        }
+
         generatedRecords.push({
-          id: insertedId,
+          id: insertedId || i,
           ...logEntry,
         });
       }
