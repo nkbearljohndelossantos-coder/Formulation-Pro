@@ -484,6 +484,24 @@ router.put('/versions/:versionId', authenticateToken, async (req, res) => {
       }
 
       const verUpdate = { updated_at: trx.fn.now() };
+      if (!version.compounding_code) {
+        const compoundingCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
+        verUpdate.compounding_code = compoundingCode;
+
+        await trx('compounding_code_logs').insert({
+          compounding_code: compoundingCode,
+          batch_number: compoundingCode.replace('CP-', 'BAT-'),
+          formula_code: formula?.code || null,
+          formula_name: formula?.name || null,
+          formula_version: `V${version.major_version}.${version.minor_version}`,
+          target_batch_size: targetBatchSize || target_batch_size || version.target_batch_size,
+          target_batch_uom: targetBatchUom || target_batch_uom || version.target_batch_uom || 'g',
+          printed_by_id: req.user?.id || null,
+          printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
+          created_at: trx.fn.now(),
+        }).catch(() => {});
+      }
+
       const newBatchSize = targetBatchSize || target_batch_size;
       if (newBatchSize !== undefined && newBatchSize !== null && String(newBatchSize).trim() !== '') {
         verUpdate.target_batch_size = new Decimal(newBatchSize).toFixed(6);
@@ -561,8 +579,11 @@ router.post('/:id/revisions', authenticateToken, async (req, res) => {
     const nextMinor = 0;
 
     const result = await db.transaction(async (trx) => {
+      const compoundingCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
+
       const insertVer = {
         formula_id: formulaId,
+        compounding_code: compoundingCode,
         major_version: nextMajor,
         minor_version: nextMinor,
         lock_version: 0,
@@ -576,6 +597,19 @@ router.post('/:id/revisions', authenticateToken, async (req, res) => {
       };
 
       const [newVersionId] = await trx('formula_versions').insert(insertVer).then(r => [r[0]]);
+
+      await trx('compounding_code_logs').insert({
+        compounding_code: compoundingCode,
+        batch_number: compoundingCode.replace('CP-', 'BAT-'),
+        formula_code: formula?.code || null,
+        formula_name: formula?.name || null,
+        formula_version: `V${nextMajor}.${nextMinor}`,
+        target_batch_size: parentVer?.target_batch_size || '100.000000',
+        target_batch_uom: parentVer?.target_batch_uom || 'g',
+        printed_by_id: req.user?.id || null,
+        printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
+        created_at: trx.fn.now(),
+      }).catch(() => {});
 
       if (sourceVersionId) {
         // 1. Copy phases first to map old phase_id -> new phase_id for the new version
@@ -788,6 +822,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const txResult = await db.transaction(async (trx) => {
       const code = await SequenceService.getNextSequence('FORMULA_CODE', trx);
+      const compoundingCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
 
       const insertFormula = {
         code,
@@ -804,6 +839,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
       const insertVersion = {
         formula_id: formulaId,
+        compounding_code: compoundingCode,
         major_version: 1,
         minor_version: 0,
         lock_version: 0,
@@ -817,6 +853,19 @@ router.post('/', authenticateToken, async (req, res) => {
       };
 
       const [versionId] = await trx('formula_versions').insert(insertVersion).then(res => [res[0]]);
+
+      await trx('compounding_code_logs').insert({
+        compounding_code: compoundingCode,
+        batch_number: compoundingCode.replace('CP-', 'BAT-'),
+        formula_code: code,
+        formula_name: formulaName,
+        formula_version: 'V1.0',
+        target_batch_size: targetBatchSize,
+        target_batch_uom: batchUom || 'g',
+        printed_by_id: req.user?.id || null,
+        printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
+        created_at: trx.fn.now(),
+      }).catch(() => {});
 
       if (normalizedCategory === 'Cosmetic') {
         await trx('cosmetic_formula_details').insert({ version_id: versionId });
