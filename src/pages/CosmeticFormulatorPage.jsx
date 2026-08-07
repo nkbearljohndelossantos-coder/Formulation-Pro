@@ -204,8 +204,13 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
     return c;
   };
 
-  const totalPct = materials.reduce((acc, m) => acc + (parseFloat(m.percentage) || 0), 0).toFixed(1);
-  const isValidPct = Math.abs(parseFloat(totalPct) - 100) < 0.05;
+  const rawTotalPct = materials.reduce((acc, m) => {
+    const val = parseFloat(m.percentage);
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
+  const totalPctNum = Math.round((rawTotalPct + Number.EPSILON) * 100) / 100;
+  const totalPct = totalPctNum.toFixed(2);
+  const isValidPct = Math.abs(totalPctNum - 100) <= 0.01;
 
   const addLine = (phaseName = 'Phase A') => {
     const mat = availableMaterials[0] || { id: 1, code: 'MAT-001', name: 'Material', uom: 'g', cost: '0.00' };
@@ -786,14 +791,14 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
                         </td>
                         <td className="p-3">
                           {isReadOnly ? (
-                            <span className="font-mono font-bold text-slate-900">{Number(m.percentage).toFixed(1)}%</span>
+                            <span className="font-mono font-bold text-slate-900">{Number(m.percentage || 0).toFixed(2)}%</span>
                           ) : (
                             <input
                               type="number"
-                              step="0.1"
+                              step="any"
                               value={m.percentage}
                               onChange={e => handleMaterialChange(idx, 'percentage', e.target.value)}
-                              className="w-28 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-bold"
+                              className="w-28 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-600 shadow-xs"
                             />
                           )}
                         </td>

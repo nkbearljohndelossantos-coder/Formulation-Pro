@@ -333,7 +333,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                       <td className="p-2.5 font-semibold text-slate-800">{item.phase_name || 'Phase A'}</td>
                       <td className="p-2.5 font-medium text-slate-900">{item.material_name_snapshot}</td>
                       <td className="p-2.5 text-right font-mono text-slate-600">PHP {Number(item.unit_cost_g || 0).toFixed(1)}</td>
-                      <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage).toFixed(1)}%</td>
+                      <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage || 0).toFixed(2)}%</td>
                       <td className="p-2.5 text-right font-mono text-emerald-800 font-bold">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g</td>
                       <td className="p-2.5 text-right font-mono text-blue-800 font-bold">PHP {Number(item.line_cost).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
                     </tr>
@@ -342,7 +342,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                   <tr className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
                     <td colSpan="3" className="p-2.5">Total Scaled Batch Costing Summary</td>
                     <td className="p-2.5 font-mono text-indigo-700">
-                      {batchResult.items.reduce((acc, i) => acc + (parseFloat(i.percentage) || 0), 0).toFixed(2)}%
+                      {(Math.round((batchResult.items.reduce((acc, i) => acc + (parseFloat(i.percentage) || 0), 0) + Number.EPSILON) * 100) / 100).toFixed(2)}%
                     </td>
                     <td className="p-2.5 text-right font-mono text-emerald-900 font-extrabold">
                       {Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g
