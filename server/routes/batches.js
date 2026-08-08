@@ -521,6 +521,42 @@ router.post('/:id/complete', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/v1/batches/clear-active - Delete / Clear all active & assigned production batches
+router.delete('/clear-active', authenticateToken, async (req, res) => {
+  try {
+    const activeBatches = await db('production_batches')
+      .whereIn('status', ['Assigned', 'In Progress', 'Ready', 'Paused']);
+
+    const ids = activeBatches.map(b => b.id);
+    const codes = activeBatches.map(b => b.batch_number);
+
+    if (ids.length > 0) {
+      await db.transaction(async (trx) => {
+        await trx('batch_material_entries').whereIn('batch_id', ids).del();
+        await trx('batch_material_requirements').whereIn('batch_id', ids).del();
+        await trx('batch_steps').whereIn('batch_id', ids).del();
+        await trx('batch_phases').whereIn('batch_id', ids).del();
+        await trx('batch_execution_locks').whereIn('batch_id', ids).del();
+        await trx('batch_deviations').whereIn('batch_id', ids).del();
+        await trx('qr_tokens').whereIn('batch_id', ids).del();
+        await trx('production_batches').whereIn('id', ids).del();
+
+        if (codes.length > 0) {
+          await trx('compounding_code_logs')
+            .whereIn('compounding_code', codes)
+            .orWhereIn('batch_number', codes)
+            .del()
+            .catch(() => {});
+        }
+      });
+    }
+
+    return res.json({ success: true, message: `Cleared ${ids.length} active/assigned production compounding batch(es).` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to clear active batches.', error: err.message });
+  }
+});
+
 // DELETE /api/v1/batches/:id - Delete Production Batch & associated child tables
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {

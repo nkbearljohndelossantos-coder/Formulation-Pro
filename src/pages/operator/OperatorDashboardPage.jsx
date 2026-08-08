@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, QrCode, CheckCircle2, Clock, Layers, Activity } from 'lucide-react';
+import { Play, QrCode, CheckCircle2, Clock, Layers, Activity, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
@@ -24,6 +24,48 @@ export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteBatch = async (id, batchNumber) => {
+    if (!window.confirm(`Are you sure you want to delete / remove compounding batch '${batchNumber}' from queue?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/batches/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Batch '${batchNumber}' deleted successfully.`);
+        fetchBatches();
+      } else {
+        alert(data.message || 'Failed to delete batch.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting batch.');
+    }
+  };
+
+  const handleClearAllActiveBatches = async () => {
+    if (!window.confirm('Are you sure you want to clear/remove ALL Active & Assigned compounding batches from queue? This action cannot be undone.')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/v1/batches/clear-active', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message || 'All active/assigned compounding batches cleared successfully.');
+        fetchBatches();
+      } else {
+        alert(data.message || 'Failed to clear active batches.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error clearing active batches.');
     }
   };
 
@@ -114,7 +156,18 @@ export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Play className="w-4 h-4 text-blue-600" /> Active & Assigned Compounding Batches
           </h2>
-          <span className="text-xs text-slate-500 font-medium">Ready for Execution</span>
+          <div className="flex items-center gap-3">
+            {batches.length > 0 && (
+              <button
+                onClick={handleClearAllActiveBatches}
+                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                title="Clear all active & assigned compounding batches from queue"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Clear All Queue
+              </button>
+            )}
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">Ready for Execution</span>
+          </div>
         </div>
 
         {loading ? (
@@ -151,20 +204,30 @@ export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => {
-                    setSelectedBatchId(b.id);
-                    if (b.status === 'In Progress' || b.status === 'Paused') {
-                      setCurrentPage('operator-compounding-screen');
-                    } else {
-                      setCurrentPage('operator-formula-view');
-                    }
-                  }}
-                  className="w-full md:w-auto px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>{b.status === 'In Progress' ? 'Resume MES Execution' : 'View Formula & Start'}</span>
-                </button>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <button
+                    onClick={() => {
+                      setSelectedBatchId(b.id);
+                      if (b.status === 'In Progress' || b.status === 'Paused') {
+                        setCurrentPage('operator-compounding-screen');
+                      } else {
+                        setCurrentPage('operator-formula-view');
+                      }
+                    }}
+                    className="flex-1 md:flex-none px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>{b.status === 'In Progress' ? 'Resume MES Execution' : 'View Formula & Start'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteBatch(b.id, b.batch_number)}
+                    className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition"
+                    title="Remove / Delete Batch from Queue"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
