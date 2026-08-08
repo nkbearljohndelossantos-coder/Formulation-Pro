@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Calculator, Printer, DollarSign, Search, ChevronDown, Check, X } from 'lucide-react';
+import { Calculator, Printer, DollarSign, Search, ChevronDown, Check, X, Play } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
 
-export function BatchCalculatorPage({ setCurrentPage }) {
+export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
   const { user } = useAuth();
   const [formulas, setFormulas] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState('');
@@ -358,19 +358,38 @@ export function BatchCalculatorPage({ setCurrentPage }) {
           {/* Production Sheet Document Preview Box */}
           <div className="bg-white p-8 rounded-2xl border border-slate-300 shadow-md space-y-6 text-slate-900">
           {/* Header Controls Bar */}
-          <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
               <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 uppercase">
                 Official Production Sheet Standard
               </span>
               <h2 className="text-base font-extrabold text-slate-900 mt-1">{batchResult.formula_code} — {batchResult.formula_name}</h2>
             </div>
-            <button
-              onClick={handlePrintPdf}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
-            >
-              <Printer className="w-4 h-4" /> Save / Export PDF
-            </button>
+            <div className="flex items-center gap-2">
+              {batchResult.production_batch_id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof setSelectedBatchId === 'function') {
+                      setSelectedBatchId(batchResult.production_batch_id);
+                    }
+                    if (typeof setCurrentPage === 'function') {
+                      setCurrentPage('operator-compounding-screen');
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+                  title="Open batch directly in Operator Compounding Station"
+                >
+                  <Play className="w-4 h-4" /> Start Compounding Execution
+                </button>
+              )}
+              <button
+                onClick={handlePrintPdf}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+              >
+                <Printer className="w-4 h-4" /> Save / Export PDF
+              </button>
+            </div>
           </div>
 
           {/* PDF Document Box */}

@@ -101,6 +101,8 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Save batch calculation record & generate unique compounding code
     let generatedCpCode = '';
+    let mesBatchId = null;
+
     const batchCalcId = await db.transaction(async trx => {
       generatedCpCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
 
@@ -139,6 +141,84 @@ router.post('/', authenticateToken, async (req, res) => {
         created_at: trx.fn.now(),
       }).catch(() => {});
 
+      // Instantiate active MES production batch for Operator Compounding Station
+      try {
+        const hashInput = `${versionId}_${targetQtyDec.toFixed(2)}_${generatedCpCode}_${Date.now()}`;
+        const snapshotHash = crypto.createHash('sha256').update(hashInput).digest('hex');
+
+        const batchRes = await trx('production_batches').insert({
+          batch_number: generatedCpCode,
+          formula_id: version.formula_id,
+          formula_version_id: versionId,
+          category: version.product_category || 'Cosmetic',
+          status: 'Assigned',
+          target_batch_size: targetQtyDec.toFixed(6),
+          overall_progress_percent: '0.000000',
+          snapshot_hash: snapshotHash,
+          lock_version: 1,
+          assigned_operator_id: req.user ? req.user.id : null,
+          created_by: req.user ? req.user.id : 1,
+        });
+        mesBatchId = Array.isArray(batchRes) ? batchRes[0] : (typeof batchRes === 'object' ? batchRes.id : batchRes);
+
+        // Group scaled material items by phase for batch_phases, batch_steps, and batch_material_requirements
+        const phaseGroupMap = {};
+        items.forEach(item => {
+          const pName = item.phase_name || 'Phase A';
+          if (!phaseGroupMap[pName]) phaseGroupMap[pName] = [];
+          phaseGroupMap[pName].push(item);
+        });
+
+        let phaseSeq = 1;
+        let globalStepNo = 1;
+
+        for (const [pName, pItems] of Object.entries(phaseGroupMap)) {
+          const phaseMatch = pName.match(/Phase\s+([A-Za-z0-9]+)/i);
+          const phaseLetter = phaseMatch ? phaseMatch[1].toUpperCase() : String.fromCharCode(64 + phaseSeq);
+          
+          const phaseInsertRes = await trx('batch_phases').insert({
+            batch_id: mesBatchId,
+            phase_letter: phaseLetter,
+            phase_name: pName,
+            sequence: phaseSeq++,
+            status: 'Waiting',
+          });
+          const phaseId = Array.isArray(phaseInsertRes) ? phaseInsertRes[0] : (typeof phaseInsertRes === 'object' ? phaseInsertRes.id : phaseInsertRes);
+
+          for (const item of pItems) {
+            const stepInsertRes = await trx('batch_steps').insert({
+              batch_id: mesBatchId,
+              phase_id: phaseId,
+              step_number: globalStepNo++,
+              material_id: item.material_id,
+              instructions: `Weigh and add ${item.material_name_snapshot} (${item.scaled_qty} g)`,
+              status: 'Pending',
+              lock_version: 1,
+            });
+            const stepId = Array.isArray(stepInsertRes) ? stepInsertRes[0] : (typeof stepInsertRes === 'object' ? stepInsertRes.id : stepInsertRes);
+
+            const scaledWeightDec = new Decimal(item.scaled_qty || '0');
+            const minWeight = scaledWeightDec.times(0.99).toFixed(6);
+            const maxWeight = scaledWeightDec.times(1.01).toFixed(6);
+
+            await trx('batch_material_requirements').insert({
+              batch_id: mesBatchId,
+              step_id: stepId,
+              material_id: item.material_id,
+              material_code: item.material_code_snapshot || 'MAT',
+              material_name: item.material_name_snapshot || 'Material',
+              percentage: item.percentage || '0.000000',
+              target_weight: scaledWeightDec.toFixed(6),
+              tolerance_percent: '1.000000',
+              min_weight: minWeight,
+              max_weight: maxWeight,
+            });
+          }
+        }
+      } catch (mesErr) {
+        console.error('Error instantiating MES compounding batch from calculator:', mesErr);
+      }
+
       return id;
     });
 
@@ -147,9 +227,11 @@ router.post('/', authenticateToken, async (req, res) => {
     return res.json({
       success: true,
       batchCalculationId: batchCalcId,
+      productionBatchId: mesBatchId,
       data: {
         compounding_code: generatedCpCode,
         batch_number: generatedCpCode.replace('CP-', 'BAT-'),
+        production_batch_id: mesBatchId,
         formula_code: version.formula_code,
         formula_name: version.formula_name,
         version: `${version.major_version}.${version.minor_version}`,

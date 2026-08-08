@@ -158,11 +158,11 @@ export function App() {
               {currentPage === 'formulation-perfume-no-brand' && <PerfumeNoBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-perfume-brand' && <PerfumeBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-supplement' && <FoodSupplementPage setCurrentPage={setCurrentPage} />}
-              {currentPage === 'batch-calculator' && <BatchCalculatorPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'batch-calculator' && <BatchCalculatorPage setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />}
               {currentPage === 'formula-versions' && <FormulaVersionsPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formula-comparison' && <FormulaComparisonPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'qc-inspection' && <QualityControlPage />}
-              {currentPage === 'compounding-logs' && <CompoundingLogsPage />}
+              {currentPage === 'compounding-logs' && <CompoundingLogsPage setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />}
 
               {/* Operator Portal Views */}
               {currentPage === 'operator-dashboard' && (
