@@ -197,12 +197,21 @@ export async function printProductionSheet({ version, formula, materials, catego
   let tableRowsHtml = '';
 
   const phaseKeys = Object.keys(phaseMap);
+  const hasCosting = Array.isArray(materials) && materials.some(m => m.unit_cost_g !== undefined || m.line_cost !== undefined);
+  let computedTotalBatchCost = 0;
+  if (hasCosting) {
+    materials.forEach(m => {
+      computedTotalBatchCost += parseFloat(m.line_cost || 0);
+    });
+  }
+
   if (phaseKeys.length === 0) {
     tableRowsHtml = `
-      <tr class="phase-header-row"><td colspan="2">Phase A</td></tr>
+      <tr class="phase-header-row"><td colspan="${hasCosting ? 4 : 2}">Phase A</td></tr>
       <tr class="ingredient-row">
         <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty}</td>
         <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
+        ${hasCosting ? `<td></td><td></td>` : ''}
       </tr>
     `;
   } else {
@@ -211,7 +220,7 @@ export async function printProductionSheet({ version, formula, materials, catego
 
       tableRowsHtml += `
         <tr class="phase-header-row">
-          <td colspan="2">${phaseTitle}</td>
+          <td colspan="${hasCosting ? 4 : 2}">${phaseTitle}</td>
         </tr>
       `;
 
@@ -220,6 +229,8 @@ export async function printProductionSheet({ version, formula, materials, catego
         const calcWeight = (pct / 100) * targetBatchSizeNum;
         const formattedQty = calcWeight.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
         const matName = (m.material_name_snapshot || m.material_name || m.material_code || m.code || 'RAW MATERIAL').toUpperCase();
+        const uCost = m.unit_cost_g ? `PHP ${Number(m.unit_cost_g).toFixed(2)} / g` : '-';
+        const lCost = m.line_cost ? `PHP ${Number(m.line_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
 
         tableRowsHtml += `
           <tr class="ingredient-row">
@@ -228,6 +239,8 @@ export async function printProductionSheet({ version, formula, materials, catego
               <span>${formattedQty}</span>
             </td>
             <td class="mat-col">${matName}</td>
+            ${hasCosting ? `<td style="text-align: right; font-family: monospace; font-size: 11px;">${uCost}</td>` : ''}
+            ${hasCosting ? `<td style="text-align: right; font-family: monospace; font-weight: bold; font-size: 11px; color: #1e3a8a;">${lCost}</td>` : ''}
           </tr>
         `;
       });
@@ -349,17 +362,22 @@ export async function printProductionSheet({ version, formula, materials, catego
         <table class="sheet-table">
           <thead>
             <tr>
-              <th class="qty-header">Quantity</th>
+              <th class="qty-header" style="${hasCosting ? 'width: 22%;' : ''}">Quantity (${batchUom})</th>
               <th class="mat-header">Raw Material</th>
+              ${hasCosting ? `<th style="text-align: right; width: 18%;">Unit Cost</th>` : ''}
+              ${hasCosting ? `<th style="text-align: right; width: 22%;">Line Cost (PHP)</th>` : ''}
             </tr>
           </thead>
           <tbody>
             ${tableRowsHtml}
             <tr class="total-row">
-              <td colspan="2">
+              <td class="qty-col">
                 <span class="checkbox-box" style="visibility: hidden;">☐</span>
-                <span>${formattedTargetQty}</span>
+                <span>${formattedTargetQty} ${batchUom}</span>
               </td>
+              <td>${hasCosting ? '<strong>TOTAL BATCH COST</strong>' : ''}</td>
+              ${hasCosting ? `<td style="text-align: right; font-family: monospace; font-size: 11px;">PHP ${(computedTotalBatchCost / (targetBatchSizeNum || 1)).toFixed(4)} / g</td>` : ''}
+              ${hasCosting ? `<td style="text-align: right; font-family: monospace; font-weight: 800; font-size: 12px; color: #065f46;">PHP ${computedTotalBatchCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>` : ''}
             </tr>
           </tbody>
         </table>
