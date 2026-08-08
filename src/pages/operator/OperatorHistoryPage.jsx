@@ -10,6 +10,11 @@ export function OperatorHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
+  const isAdmin = userRoles.some(r =>
+    ['Super Admin', 'Admin', 'Formulator', 'Formulation Chemist', 'Production Supervisor'].includes(r)
+  ) || ['admin', 'super admin', 'formulator'].some(r => (user?.role || '').toLowerCase().includes(r));
+
   useEffect(() => {
     fetchLogs();
   }, []);
@@ -105,13 +110,13 @@ export function OperatorHistoryPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {opLogs.length > 0 && activeTab === 'operator-weighings' && (
+          {isAdmin && opLogs.length > 0 && activeTab === 'operator-weighings' && (
             <button
               onClick={handleClearAllLogs}
               className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition"
-              title="Clear all saved activity logs for this operator"
+              title="Admin: Clear all saved activity logs for this operator"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Clear My Logs
+              <Trash2 className="w-3.5 h-3.5" /> Clear Operator Logs (Admin)
             </button>
           )}
 
@@ -184,7 +189,7 @@ export function OperatorHistoryPage() {
                     <th className="py-3.5 px-5 text-center">Variance</th>
                     <th className="py-3.5 px-5">Tolerance Status</th>
                     <th className="py-3.5 px-5">Date & Time</th>
-                    <th className="py-3.5 px-5 text-center">Action</th>
+                    {isAdmin && <th className="py-3.5 px-5 text-center">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -231,15 +236,17 @@ export function OperatorHistoryPage() {
                             minute: '2-digit',
                           })}
                         </td>
-                        <td className="py-3.5 px-5 text-center">
-                          <button
-                            onClick={() => handleDeleteLogEntry(log.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition"
-                            title="Delete this weighing log entry"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
+                        {isAdmin && (
+                          <td className="py-3.5 px-5 text-center">
+                            <button
+                              onClick={() => handleDeleteLogEntry(log.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition"
+                              title="Admin: Delete this weighing log entry"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

@@ -7,6 +7,11 @@ export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const userRoles = Array.isArray(user?.roles) ? user.roles : (user?.role ? [user.role] : []);
+  const isAdmin = userRoles.some(r =>
+    ['Super Admin', 'Admin', 'Formulator', 'Formulation Chemist', 'Production Supervisor'].includes(r)
+  ) || ['admin', 'super admin', 'formulator'].some(r => (user?.role || '').toLowerCase().includes(r));
+
   useEffect(() => {
     fetchBatches();
   }, []);
@@ -157,13 +162,13 @@ export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
             <Play className="w-4 h-4 text-blue-600" /> Active & Assigned Compounding Batches
           </h2>
           <div className="flex items-center gap-3">
-            {batches.length > 0 && (
+            {isAdmin && batches.length > 0 && (
               <button
                 onClick={handleClearAllActiveBatches}
                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
-                title="Clear all active & assigned compounding batches from queue"
+                title="Admin: Clear all active & assigned compounding batches from queue"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Clear All Queue
+                <Trash2 className="w-3.5 h-3.5" /> Clear All Queue (Admin)
               </button>
             )}
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">Ready for Execution</span>
@@ -220,13 +225,15 @@ export function OperatorDashboardPage({ setCurrentPage, setSelectedBatchId }) {
                     <span>{b.status === 'In Progress' ? 'Resume MES Execution' : 'View Formula & Start'}</span>
                   </button>
 
-                  <button
-                    onClick={() => handleDeleteBatch(b.id, b.batch_number)}
-                    className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition"
-                    title="Remove / Delete Batch from Queue"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDeleteBatch(b.id, b.batch_number)}
+                      className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition"
+                      title="Admin: Remove / Delete Batch from Queue"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
