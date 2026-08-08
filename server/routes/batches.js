@@ -75,6 +75,32 @@ router.get('/operator/my-logs', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/v1/batches/operator/logs/clear-all - Clear all operator activity logs
+router.delete('/operator/logs/clear-all', authenticateToken, async (req, res) => {
+  try {
+    const { operatorId } = req.query;
+    let query = db('batch_material_entries');
+    if (operatorId) {
+      query = query.where({ operator_id: operatorId });
+    }
+    const count = await query.del();
+    return res.json({ success: true, message: `Cleared ${count} operator execution log(s).` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to clear operator execution logs.', error: err.message });
+  }
+});
+
+// DELETE /api/v1/batches/operator/logs/:id - Delete a specific operator weighing log entry
+router.delete('/operator/logs/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db('batch_material_entries').where({ id }).del();
+    return res.json({ success: true, message: 'Operator execution log entry deleted successfully.' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete operator log entry.', error: err.message });
+  }
+});
+
 // GET /api/v1/batches/:id - Full MES Batch View Details
 router.get('/:id', authenticateToken, async (req, res) => {
   try {

@@ -506,13 +506,6 @@ export function MaterialsListPage({ setCurrentPage }) {
                         >
                           <History className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteMaterial(m.id, m.name)}
-                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-200 transition"
-                          title="Delete Material Record"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </td>
                   </tr>

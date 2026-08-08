@@ -125,16 +125,7 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                     <span className="font-mono text-xs font-bold text-blue-700">{f.code}</span>
                     <p className="font-semibold text-slate-900 text-xs">{f.name}</p>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-medium">{f.product_category}</span>
-                    <button
-                      onClick={() => handleDeleteFormula(f.id, f.name)}
-                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
-                      title="Delete Formula & All Versions"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-medium">{f.product_category}</span>
                 </div>
 
                 <div className="space-y-1 text-xs pt-1 border-t border-slate-200">

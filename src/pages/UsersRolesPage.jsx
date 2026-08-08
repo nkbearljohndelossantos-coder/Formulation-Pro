@@ -62,6 +62,23 @@ export function UsersRolesPage() {
     }
   };
 
+  const handleClearOperatorLogs = async (userId, username) => {
+    if (!window.confirm(`Are you sure you want to clear all activity & execution logs for operator '@${username}'? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/batches/operator/logs/clear-all?operatorId=${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Activity logs for operator '@${username}' cleared successfully.`);
+      } else {
+        alert(data.message || 'Failed to clear operator logs.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error clearing operator logs.');
+    }
+  };
+
   const handleCreateUser = (e) => {
     e.preventDefault();
     apiFetch('/api/v1/users', {
@@ -209,11 +226,11 @@ export function UsersRolesPage() {
                       </button>
 
                       <button
-                        onClick={() => handleDeleteUser(u.id, u.username)}
-                        className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-200 transition"
-                        title="Delete User Account"
+                        onClick={() => handleClearOperatorLogs(u.id, u.username)}
+                        className="px-2.5 py-1 bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-300 hover:border-rose-300 rounded font-semibold text-[11px] flex items-center gap-1 transition-colors"
+                        title="Clear all activity/weighing logs for this operator"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" /> Clear Logs
                       </button>
                     </div>
                   </td>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, ShieldCheck, Scale, CheckCircle2, AlertOctagon, Search, Calendar, Layers } from 'lucide-react';
+import { History, ShieldCheck, Scale, CheckCircle2, AlertOctagon, Search, Trash2, Layers } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export function OperatorHistoryPage() {
@@ -33,8 +33,50 @@ export function OperatorHistoryPage() {
       }
     } catch (e) {
       console.error(e);
-    } fontally: {
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteLogEntry = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this operator weighing log entry?')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/batches/operator/logs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Operator log entry deleted.');
+        fetchLogs();
+      } else {
+        alert(data.message || 'Failed to delete log entry.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting log entry.');
+    }
+  };
+
+  const handleClearAllLogs = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL execution history logs for this operator account? This cannot be undone.')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/batches/operator/logs/clear-all?operatorId=${user?.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('All operator activity logs cleared successfully.');
+        fetchLogs();
+      } else {
+        alert(data.message || 'Failed to clear logs.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error clearing logs.');
     }
   };
 
@@ -62,9 +104,21 @@ export function OperatorHistoryPage() {
           </p>
         </div>
 
-        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full flex items-center gap-1.5 self-start sm:self-auto shadow-xs">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" /> Audit Log Verified
-        </span>
+        <div className="flex items-center gap-2">
+          {opLogs.length > 0 && activeTab === 'operator-weighings' && (
+            <button
+              onClick={handleClearAllLogs}
+              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition"
+              title="Clear all saved activity logs for this operator"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Clear My Logs
+            </button>
+          )}
+
+          <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Audit Log Verified
+          </span>
+        </div>
       </div>
 
       {/* Tabs & Search Filter */}
@@ -130,6 +184,7 @@ export function OperatorHistoryPage() {
                     <th className="py-3.5 px-5 text-center">Variance</th>
                     <th className="py-3.5 px-5">Tolerance Status</th>
                     <th className="py-3.5 px-5">Date & Time</th>
+                    <th className="py-3.5 px-5 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
@@ -175,6 +230,15 @@ export function OperatorHistoryPage() {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
+                        </td>
+                        <td className="py-3.5 px-5 text-center">
+                          <button
+                            onClick={() => handleDeleteLogEntry(log.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition"
+                            title="Delete this weighing log entry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                     );
