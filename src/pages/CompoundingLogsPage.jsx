@@ -48,9 +48,49 @@ export function CompoundingLogsPage({ setCurrentPage, setSelectedBatchId }) {
     }
   };
 
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
+  const [togglingSetting, setTogglingSetting] = useState(false);
+
   useEffect(() => {
     fetchLogs();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = () => {
+    apiFetch('/api/v1/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data) {
+          setAutoSendEnabled(d.data.auto_send_to_operator_mes === 'true' || d.data.auto_send_to_operator_mes === '1');
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleToggleAutoSend = (newVal) => {
+    setTogglingSetting(true);
+    apiFetch('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        settings: { auto_send_to_operator_mes: newVal ? 'true' : 'false' },
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setAutoSendEnabled(newVal);
+          alert(
+            newVal
+              ? '⚡ Auto-Send to Operator Station turned ON! Generated batches will now automatically send to the Operator MES station.'
+              : '🖨️ Auto-Send turned OFF! Generated codes will only PRINT/LOG. No batches will be sent to the Operator station.'
+          );
+        } else {
+          alert(d.message || 'Failed to update setting.');
+        }
+      })
+      .catch((e) => alert(e.message || 'Error updating setting.'))
+      .finally(() => setTogglingSetting(false));
+  };
 
   const fetchLogs = (query = searchQuery) => {
     setLoading(true);
@@ -184,6 +224,41 @@ export function CompoundingLogsPage({ setCurrentPage, setSelectedBatchId }) {
           >
             <RefreshCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Admin Toggle Banner: Auto-Send Batches to Operator Station */}
+      <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-xs uppercase tracking-wider text-blue-400">Admin Control Toggle</span>
+            <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${autoSendEnabled ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-900'}`}>
+              {autoSendEnabled ? '🟢 ON: Auto-Send Enabled' : '🔴 OFF: Print Only (No Auto-Send to Operator)'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 mt-1">
+            {autoSendEnabled
+              ? 'AUTOMATIC: Kapag nag-generate ng batch/formula code, AWTOMATIKONG MABABATO sa Operator Station ang active batch.'
+              : 'PRINT ONLY: Kapag mag-generate sa batch calculator, MAG-PRIPRINT AT MAG-LOG LAMANG at HINDI MABABATO sa Operator Station.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 bg-slate-800/80 px-4 py-2.5 rounded-xl border border-slate-700">
+          <span className="text-xs font-bold text-slate-200">Auto-Bato sa Operator:</span>
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(!autoSendEnabled)}
+            disabled={togglingSetting}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              autoSendEnabled ? 'bg-emerald-500' : 'bg-slate-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                autoSendEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
           </button>
         </div>
       </div>

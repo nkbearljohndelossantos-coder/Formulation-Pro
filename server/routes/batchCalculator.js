@@ -142,19 +142,24 @@ router.post('/', authenticateToken, async (req, res) => {
         created_at: trx.fn.now(),
       }).catch(() => {});
 
-      // Instantiate active MES production batch for Operator Compounding Station
+      // Check Admin toggle setting (auto_send_to_operator_mes). Default OFF: Print mode only
       try {
-        mesBatchId = await CompoundingBatchService.createBatch({
-          trx,
-          compoundingCode: generatedCpCode,
-          formulaId: version.formula_id,
-          formulaVersionId: versionId,
-          category: version.product_category || 'Cosmetic',
-          targetBatchSize: targetQtyDec.toFixed(6),
-          targetBatchUom: targetUom,
-          userId: req.user?.id,
-          items,
-        });
+        const settingRow = await trx('system_settings').where({ key: 'auto_send_to_operator_mes' }).first();
+        const isAutoSendEnabled = settingRow ? (settingRow.value === 'true' || settingRow.value === '1') : false;
+
+        if (isAutoSendEnabled) {
+          mesBatchId = await CompoundingBatchService.createBatch({
+            trx,
+            compoundingCode: generatedCpCode,
+            formulaId: version.formula_id,
+            formulaVersionId: versionId,
+            category: version.product_category || 'Cosmetic',
+            targetBatchSize: targetQtyDec.toFixed(6),
+            targetBatchUom: targetUom,
+            userId: req.user?.id,
+            items,
+          });
+        }
       } catch (mesErr) {
         console.error('Error instantiating MES compounding batch from calculator:', mesErr);
       }

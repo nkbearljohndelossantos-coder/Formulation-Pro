@@ -71,38 +71,43 @@ export class CompoundingCodeService {
           insertedId = insertRes;
         }
 
-        // Try to locate formula_version and instantiate MES compounding batch
+        // Check Admin toggle setting (auto_send_to_operator_mes). Default OFF: Print mode only
         try {
-          let formula = null;
-          let versionRow = null;
-          if (formulaCode) {
-            formula = await trx('formulas').where({ code: formulaCode }).first();
-          }
-          if (formula) {
-            versionRow = await trx('formula_versions')
-              .where({ formula_id: formula.id, version_status: 'APPROVED' })
-              .orderBy('major_version', 'desc')
-              .orderBy('minor_version', 'desc')
-              .first();
-          }
-          if (formula && versionRow) {
-            const mats = await trx('formula_version_materials')
-              .leftJoin('materials', 'formula_version_materials.material_id', 'materials.id')
-              .leftJoin('formula_phases', 'formula_version_materials.phase_id', 'formula_phases.id')
-              .where('formula_version_materials.version_id', versionRow.id)
-              .select('formula_version_materials.*', 'materials.code as mat_code', 'materials.name as mat_name', 'formula_phases.phase_name');
+          const settingRow = await trx('system_settings').where({ key: 'auto_send_to_operator_mes' }).first();
+          const isAutoSendEnabled = settingRow ? (settingRow.value === 'true' || settingRow.value === '1') : false;
 
-            await CompoundingBatchService.createBatch({
-              trx,
-              compoundingCode: code,
-              formulaId: formula.id,
-              formulaVersionId: versionRow.id,
-              category: formula.product_category || 'Cosmetic',
-              targetBatchSize: targetBatchSize || versionRow.target_batch_size || '100.00',
-              targetBatchUom: targetBatchUom || 'g',
-              userId,
-              items: mats,
-            });
+          if (isAutoSendEnabled) {
+            let formula = null;
+            let versionRow = null;
+            if (formulaCode) {
+              formula = await trx('formulas').where({ code: formulaCode }).first();
+            }
+            if (formula) {
+              versionRow = await trx('formula_versions')
+                .where({ formula_id: formula.id, version_status: 'APPROVED' })
+                .orderBy('major_version', 'desc')
+                .orderBy('minor_version', 'desc')
+                .first();
+            }
+            if (formula && versionRow) {
+              const mats = await trx('formula_version_materials')
+                .leftJoin('materials', 'formula_version_materials.material_id', 'materials.id')
+                .leftJoin('formula_phases', 'formula_version_materials.phase_id', 'formula_phases.id')
+                .where('formula_version_materials.version_id', versionRow.id)
+                .select('formula_version_materials.*', 'materials.code as mat_code', 'materials.name as mat_name', 'formula_phases.phase_name');
+
+              await CompoundingBatchService.createBatch({
+                trx,
+                compoundingCode: code,
+                formulaId: formula.id,
+                formulaVersionId: versionRow.id,
+                category: formula.product_category || 'Cosmetic',
+                targetBatchSize: targetBatchSize || versionRow.target_batch_size || '100.00',
+                targetBatchUom: targetBatchUom || 'g',
+                userId,
+                items: mats,
+              });
+            }
           }
         } catch (e) {
           console.error('Error instantiating MES batch in generateUniqueCodes:', e);

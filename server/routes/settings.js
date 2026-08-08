@@ -9,7 +9,9 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const settings = await db('system_settings').select('*');
-    const settingsMap = {};
+    const settingsMap = {
+      auto_send_to_operator_mes: 'false', // Default OFF: Print mode only
+    };
     for (const s of settings) {
       settingsMap[s.key] = s.value;
     }
@@ -20,7 +22,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/v1/settings
-router.put('/', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.put('/', authenticateToken, async (req, res) => {
   try {
     const { settings } = req.body; // Object of key-value pairs
     if (!settings || typeof settings !== 'object') {

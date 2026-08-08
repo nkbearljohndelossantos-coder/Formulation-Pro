@@ -154,6 +154,45 @@ export function SettingsPage() {
           </div>
         </div>
 
+        {/* Auto-Send Formula Batches to Operator Station Toggle */}
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-slate-900 font-bold text-xs">
+                Auto-Send Formulated Batches to Operator Station
+              </label>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Kapag <span className="font-bold text-amber-700">OFF (Print Only Mode)</span>, mag-pi-print lamang ng barcode/log at WALANG mababato sa Operator Station. Kapag <span className="font-bold text-emerald-600">ON</span>, awtomatikong lalabas sa Operator station ang bagong batch.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSettings({ ...settings, auto_send_to_operator_mes: settings.auto_send_to_operator_mes === 'true' ? 'false' : 'true' })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                settings.auto_send_to_operator_mes === 'true' ? 'bg-emerald-600' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.auto_send_to_operator_mes === 'true' ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+          <div className="pt-1">
+            <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-md inline-block ${
+              settings.auto_send_to_operator_mes === 'true'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-amber-100 text-amber-900'
+            }`}>
+              {settings.auto_send_to_operator_mes === 'true'
+                ? '🟢 Status: ON (Auto-Send Batches to Operator Station Enabled)'
+                : '🔴 Status: OFF (Print Only Mode — No Batches Sent to Operator)'}
+            </span>
+          </div>
+        </div>
+
         {/* Document & Print PDF Typography Settings */}
         <div className="pt-4 border-t border-slate-200 space-y-4">
           <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2 flex items-center gap-2">
