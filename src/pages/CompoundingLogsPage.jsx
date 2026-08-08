@@ -244,21 +244,26 @@ export function CompoundingLogsPage({ setCurrentPage, setSelectedBatchId }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-800/80 px-4 py-2.5 rounded-xl border border-slate-700">
-          <span className="text-xs font-bold text-slate-200">Auto-Bato sa Operator:</span>
+        <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
           <button
             type="button"
-            onClick={() => handleToggleAutoSend(!autoSendEnabled)}
+            onClick={() => handleToggleAutoSend(false)}
             disabled={togglingSetting}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-              autoSendEnabled ? 'bg-emerald-500' : 'bg-slate-600'
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              !autoSendEnabled ? 'bg-amber-500 text-slate-900 shadow-xs' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                autoSendEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
+            OFF (Print Only)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(true)}
+            disabled={togglingSetting}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              autoSendEnabled ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ON (Auto-Send)
           </button>
         </div>
       </div>

@@ -18,6 +18,8 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
 
   const [batchResult, setBatchResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
+  const [togglingSetting, setTogglingSetting] = useState(false);
 
   useEffect(() => {
     apiFetch('/api/v1/formulas')
@@ -27,7 +29,39 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
           setFormulas(d.data);
         }
       });
+    fetchSettings();
   }, []);
+
+  const fetchSettings = () => {
+    apiFetch('/api/v1/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data) {
+          setAutoSendEnabled(d.data.auto_send_to_operator_mes === 'true' || d.data.auto_send_to_operator_mes === '1');
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleToggleAutoSend = (newVal) => {
+    setTogglingSetting(true);
+    apiFetch('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        settings: { auto_send_to_operator_mes: newVal ? 'true' : 'false' }
+      })
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setAutoSendEnabled(newVal);
+        } else {
+          alert(d.message || 'Failed to update setting.');
+        }
+      })
+      .catch(e => alert(e.message || 'Error updating setting.'))
+      .finally(() => setTogglingSetting(false));
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -148,6 +182,46 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
         <p className="text-xs text-slate-500">
           Scale approved formulas to target batch quantities matching the official Production Sheet standard.
         </p>
+      </div>
+
+      {/* Admin Dispatch Control Banner for Auto-Send to Operator Toggle */}
+      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-xs uppercase tracking-wider text-blue-400">Admin Dispatch Control</span>
+            <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${autoSendEnabled ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-900'}`}>
+              {autoSendEnabled ? '🟢 ON: Auto-Send Enabled' : '🔴 OFF: Print Only (No Auto-Send)'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 mt-1">
+            {autoSendEnabled
+              ? 'AUTOMATIC: Pag nag-calc / generate, AWTOMATIKONG MABABATO sa Operator Station ang active batch.'
+              : 'PRINT ONLY: Pag nag-calc / generate, MAG-PRIPRINT AT MAG-LO-LOG LAMANG at HINDI MABABATO sa Operator Station.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(false)}
+            disabled={togglingSetting}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              !autoSendEnabled ? 'bg-amber-500 text-slate-900 shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            OFF (Print Only)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(true)}
+            disabled={togglingSetting}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              autoSendEnabled ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ON (Auto-Send)
+          </button>
+        </div>
       </div>
 
       {/* Scaling Form */}
