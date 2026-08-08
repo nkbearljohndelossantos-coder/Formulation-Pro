@@ -6,6 +6,7 @@ import { authenticateToken, requirePermission, requireRoles } from '../middlewar
 import { AuditService } from '../services/AuditService.js';
 import { SequenceService } from '../services/SequenceService.js';
 import { validateFormulaPercentage, assertVersionIsMutable } from '../services/validationEngine.js';
+import { CompoundingBatchService } from '../services/CompoundingBatchService.js';
 
 const router = express.Router();
 
