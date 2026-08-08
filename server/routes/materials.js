@@ -379,13 +379,20 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin', 'Formulator', 
   }
 });
 
-// DELETE /api/v1/materials/:id - Soft delete / Deactivate
-router.delete('/:id', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+// DELETE /api/v1/materials/:id - Delete material (Soft or Permanent Delete for Admins)
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const { permanent } = req.query;
     const material = await db('materials').where({ id }).first();
     if (!material) {
       return res.status(404).json({ success: false, message: 'Material not found.' });
+    }
+
+    if (permanent === 'true') {
+      await db('materials').where({ id }).del();
+      await logAudit(req, 'DELETE_MATERIAL_PERMANENT', 'Material', id, material, null);
+      return res.json({ success: true, message: `Material '${material.name}' permanently deleted.` });
     }
 
     await db('materials').where({ id }).update({
@@ -394,10 +401,10 @@ router.delete('/:id', authenticateToken, requireRoles('Super Admin'), async (req
       archived_by: req.user.id,
     });
 
-    await logAudit(req, 'DEACTIVATE_MATERIAL', 'Material', id, { is_active: true }, { is_active: false });
-    return res.json({ success: true, message: 'Material deactivated.' });
+    await logAudit(req, 'DELETE_MATERIAL', 'Material', id, material, { is_active: false });
+    return res.json({ success: true, message: `Material '${material.name}' deleted successfully.` });
   } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to deactivate material.', error: err.message });
+    return res.status(500).json({ success: false, message: 'Failed to delete material.', error: err.message });
   }
 });
 

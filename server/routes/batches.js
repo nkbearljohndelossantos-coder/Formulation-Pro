@@ -43,6 +43,38 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/v1/batches/operator/my-logs - Detailed activity history for logged-in operator
+router.get('/operator/my-logs', authenticateToken, async (req, res) => {
+  try {
+    const operatorId = req.user.id;
+
+    const entries = await db('batch_material_entries')
+      .join('production_batches', 'batch_material_entries.batch_id', 'production_batches.id')
+      .leftJoin('formulas', 'production_batches.formula_id', 'formulas.id')
+      .leftJoin('materials', 'batch_material_entries.material_id', 'materials.id')
+      .leftJoin('batch_material_requirements', function() {
+        this.on('batch_material_entries.batch_id', '=', 'batch_material_requirements.batch_id')
+          .andOn('batch_material_entries.step_id', '=', 'batch_material_requirements.step_id');
+      })
+      .where('batch_material_entries.operator_id', operatorId)
+      .select(
+        'batch_material_entries.*',
+        'production_batches.batch_number',
+        'production_batches.category',
+        'production_batches.status as batch_status',
+        'formulas.name as formula_name',
+        'materials.name as material_name',
+        'materials.code as material_code',
+        'batch_material_requirements.target_weight'
+      )
+      .orderBy('batch_material_entries.weighed_at', 'desc');
+
+    return res.json({ success: true, data: entries });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch operator execution logs.', error: err.message });
+  }
+});
+
 // GET /api/v1/batches/:id - Full MES Batch View Details
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
@@ -460,6 +492,47 @@ router.post('/:id/complete', authenticateToken, async (req, res) => {
     return res.json({ success: true, message: `Batch ${batch.batch_number} compounding completed. Submitted to Quality Control.` });
   } catch (err) {
     return res.status(err.status || 500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/v1/batches/:id - Delete Production Batch & associated child tables
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const batch = await db('production_batches').where({ id }).first();
+    if (!batch) return res.status(404).json({ success: false, message: 'Batch not found.' });
+
+    await db.transaction(async (trx) => {
+      await trx('batch_material_entries').where({ batch_id: id }).del();
+      await trx('batch_material_requirements').where({ batch_id: id }).del();
+      await trx('batch_steps').where({ batch_id: id }).del();
+      await trx('batch_phases').where({ batch_id: id }).del();
+      await trx('batch_execution_locks').where({ batch_id: id }).del();
+      await trx('batch_deviations').where({ batch_id: id }).del();
+      await trx('qr_tokens').where({ batch_id: id }).del();
+      await trx('production_batches').where({ id }).del();
+
+      // Also clean up compounding_code_logs if compounding_code matches
+      await trx('compounding_code_logs')
+        .where('compounding_code', batch.batch_number)
+        .orWhere('batch_number', batch.batch_number)
+        .del()
+        .catch(() => {});
+
+      await AuditService.logEvent({
+        trx,
+        userId: req.user.id,
+        userRole: req.user.roles[0] || 'User',
+        action: 'DELETE_BATCH',
+        entityType: 'ProductionBatch',
+        entityId: id,
+        newValues: { batch_number: batch.batch_number },
+      });
+    });
+
+    return res.json({ success: true, message: `Batch '${batch.batch_number}' deleted successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete batch.', error: err.message });
   }
 });
 

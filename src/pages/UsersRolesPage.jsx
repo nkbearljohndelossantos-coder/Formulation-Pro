@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, UserPlus, Check, X, Edit, Shield, Save } from 'lucide-react';
+import { Users, UserPlus, Check, X, Edit, Shield, Save, Trash2 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 
 export function UsersRolesPage() {
@@ -42,6 +42,24 @@ export function UsersRolesPage() {
     apiFetch('/api/v1/users')
       .then(r => r.json())
       .then(d => d.success && setUsers(d.data));
+  };
+
+  const handleDeleteUser = async (id, username) => {
+    if (!window.confirm(`Are you sure you want to delete user account '@${username}'? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/users/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`User account '@${username}' deleted successfully.`);
+        fetchUsers();
+      } else {
+        alert(data.message || 'Failed to delete user.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting user.');
+    }
   };
 
   const handleCreateUser = (e) => {
@@ -185,9 +203,17 @@ export function UsersRolesPage() {
 
                       <button
                         onClick={() => toggleStatus(u.id, u.is_active)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-semibold border ${u.is_active ? 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'}`}
+                        className={`px-2.5 py-1 rounded text-[11px] font-semibold border ${u.is_active ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'}`}
                       >
                         {u.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.username)}
+                        className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-200 transition"
+                        title="Delete User Account"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>

@@ -1,4 +1,5 @@
 import { express } from '../cjsRequire.js';
+import db from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { CompoundingCodeService } from '../services/CompoundingCodeService.js';
 
@@ -91,11 +92,39 @@ router.post('/compare', authenticateToken, async (req, res) => {
       data: records,
     });
   } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to compare compounding codes.',
-      error: err.message,
+// DELETE /api/v1/compounding-codes/:id - Delete compounding code log & associated MES batch
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const log = await db('compounding_code_logs').where({ id }).first();
+    if (!log) {
+      return res.status(404).json({ success: false, message: 'Compounding code log not found.' });
+    }
+
+    await db.transaction(async (trx) => {
+      // Find matching production batch
+      const batch = await trx('production_batches')
+        .where('batch_number', log.compounding_code)
+        .orWhere('batch_number', log.batch_number)
+        .first();
+
+      if (batch) {
+        await trx('batch_material_entries').where({ batch_id: batch.id }).del();
+        await trx('batch_material_requirements').where({ batch_id: batch.id }).del();
+        await trx('batch_steps').where({ batch_id: batch.id }).del();
+        await trx('batch_phases').where({ batch_id: batch.id }).del();
+        await trx('batch_execution_locks').where({ batch_id: batch.id }).del();
+        await trx('batch_deviations').where({ batch_id: batch.id }).del();
+        await trx('qr_tokens').where({ batch_id: batch.id }).del();
+        await trx('production_batches').where({ id: batch.id }).del();
+      }
+
+      await trx('compounding_code_logs').where({ id }).del();
     });
+
+    return res.json({ success: true, message: `Compounding code log '${log.compounding_code}' deleted successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete compounding code log.', error: err.message });
   }
 });
 

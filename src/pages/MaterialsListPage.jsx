@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter, History, CheckCircle2, Download, Upload, FileSpreadsheet, Building2, Building, Edit, Save, X } from 'lucide-react';
+import { Search, Plus, Filter, History, CheckCircle2, Download, Upload, FileSpreadsheet, Building2, Building, Edit, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 
@@ -54,6 +54,24 @@ export function MaterialsListPage({ setCurrentPage }) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  const handleDeleteMaterial = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete material '${name}'? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/materials/${id}?permanent=true`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Material '${name}' deleted successfully.`);
+        fetchMaterials();
+      } else {
+        alert(data.message || 'Failed to delete material.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting material.');
+    }
   };
 
   const fetchCompaniesAndVendors = () => {
@@ -487,6 +505,13 @@ export function MaterialsListPage({ setCurrentPage }) {
                           title="View Price History Log"
                         >
                           <History className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMaterial(m.id, m.name)}
+                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-200 transition"
+                          title="Delete Material Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

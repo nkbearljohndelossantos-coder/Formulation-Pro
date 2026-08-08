@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBadge } from '../components/Badge';
-import { History, GitBranch, ArrowLeft, RefreshCw, Printer } from 'lucide-react';
+import { History, GitBranch, ArrowLeft, RefreshCw, Printer, Trash2 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { printProductionSheet } from '../utils/printProductionSheet';
@@ -32,6 +32,26 @@ export function FormulaVersionsPage({ setCurrentPage }) {
         }
       })
       .finally(() => setLoading(false));
+  };
+
+  const handleDeleteFormula = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete formula '${name}' and all its versions? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/formulas/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Formula '${name}' deleted successfully.`);
+        setSelectedVersionId(null);
+        setVersionDetail(null);
+        fetchFormulas();
+      } else {
+        alert(data.message || 'Failed to delete formula.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting formula.');
+    }
   };
 
   const viewVersion = (vId) => {
@@ -105,7 +125,16 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                     <span className="font-mono text-xs font-bold text-blue-700">{f.code}</span>
                     <p className="font-semibold text-slate-900 text-xs">{f.name}</p>
                   </div>
-                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-medium">{f.product_category}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-medium">{f.product_category}</span>
+                    <button
+                      onClick={() => handleDeleteFormula(f.id, f.name)}
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                      title="Delete Formula & All Versions"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1 text-xs pt-1 border-t border-slate-200">

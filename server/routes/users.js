@@ -172,4 +172,31 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin'), async (req, r
   }
 });
 
+// DELETE /api/v1/users/:id - Delete User account
+router.delete('/:id', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (String(id) === String(req.user.id)) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account while logged in.' });
+    }
+
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await db.transaction(async (trx) => {
+      await trx('user_roles').where({ user_id: id }).del();
+      await trx('user_sessions').where({ user_id: id }).del();
+      await trx('users').where({ id }).del();
+
+      await logAudit(req, 'DELETE_USER', 'User', id, user, null);
+    });
+
+    return res.json({ success: true, message: `User '${user.username}' deleted successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete user.', error: err.message });
+  }
+});
+
 export default router;

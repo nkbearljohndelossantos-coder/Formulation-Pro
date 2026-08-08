@@ -1315,4 +1315,44 @@ router.post('/versions/:versionId/create-batch', authenticateToken, async (req, 
   }
 });
 
+// DELETE /api/v1/formulas/:id - Delete formula and its associated versions & materials
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const formula = await db('formulas').where({ id }).first();
+    if (!formula) {
+      return res.status(404).json({ success: false, message: 'Formula not found.' });
+    }
+
+    await db.transaction(async (trx) => {
+      const versions = await trx('formula_versions').where({ formula_id: id }).select('id');
+      const versionIds = versions.map(v => v.id);
+
+      if (versionIds.length > 0) {
+        await trx('formula_version_materials').whereIn('version_id', versionIds).del();
+        await trx('formula_phases').whereIn('version_id', versionIds).del();
+        await trx('cosmetic_formula_details').whereIn('version_id', versionIds).del();
+        await trx('formula_versions').whereIn('id', versionIds).del();
+      }
+
+      await trx('formulas').where({ id }).del();
+
+      await AuditService.logEvent({
+        trx,
+        userId: req.user.id,
+        userRole: req.user.roles?.[0] || 'User',
+        action: 'DELETE_FORMULA',
+        entityType: 'Formula',
+        entityId: id,
+        newValues: { code: formula.code, name: formula.name },
+      });
+    });
+
+    return res.json({ success: true, message: `Formula '${formula.name}' deleted successfully.` });
+  } catch (err) {
+    console.error('Error deleting formula:', err);
+    return res.status(500).json({ success: false, message: 'Failed to delete formula.', error: err.message });
+  }
+});
+
 export default router;
