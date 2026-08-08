@@ -92,6 +92,9 @@ router.post('/compare', authenticateToken, async (req, res) => {
       data: records,
     });
   } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to compare compounding codes.', error: err.message });
+  }
+});
 // DELETE /api/v1/compounding-codes/:id - Delete compounding code log & associated MES batch
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
