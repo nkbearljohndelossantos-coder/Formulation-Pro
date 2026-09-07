@@ -46,6 +46,7 @@ export function App() {
                         user?.email?.toLowerCase().includes('perfume') ||
                         user?.role?.toLowerCase().includes('perfume');
   const isRequestor = (user?.role || '').toLowerCase().includes('requestor');
+  const isInventoryAccount = user?.role === 'Inventory Account' || (user?.role || '').toLowerCase().includes('inventory');
 
   useEffect(() => {
     if (user) {
@@ -55,6 +56,8 @@ export function App() {
         setCurrentPage('qc-inspection');
       } else if (isRequestor) {
         setCurrentPage('sample-requests-list');
+      } else if (isInventoryAccount) {
+        setCurrentPage('inventory');
       } else if (isPerfumeUser) {
         setCurrentPage('formulation-perfume-no-brand');
       } else if (user.role === 'Formulation Chemist') {
@@ -84,9 +87,17 @@ export function App() {
     'change-password',
   ];
 
+  const inventoryAllowedPages = [
+    'inventory',
+    'materials-list',
+    'create-material',
+    'change-password',
+  ];
+
   const isCosmeticDenied = isPerfumeUser && currentPage === 'formulation-cosmetic';
   const isDenied = (isOperator && !operatorAllowedPages.includes(currentPage)) ||
                    (isRequestor && !requestorAllowedPages.includes(currentPage)) ||
+                   (isInventoryAccount && !inventoryAllowedPages.includes(currentPage)) ||
                    isCosmeticDenied;
 
   const getPageTitle = () => {
@@ -140,13 +151,15 @@ export function App() {
               </div>
               <h2 className="text-xl font-bold text-slate-900">Access Denied (HTTP 403 Forbidden)</h2>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Compounding Operators are barred from accessing R&D Formulation Master Data, Material Master, Costing, Settings, or User Management.
+                {isInventoryAccount
+                  ? 'Inventory Accounts are restricted strictly to Inventory Management and Material Master Data.'
+                  : 'Compounding Operators are barred from accessing R&D Formulation Master Data, Material Master, Costing, Settings, or User Management.'}
               </p>
               <button
-                onClick={() => setCurrentPage('operator-dashboard')}
+                onClick={() => setCurrentPage(isInventoryAccount ? 'inventory' : 'operator-dashboard')}
                 className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition"
               >
-                Return to Compounding Dashboard
+                {isInventoryAccount ? 'Return to Inventory Management' : 'Return to Compounding Dashboard'}
               </button>
             </div>
           ) : (

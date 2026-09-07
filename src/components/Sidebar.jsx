@@ -39,6 +39,7 @@ export function Sidebar({ currentPage, setCurrentPage }) {
   const isCurrent = (page) => currentPage === page;
   const isOperator = user?.role === 'Compounding Operator';
   const isRequestor = (user?.role || '').toLowerCase().includes('requestor');
+  const isInventoryAccount = user?.role === 'Inventory Account' || (user?.role || '').toLowerCase().includes('inventory');
   const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
                         user?.email?.toLowerCase().includes('perfume') ||
                         user?.role?.toLowerCase().includes('perfume');
@@ -98,6 +99,57 @@ export function Sidebar({ currentPage, setCurrentPage }) {
               >
                 <PlusCircle className="w-4 h-4 text-emerald-400" />
                 <span>New Sample Request</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('change-password')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('change-password')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-4 h-4 text-amber-400" />
+                <span>Change Password</span>
+              </button>
+            </>
+          ) : isInventoryAccount ? (
+            /* INVENTORY ACCOUNT PORTAL NAVIGATION — STRICTLY INVENTORY & MATERIAL LIST */
+            <>
+              <button
+                onClick={() => setCurrentPage('inventory')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('inventory')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Boxes className="w-4 h-4 text-blue-400" />
+                <span>Inventory Management</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('materials-list')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('materials-list')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <ListFilter className="w-4 h-4 text-emerald-400" />
+                <span>Material Master List</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('create-material')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('create-material')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <PlusCircle className="w-4 h-4 text-purple-400" />
+                <span>Create Material</span>
               </button>
 
               <button
@@ -486,10 +538,10 @@ export function Sidebar({ currentPage, setCurrentPage }) {
         {/* Scope Footer */}
         <div className="p-3 border-t border-slate-800 bg-slate-950/60 text-xs text-slate-400 space-y-1">
           <p className="font-semibold text-slate-300">
-            {isPerfumeUser ? 'Perfume Formulation MES' : 'Cosmetics Formulation MES'}
+            {isInventoryAccount ? 'Inventory & Material Portal' : (isPerfumeUser ? 'Perfume Formulation MES' : 'Cosmetics Formulation MES')}
           </p>
           <p className="text-[10px] leading-tight text-slate-400">
-            Strictly Formulation & Compounding MES. No ERP logic.
+            {isInventoryAccount ? 'Stock Control & Material Master Management' : 'Strictly Formulation & Compounding MES. No ERP logic.'}
           </p>
         </div>
       </aside>
@@ -517,6 +569,52 @@ export function Sidebar({ currentPage, setCurrentPage }) {
             >
               <PlusCircle className="w-5 h-5 text-emerald-400" />
               <span className="text-[9px] mt-1 truncate">New</span>
+            </button>
+            <button
+              onClick={() => handleMobileNav('change-password')}
+              className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition ${
+                isCurrent('change-password') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <KeyRound className="w-5 h-5 text-amber-400" />
+              <span className="text-[9px] mt-1 truncate">Pass</span>
+            </button>
+            <button
+              onClick={logout}
+              className="flex flex-col items-center justify-center w-16 h-12 rounded-xl text-rose-400 hover:text-rose-300"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-[9px] mt-1 truncate">Logout</span>
+            </button>
+          </>
+        ) : isInventoryAccount ? (
+          <>
+            <button
+              onClick={() => handleMobileNav('inventory')}
+              className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition ${
+                isCurrent('inventory') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Boxes className="w-5 h-5" />
+              <span className="text-[9px] mt-1 truncate">Inventory</span>
+            </button>
+            <button
+              onClick={() => handleMobileNav('materials-list')}
+              className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition ${
+                isCurrent('materials-list') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ListFilter className="w-5 h-5 text-emerald-400" />
+              <span className="text-[9px] mt-1 truncate">Materials</span>
+            </button>
+            <button
+              onClick={() => handleMobileNav('create-material')}
+              className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition ${
+                isCurrent('create-material') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <PlusCircle className="w-5 h-5 text-purple-400" />
+              <span className="text-[9px] mt-1 truncate">New Mat</span>
             </button>
             <button
               onClick={() => handleMobileNav('change-password')}
@@ -624,7 +722,41 @@ export function Sidebar({ currentPage, setCurrentPage }) {
 
             {/* Links List */}
             <div className="grid grid-cols-2 gap-3 text-sm">
-              {!isOperator && (
+              {isInventoryAccount ? (
+                <>
+                  <button
+                    onClick={() => handleMobileNav('inventory')}
+                    className="flex flex-col items-center justify-center p-4 bg-slate-850 hover:bg-slate-800 rounded-2xl text-slate-300 hover:text-white border border-slate-800 transition"
+                  >
+                    <Boxes className="w-6 h-6 text-blue-400 mb-2" />
+                    <span className="text-xs font-semibold">Inventory</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleMobileNav('materials-list')}
+                    className="flex flex-col items-center justify-center p-4 bg-slate-850 hover:bg-slate-800 rounded-2xl text-slate-300 hover:text-white border border-slate-800 transition"
+                  >
+                    <ListFilter className="w-6 h-6 text-emerald-400 mb-2" />
+                    <span className="text-xs font-semibold">Material List</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleMobileNav('create-material')}
+                    className="flex flex-col items-center justify-center p-4 bg-slate-850 hover:bg-slate-800 rounded-2xl text-slate-300 hover:text-white border border-slate-800 transition"
+                  >
+                    <PlusCircle className="w-6 h-6 text-purple-400 mb-2" />
+                    <span className="text-xs font-semibold">New Material</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleMobileNav('change-password')}
+                    className="flex flex-col items-center justify-center p-4 bg-slate-850 hover:bg-slate-800 rounded-2xl text-slate-300 hover:text-white border border-slate-800 transition"
+                  >
+                    <KeyRound className="w-6 h-6 text-amber-400 mb-2" />
+                    <span className="text-xs font-semibold">Password</span>
+                  </button>
+                </>
+              ) : !isOperator && (
                 <>
                   <button
                     onClick={() => handleMobileNav('create-formula')}
