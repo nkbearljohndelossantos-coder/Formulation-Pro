@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Calculator, Printer, DollarSign, Search, ChevronDown, Check, X } from 'lucide-react';
+import { Calculator, Printer, DollarSign, Search, ChevronDown, Check, X, Play } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
+import ExcelProductionSheetTable from '../components/ExcelProductionSheetTable';
 
-export function BatchCalculatorPage({ setCurrentPage }) {
+export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
   const { user } = useAuth();
   const [formulas, setFormulas] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState('');
@@ -18,6 +19,8 @@ export function BatchCalculatorPage({ setCurrentPage }) {
 
   const [batchResult, setBatchResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
+  const [togglingSetting, setTogglingSetting] = useState(false);
 
   useEffect(() => {
     apiFetch('/api/v1/formulas')
@@ -27,7 +30,39 @@ export function BatchCalculatorPage({ setCurrentPage }) {
           setFormulas(d.data);
         }
       });
+    fetchSettings();
   }, []);
+
+  const fetchSettings = () => {
+    apiFetch('/api/v1/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data) {
+          setAutoSendEnabled(d.data.auto_send_to_operator_mes === 'true' || d.data.auto_send_to_operator_mes === '1');
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleToggleAutoSend = (newVal) => {
+    setTogglingSetting(true);
+    apiFetch('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        settings: { auto_send_to_operator_mes: newVal ? 'true' : 'false' }
+      })
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setAutoSendEnabled(newVal);
+        } else {
+          alert(d.message || 'Failed to update setting.');
+        }
+      })
+      .catch(e => alert(e.message || 'Error updating setting.'))
+      .finally(() => setTogglingSetting(false));
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -49,7 +84,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
           formulaCode: f.code,
           formulaName: f.name,
           versionStr: `V${v.major_version}.${v.minor_version}`,
-          displayText: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version} APPROVED)`,
+          displayText: `${f.name} (V${v.major_version}.${v.minor_version} APPROVED)`,
         });
       }
     });
@@ -102,6 +137,8 @@ export function BatchCalculatorPage({ setCurrentPage }) {
       });
   };
 
+  const [currentSheetLayout, setCurrentSheetLayout] = useState(null);
+
   const handlePrintPdf = () => {
     if (!batchResult) return;
     printProductionSheet({
@@ -123,6 +160,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
       materials: batchResult.items || [],
       categoryDetails: batchResult.categoryDetails,
       user,
+      layoutConfig: currentSheetLayout
     });
   };
 
@@ -148,6 +186,46 @@ export function BatchCalculatorPage({ setCurrentPage }) {
         <p className="text-xs text-slate-500">
           Scale approved formulas to target batch quantities matching the official Production Sheet standard.
         </p>
+      </div>
+
+      {/* Admin Dispatch Control Banner for Auto-Send to Operator Toggle */}
+      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-xs uppercase tracking-wider text-blue-400">Admin Dispatch Control</span>
+            <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${autoSendEnabled ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-900'}`}>
+              {autoSendEnabled ? '🟢 ON: Auto-Send Enabled' : '🔴 OFF: Print Only (No Auto-Send)'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 mt-1">
+            {autoSendEnabled
+              ? 'AUTOMATIC: Pag nag-calc / generate, AWTOMATIKONG MABABATO sa Operator Station ang active batch.'
+              : 'PRINT ONLY: Pag nag-calc / generate, MAG-PRIPRINT AT MAG-LO-LOG LAMANG at HINDI MABABATO sa Operator Station.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(false)}
+            disabled={togglingSetting}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              !autoSendEnabled ? 'bg-amber-500 text-slate-900 shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            OFF (Print Only)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(true)}
+            disabled={togglingSetting}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              autoSendEnabled ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ON (Auto-Send)
+          </button>
+        </div>
       </div>
 
       {/* Scaling Form */}
@@ -218,8 +296,7 @@ export function BatchCalculatorPage({ setCurrentPage }) {
                         }`}
                       >
                         <div>
-                          <span className="font-mono text-blue-700 font-bold mr-1.5">{opt.formulaCode}</span>
-                          <span>{opt.formulaName}</span>
+                          <span className="font-semibold text-slate-900">{opt.formulaName}</span>
                           <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
                             {opt.versionStr} APPROVED
                           </span>
@@ -359,19 +436,38 @@ export function BatchCalculatorPage({ setCurrentPage }) {
           {/* Production Sheet Document Preview Box */}
           <div className="bg-white p-8 rounded-2xl border border-slate-300 shadow-md space-y-6 text-slate-900">
           {/* Header Controls Bar */}
-          <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
               <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 uppercase">
                 Official Production Sheet Standard
               </span>
               <h2 className="text-base font-extrabold text-slate-900 mt-1">{batchResult.formula_code} — {batchResult.formula_name}</h2>
             </div>
-            <button
-              onClick={handlePrintPdf}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
-            >
-              <Printer className="w-4 h-4" /> Save / Export PDF
-            </button>
+            <div className="flex items-center gap-2">
+              {batchResult.production_batch_id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof setSelectedBatchId === 'function') {
+                      setSelectedBatchId(batchResult.production_batch_id);
+                    }
+                    if (typeof setCurrentPage === 'function') {
+                      setCurrentPage('operator-compounding-screen');
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+                  title="Open batch directly in Operator Compounding Station"
+                >
+                  <Play className="w-4 h-4" /> Start Compounding Execution
+                </button>
+              )}
+              <button
+                onClick={handlePrintPdf}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+              >
+                <Printer className="w-4 h-4" /> Save / Export PDF
+              </button>
+            </div>
           </div>
 
           {/* PDF Document Box */}
@@ -401,67 +497,14 @@ export function BatchCalculatorPage({ setCurrentPage }) {
               </div>
             </div>
 
-            {/* Production Sheet Table */}
-            <div className="overflow-x-auto border border-slate-300 rounded">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
-                  <tr>
-                    <th className="p-2.5 w-1/3">Quantity</th>
-                    <th className="p-2.5">Raw Material</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {phaseKeys.length === 0 ? (
-                    batchResult.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-2.5 font-mono">
-                          <span className="inline-block text-slate-400 mr-2">☐</span>
-                          <span className="font-bold text-slate-900">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </td>
-                        <td className="p-2.5 font-bold text-slate-900 uppercase">{item.material_name_snapshot}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    phaseKeys.map((pName, pIdx) => (
-                      <React.Fragment key={pIdx}>
-                        <tr className="bg-slate-200 font-extrabold text-slate-900">
-                          <td colSpan="2" className="p-2 px-3">
-                            {(() => {
-                              const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
-                              if (match) return `Phase ${match[1].toUpperCase()}`;
-                              const lower = String(pName).toLowerCase();
-                              if (lower.includes('water')) return 'Phase A';
-                              if (lower.includes('surfactant') || lower.includes('oil')) return 'Phase B';
-                              if (lower.includes('active')) return 'Phase C';
-                              if (lower.includes('cooling')) return 'Phase D';
-                              if (lower.includes('post')) return 'Phase E';
-                              return pName.startsWith('Phase') ? pName : `Phase ${String.fromCharCode(65 + pIdx)}`;
-                            })()}
-                          </td>
-                        </tr>
-                        {phaseMap[pName].map((item, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50">
-                            <td className="p-2.5 font-mono">
-                              <span className="inline-block text-slate-400 mr-2">☐</span>
-                              <span className="font-bold text-slate-900">{Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
-                            </td>
-                            <td className="p-2.5 font-bold text-slate-900 uppercase">{item.material_name_snapshot}</td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    ))
-                  )}
-
-                  {/* Total Row */}
-                  <tr className="bg-slate-200 font-extrabold text-slate-900 text-sm">
-                    <td colSpan="2" className="p-2.5 px-3 font-mono">
-                      <span className="invisible mr-2">☐</span>
-                      <span>{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {/* Production Sheet Table (Excel-style Editable with Col/Row Resizing & Auto-Save) */}
+            <ExcelProductionSheetTable
+              compoundingCode={batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-0001')}
+              batchResult={batchResult}
+              phaseKeys={phaseKeys}
+              phaseMap={phaseMap}
+              onLayoutChange={setCurrentSheetLayout}
+            />
 
             {/* Quality Parameters & Specifications Table */}
             <div className="space-y-1.5 pt-1">

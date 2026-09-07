@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBadge } from '../components/Badge';
-import { History, GitBranch, ArrowLeft, RefreshCw, Printer } from 'lucide-react';
+import { History, GitBranch, ArrowLeft, RefreshCw, Printer, Trash2 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { printProductionSheet } from '../utils/printProductionSheet';
@@ -32,6 +32,26 @@ export function FormulaVersionsPage({ setCurrentPage }) {
         }
       })
       .finally(() => setLoading(false));
+  };
+
+  const handleDeleteFormula = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete formula '${name}' and all its versions? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/formulas/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Formula '${name}' deleted successfully.`);
+        setSelectedVersionId(null);
+        setVersionDetail(null);
+        fetchFormulas();
+      } else {
+        alert(data.message || 'Failed to delete formula.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting formula.');
+    }
   };
 
   const viewVersion = (vId) => {

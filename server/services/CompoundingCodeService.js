@@ -1,5 +1,6 @@
 import db from '../db.js';
 import { SequenceService } from './SequenceService.js';
+import { CompoundingBatchService } from './CompoundingBatchService.js';
 
 export class CompoundingCodeService {
   /**
@@ -70,6 +71,48 @@ export class CompoundingCodeService {
           insertedId = insertRes;
         }
 
+        // Check Admin toggle setting (auto_send_to_operator_mes). Default OFF: Print mode only
+        try {
+          const settingRow = await trx('system_settings').where({ key: 'auto_send_to_operator_mes' }).first();
+          const isAutoSendEnabled = settingRow ? (settingRow.value === 'true' || settingRow.value === '1') : false;
+
+          if (isAutoSendEnabled) {
+            let formula = null;
+            let versionRow = null;
+            if (formulaCode) {
+              formula = await trx('formulas').where({ code: formulaCode }).first();
+            }
+            if (formula) {
+              versionRow = await trx('formula_versions')
+                .where({ formula_id: formula.id, version_status: 'APPROVED' })
+                .orderBy('major_version', 'desc')
+                .orderBy('minor_version', 'desc')
+                .first();
+            }
+            if (formula && versionRow) {
+              const mats = await trx('formula_version_materials')
+                .leftJoin('materials', 'formula_version_materials.material_id', 'materials.id')
+                .leftJoin('formula_phases', 'formula_version_materials.phase_id', 'formula_phases.id')
+                .where('formula_version_materials.version_id', versionRow.id)
+                .select('formula_version_materials.*', 'materials.code as mat_code', 'materials.name as mat_name', 'formula_phases.phase_name');
+
+              await CompoundingBatchService.createBatch({
+                trx,
+                compoundingCode: code,
+                formulaId: formula.id,
+                formulaVersionId: versionRow.id,
+                category: formula.product_category || 'Cosmetic',
+                targetBatchSize: targetBatchSize || versionRow.target_batch_size || '100.00',
+                targetBatchUom: targetBatchUom || 'g',
+                userId,
+                items: mats,
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Error instantiating MES batch in generateUniqueCodes:', e);
+        }
+
         generatedRecords.push({
           id: insertedId || i,
           ...logEntry,
@@ -84,23 +127,33 @@ export class CompoundingCodeService {
    * Retrieves all compounding code logs with optional search & pagination
    */
   static async getLogs({ search = '', limit = 100, offset = 0 } = {}) {
-    const query = db('compounding_code_logs');
+    const query = db('compounding_code_logs')
+      .leftJoin('production_batches', function() {
+        this.on('compounding_code_logs.compounding_code', '=', 'production_batches.batch_number')
+          .orOn('compounding_code_logs.batch_number', '=', 'production_batches.batch_number');
+      })
+      .select(
+        'compounding_code_logs.*',
+        'production_batches.id as production_batch_id',
+        'production_batches.status as batch_status',
+        'production_batches.overall_progress_percent'
+      );
 
     if (search && search.trim()) {
       const q = `%${search.trim()}%`;
       query.where((builder) => {
         builder
-          .where('compounding_code', 'like', q)
-          .orWhere('batch_number', 'like', q)
-          .orWhere('formula_code', 'like', q)
-          .orWhere('formula_name', 'like', q)
-          .orWhere('printed_by_name', 'like', q);
+          .where('compounding_code_logs.compounding_code', 'like', q)
+          .orWhere('compounding_code_logs.batch_number', 'like', q)
+          .orWhere('compounding_code_logs.formula_code', 'like', q)
+          .orWhere('compounding_code_logs.formula_name', 'like', q)
+          .orWhere('compounding_code_logs.printed_by_name', 'like', q);
       });
     }
 
-    const totalRes = await query.clone().count('id as count').first();
+    const totalRes = await query.clone().count('compounding_code_logs.id as count').first();
     const logs = await query
-      .orderBy('created_at', 'desc')
+      .orderBy('compounding_code_logs.created_at', 'desc')
       .limit(limit)
       .offset(offset);
 

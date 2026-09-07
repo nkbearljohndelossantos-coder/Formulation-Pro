@@ -22,7 +22,13 @@ import { UsersRolesPage } from './pages/UsersRolesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CreateFormulaPage } from './pages/CreateFormulaPage';
 import { CompoundingLogsPage } from './pages/CompoundingLogsPage';
+<<<<<<< HEAD
 import { InventoryPage } from './pages/InventoryPage';
+=======
+import SampleRequestPage from './pages/SampleRequestPage';
+import SampleRequestsListPage from './pages/SampleRequestsListPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+>>>>>>> origin/main
 
 // Compounding Operator Portal Pages
 import { OperatorDashboardPage } from './pages/operator/OperatorDashboardPage';
@@ -42,6 +48,7 @@ export function App() {
   const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
                         user?.email?.toLowerCase().includes('perfume') ||
                         user?.role?.toLowerCase().includes('perfume');
+  const isRequestor = (user?.role || '').toLowerCase().includes('requestor');
 
   useEffect(() => {
     if (user) {
@@ -49,6 +56,8 @@ export function App() {
         setCurrentPage('operator-dashboard');
       } else if (user.role === 'QC Specialist') {
         setCurrentPage('qc-inspection');
+      } else if (isRequestor) {
+        setCurrentPage('sample-requests-list');
       } else if (isPerfumeUser) {
         setCurrentPage('formulation-perfume-no-brand');
       } else if (user.role === 'Formulation Chemist') {
@@ -72,8 +81,16 @@ export function App() {
     'operator-history',
   ];
 
+  const requestorAllowedPages = [
+    'sample-requests-list',
+    'sample-request-form',
+    'change-password',
+  ];
+
   const isCosmeticDenied = isPerfumeUser && currentPage === 'formulation-cosmetic';
-  const isDenied = (isOperator && !operatorAllowedPages.includes(currentPage)) || isCosmeticDenied;
+  const isDenied = (isOperator && !operatorAllowedPages.includes(currentPage)) ||
+                   (isRequestor && !requestorAllowedPages.includes(currentPage)) ||
+                   isCosmeticDenied;
 
   const getPageTitle = () => {
     switch (currentPage) {
@@ -93,6 +110,8 @@ export function App() {
       case 'formula-comparison': return { title: 'Formula Comparison', subtitle: 'Side-by-Side Version Diff Tool' };
       case 'qc-inspection': return { title: 'Quality Control Hub', subtitle: 'QC Inspection & Batch Release Sign-Off' };
       case 'compounding-logs': return { title: 'Compounding Code Storage & Repository', subtitle: 'Registry of Used CP-XXXX Codes, Audit Logs & Comparison Tool' };
+      case 'sample-request-form': return { title: 'Sample Request Form', subtitle: 'Client Product Sample Request Specification & Intake Form' };
+      case 'sample-requests-list': return { title: 'Sample Requests Repository', subtitle: 'Client Sample Requests, Review & Approval Hub' };
       case 'operator-dashboard': return { title: 'Compounding Portal', subtitle: 'Shop-Floor Production Execution Station' };
       case 'operator-qr-scanner': return { title: 'QR Scanner', subtitle: 'Formula & Batch QR Code Verification' };
       case 'operator-formula-view': return { title: 'Formula View', subtitle: 'Approved Formulation Specs & Safety Protocols' };
@@ -101,6 +120,7 @@ export function App() {
       case 'reports': return { title: 'Reports', subtitle: 'PDF & Excel export hub' };
       case 'users-roles': return { title: 'Users & Roles', subtitle: 'Role-Based Access Control' };
       case 'settings': return { title: 'Settings', subtitle: 'Tolerances & Precision Settings' };
+      case 'change-password': return { title: 'Change Password', subtitle: 'Update User Account Login Credentials' };
       default: return { title: 'Enterprise Formulation Management System', subtitle: '' };
     }
   };
@@ -114,7 +134,7 @@ export function App() {
 
       {/* Light Theme Main Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
-        <Header title={title} subtitle={subtitle} />
+        <Header title={title} subtitle={subtitle} setCurrentPage={setCurrentPage} />
         <main className="flex-1 overflow-y-auto bg-slate-50 text-slate-900 pb-20 lg:pb-0">
           {isDenied ? (
             <div className="p-8 max-w-xl mx-auto mt-12 text-center space-y-4">
@@ -161,11 +181,13 @@ export function App() {
               {currentPage === 'formulation-perfume-no-brand' && <PerfumeNoBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-perfume-brand' && <PerfumeBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-supplement' && <FoodSupplementPage setCurrentPage={setCurrentPage} />}
-              {currentPage === 'batch-calculator' && <BatchCalculatorPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'batch-calculator' && <BatchCalculatorPage setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />}
               {currentPage === 'formula-versions' && <FormulaVersionsPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formula-comparison' && <FormulaComparisonPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'qc-inspection' && <QualityControlPage />}
-              {currentPage === 'compounding-logs' && <CompoundingLogsPage />}
+              {currentPage === 'compounding-logs' && <CompoundingLogsPage setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />}
+              {currentPage === 'sample-request-form' && <SampleRequestPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'sample-requests-list' && <SampleRequestsListPage setCurrentPage={setCurrentPage} />}
 
               {/* Operator Portal Views */}
               {currentPage === 'operator-dashboard' && (
@@ -187,6 +209,7 @@ export function App() {
               {currentPage === 'reports' && <ReportsPage />}
               {currentPage === 'users-roles' && <UsersRolesPage />}
               {currentPage === 'settings' && <SettingsPage />}
+              {currentPage === 'change-password' && <ChangePasswordPage />}
             </>
           )}
         </main>

@@ -5,6 +5,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { convertUnit } from '../services/unitConversionService.js';
 import { logAudit } from '../middleware/audit.js';
 import { SequenceService } from '../services/SequenceService.js';
+import { CompoundingBatchService } from '../services/CompoundingBatchService.js';
 
 const router = express.Router();
 
@@ -35,6 +36,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const materials = await db('formula_version_materials')
       .leftJoin('materials', 'formula_version_materials.material_id', 'materials.id')
+      .leftJoin('vendors', 'materials.vendor_id', 'vendors.id')
       .leftJoin('formula_phases', 'formula_version_materials.phase_id', 'formula_phases.id')
       .where('formula_version_materials.version_id', versionId)
       .select(
@@ -48,6 +50,8 @@ router.post('/', authenticateToken, async (req, res) => {
         'materials.specific_gravity',
         'materials.unit_weight',
         'materials.unit_weight_uom',
+        'vendors.name as vendor_name',
+        'vendors.code as vendor_code',
         'formula_phases.phase_name',
         'formula_phases.phase_order'
       )
@@ -87,7 +91,7 @@ router.post('/', authenticateToken, async (req, res) => {
       items.push({
         material_id: m.material_id,
         material_code_snapshot: m.material_code_snapshot || m.mat_code,
-        material_name_snapshot: m.material_name_snapshot || m.mat_name,
+        material_name_snapshot: m.mat_name || m.material_name || m.name || m.material_name_snapshot,
         phase_name: m.phase_name || 'Phase A - Water Phase',
         percentage: pctDec.toFixed(4),
         scaled_qty: scaledQtyDec.toFixed(2),
@@ -96,11 +100,14 @@ router.post('/', authenticateToken, async (req, res) => {
         cost_per_uom: rawCost.toFixed(4),
         line_cost: lineCostDec.toFixed(2),
         currency_code: m.currency_code || 'PHP',
+        supplier: m.vendor_name || m.vendor_code || 'NKB Approved Supplier',
       });
     }
 
     // Save batch calculation record & generate unique compounding code
     let generatedCpCode = '';
+    let mesBatchId = null;
+
     const batchCalcId = await db.transaction(async trx => {
       generatedCpCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
 
@@ -139,6 +146,28 @@ router.post('/', authenticateToken, async (req, res) => {
         created_at: trx.fn.now(),
       }).catch(() => {});
 
+      // Check Admin toggle setting (auto_send_to_operator_mes). Default OFF: Print mode only
+      try {
+        const settingRow = await trx('system_settings').where({ key: 'auto_send_to_operator_mes' }).first();
+        const isAutoSendEnabled = settingRow ? (settingRow.value === 'true' || settingRow.value === '1') : false;
+
+        if (isAutoSendEnabled) {
+          mesBatchId = await CompoundingBatchService.createBatch({
+            trx,
+            compoundingCode: generatedCpCode,
+            formulaId: version.formula_id,
+            formulaVersionId: versionId,
+            category: version.product_category || 'Cosmetic',
+            targetBatchSize: targetQtyDec.toFixed(6),
+            targetBatchUom: targetUom,
+            userId: req.user?.id,
+            items,
+          });
+        }
+      } catch (mesErr) {
+        console.error('Error instantiating MES compounding batch from calculator:', mesErr);
+      }
+
       return id;
     });
 
@@ -147,9 +176,11 @@ router.post('/', authenticateToken, async (req, res) => {
     return res.json({
       success: true,
       batchCalculationId: batchCalcId,
+      productionBatchId: mesBatchId,
       data: {
         compounding_code: generatedCpCode,
         batch_number: generatedCpCode.replace('CP-', 'BAT-'),
+        production_batch_id: mesBatchId,
         formula_code: version.formula_code,
         formula_name: version.formula_name,
         version: `${version.major_version}.${version.minor_version}`,

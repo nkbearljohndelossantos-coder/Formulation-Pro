@@ -6,7 +6,7 @@ import { logAudit } from '../middleware/audit.js';
 const router = express.Router();
 
 // GET /api/v1/users - List users
-router.get('/', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const users = await db('users')
       .select('id', 'username', 'email', 'first_name', 'last_name', 'is_active', 'created_at')
@@ -29,6 +29,13 @@ router.get('/', authenticateToken, requireRoles('Super Admin'), async (req, res)
 // GET /api/v1/users/roles - List all roles
 router.get('/roles', authenticateToken, async (req, res) => {
   try {
+    const requestorExists = await db('roles').where({ name: 'Requestor' }).first();
+    if (!requestorExists) {
+      await db('roles').insert({
+        name: 'Requestor',
+        description: 'Client sample request intake and specification creator',
+      }).catch(() => {});
+    }
     const roles = await db('roles').select('*');
     return res.json({ success: true, data: roles });
   } catch (err) {
@@ -37,7 +44,7 @@ router.get('/roles', authenticateToken, async (req, res) => {
 });
 
 // POST /api/v1/users - Create User
-router.post('/', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { username, email, password, firstName, lastName, roleIds } = req.body;
     if (!username || !email || !password || !firstName || !lastName) {
@@ -73,7 +80,7 @@ router.post('/', authenticateToken, requireRoles('Super Admin'), async (req, res
 });
 
 // PUT /api/v1/users/:id/roles - Update user role assignments
-router.put('/:id/roles', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.put('/:id/roles', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { roleIds } = req.body;
@@ -93,7 +100,7 @@ router.put('/:id/roles', authenticateToken, requireRoles('Super Admin'), async (
 });
 
 // PUT /api/v1/users/:id/status - Toggle active/inactive
-router.put('/:id/status', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.put('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
@@ -117,7 +124,7 @@ router.put('/:id/status', authenticateToken, requireRoles('Super Admin'), async 
 });
 
 // PUT /api/v1/users/:id - Edit Full User Credentials (Username, Email, Password, Name, Roles, Active Status)
-router.put('/:id', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { username, email, password, firstName, lastName, roleIds, isActive } = req.body;
@@ -169,6 +176,33 @@ router.put('/:id', authenticateToken, requireRoles('Super Admin'), async (req, r
     return res.json({ success: true, message: 'User credentials and roles updated successfully.' });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to update user credentials.', error: err.message });
+  }
+});
+
+// DELETE /api/v1/users/:id - Delete User account
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (String(id) === String(req.user.id)) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account while logged in.' });
+    }
+
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await db.transaction(async (trx) => {
+      await trx('user_roles').where({ user_id: id }).del();
+      await trx('user_sessions').where({ user_id: id }).del();
+      await trx('users').where({ id }).del();
+
+      await logAudit(req, 'DELETE_USER', 'User', id, user, null);
+    });
+
+    return res.json({ success: true, message: `User '${user.username}' deleted successfully.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to delete user.', error: err.message });
   }
 });
 

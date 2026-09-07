@@ -84,7 +84,7 @@ function showCopySelectorModal(onConfirm) {
   };
 }
 
-export async function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies }) {
+export async function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies, layoutConfig }) {
   if (!version) {
     alert('Invalid formula version selected.');
     return;
@@ -93,7 +93,7 @@ export async function printProductionSheet({ version, formula, materials, catego
   // If copy count hasn't been set by user, show the in-app copy selector modal first!
   if (typeof requestedCopies !== 'number' || requestedCopies < 1) {
     showCopySelectorModal((selectedCopies) => {
-      printProductionSheet({ version, formula, materials, categoryDetails, user, copies: selectedCopies });
+      printProductionSheet({ version, formula, materials, categoryDetails, user, copies: selectedCopies, layoutConfig });
     });
     return;
   }
@@ -194,16 +194,45 @@ export async function printProductionSheet({ version, formula, materials, catego
     });
   }
 
+  let activeLayout = layoutConfig;
+  const sheetCompoundingCode = version?.compounding_code || version?.compounding_number || (formula?.code ? `CP-${formula.code.replace(/[^0-9]/g, '')}` : 'CP-0001');
+  if (!activeLayout && typeof localStorage !== 'undefined') {
+    try {
+      const cached = localStorage.getItem(`nkb_sheet_layout_${sheetCompoundingCode}`);
+      if (cached) activeLayout = JSON.parse(cached);
+    } catch (_) {}
+  }
+
+  const qWidth = activeLayout?.columnWidths?.quantity || 15;
+  const rWidth = activeLayout?.columnWidths?.rawMaterial || 40;
+  const sWidth = activeLayout?.columnWidths?.supplier || 25;
+  const lWidth = activeLayout?.columnWidths?.lotNo || 20;
+  const customRowHeights = activeLayout?.rowHeights?.rows || {};
+
+  const getRowHeightStyle = (rowId) => {
+    const h = customRowHeights[rowId];
+    return h ? `style="height: ${h}px;"` : '';
+  };
+
   let tableRowsHtml = '';
 
   const phaseKeys = Object.keys(phaseMap);
   if (phaseKeys.length === 0) {
     tableRowsHtml = `
+<<<<<<< HEAD
       <tr class="phase-header-row"><td colspan="3">Phase A</td></tr>
       <tr class="ingredient-row">
         <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty}</td>
         <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
         <td class="lot-col">&nbsp;</td>
+=======
+      <tr class="phase-header-row" ${getRowHeightStyle('phase-0')}><td colspan="4">Phase A</td></tr>
+      <tr class="ingredient-row" ${getRowHeightStyle('item-0')}>
+        <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty} ${batchUom}</td>
+        <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
+        <td class="sup-col"></td>
+        <td class="lot-col"></td>
+>>>>>>> origin/main
       </tr>
     `;
   } else {
@@ -211,68 +240,124 @@ export async function printProductionSheet({ version, formula, materials, catego
       const phaseTitle = formatPhaseTitle(pName, pIdx);
 
       tableRowsHtml += `
+<<<<<<< HEAD
         <tr class="phase-header-row">
           <td colspan="3">${phaseTitle}</td>
+=======
+        <tr class="phase-header-row" ${getRowHeightStyle(`phase-${pIdx}`)}>
+          <td colspan="4">${phaseTitle}</td>
+>>>>>>> origin/main
         </tr>
       `;
 
-      phaseMap[pName].forEach(m => {
+      phaseMap[pName].forEach((m, mIdx) => {
         const pct = parseFloat(m.percentage || 0);
         const calcWeight = (pct / 100) * targetBatchSizeNum;
         const formattedQty = calcWeight.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-        const matName = (m.material_name_snapshot || m.material_name || m.material_code || m.code || 'RAW MATERIAL').toUpperCase();
+        const matName = (
+          (m.mat_name && String(m.mat_name).trim()) ||
+          (m.material_name && String(m.material_name).trim()) ||
+          (m.name && String(m.name).trim()) ||
+          (m.material_name_snapshot && String(m.material_name_snapshot).trim()) ||
+          (m.material_code_snapshot && String(m.material_code_snapshot).trim()) ||
+          (m.material_code && String(m.material_code).trim()) ||
+          (m.mat_code && String(m.mat_code).trim()) ||
+          (m.code && String(m.code).trim()) ||
+          'RAW MATERIAL'
+        ).toUpperCase();
+        const supName = m.supplier || m.supplier_name || m.vendor_name || m.vendor_code || 'NKB Approved Supplier';
 
         tableRowsHtml += `
-          <tr class="ingredient-row">
+          <tr class="ingredient-row" ${getRowHeightStyle(`phase-${pIdx}-item-${mIdx}`)}>
             <td class="qty-col">
               <span class="checkbox-box">☐</span>
               <span>${formattedQty}</span>
             </td>
             <td class="mat-col">${matName}</td>
+<<<<<<< HEAD
             <td class="lot-col">&nbsp;</td>
+=======
+            <td class="sup-col">${supName}</td>
+            <td class="lot-col"></td>
+>>>>>>> origin/main
           </tr>
         `;
       });
     });
   }
   const totalItemCount = (materials || []).length;
+  let pageMargin = '6mm 10mm';
+  let bodyPadding = '10px';
+  let headerMarginBottom = '10px';
+  let metaMarginBottom = '10px';
+  let tableMarginBottom = '10px';
+  let rowPadding = '4px 8px';
+  let rowFontSize = '11.5px';
+  let phasePadding = '3px 8px';
+  let notesMarginTop = '10px';
+  let notesMarginBottom = '10px';
+  let sigMarginTop = '12px';
 
-  let pageMargin = '8mm 12mm';
-  let bodyPadding = '16px';
-  let headerMarginBottom = '14px';
-  let metaMarginBottom = '12px';
-  let tableMarginBottom = '12px';
-  let rowPadding = '5px 10px';
-  let rowFontSize = '12px';
-  let phasePadding = '4px 10px';
-  let notesMarginTop = '12px';
-  let notesMarginBottom = '12px';
-  let sigMarginTop = '20px';
-
-  if (totalItemCount > 10 && totalItemCount <= 16) {
-    pageMargin = '5mm 10mm';
-    bodyPadding = '10px';
-    headerMarginBottom = '8px';
-    metaMarginBottom = '8px';
-    tableMarginBottom = '8px';
-    rowPadding = '3.5px 8px';
-    rowFontSize = '11px';
-    phasePadding = '3px 8px';
-    notesMarginTop = '8px';
-    notesMarginBottom = '8px';
-    sigMarginTop = '12px';
+  if (totalItemCount > 30) {
+    pageMargin = '3mm 5mm';
+    bodyPadding = '2px';
+    headerMarginBottom = '3px';
+    metaMarginBottom = '3px';
+    tableMarginBottom = '3px';
+    rowPadding = '1.5px 3px';
+    rowFontSize = '8px';
+    phasePadding = '1.5px 3px';
+    notesMarginTop = '3px';
+    notesMarginBottom = '3px';
+    sigMarginTop = '4px';
+  } else if (totalItemCount > 22) {
+    pageMargin = '4mm 6mm';
+    bodyPadding = '4px';
+    headerMarginBottom = '4px';
+    metaMarginBottom = '4px';
+    tableMarginBottom = '4px';
+    rowPadding = '2px 4px';
+    rowFontSize = '9px';
+    phasePadding = '2px 4px';
+    notesMarginTop = '4px';
+    notesMarginBottom = '4px';
+    sigMarginTop = '6px';
   } else if (totalItemCount > 16) {
     pageMargin = '4mm 8mm';
+    bodyPadding = '5px';
+    headerMarginBottom = '5px';
+    metaMarginBottom = '5px';
+    tableMarginBottom = '5px';
+    rowPadding = '2px 5px';
+    rowFontSize = '9.5px';
+    phasePadding = '2px 5px';
+    notesMarginTop = '5px';
+    notesMarginBottom = '5px';
+    sigMarginTop = '6px';
+  } else if (totalItemCount > 12) {
+    pageMargin = '5mm 8mm';
     bodyPadding = '6px';
-    headerMarginBottom = '4px';
+    headerMarginBottom = '6px';
     metaMarginBottom = '6px';
     tableMarginBottom = '6px';
-    rowPadding = '2px 6px';
-    rowFontSize = '10px';
+    rowPadding = '2.5px 6px';
+    rowFontSize = '10.5px';
     phasePadding = '2px 6px';
     notesMarginTop = '6px';
     notesMarginBottom = '6px';
     sigMarginTop = '8px';
+  } else if (totalItemCount > 8) {
+    pageMargin = '5.5mm 10mm';
+    bodyPadding = '8px';
+    headerMarginBottom = '8px';
+    metaMarginBottom = '8px';
+    tableMarginBottom = '8px';
+    rowPadding = '3px 8px';
+    rowFontSize = '11px';
+    phasePadding = '3px 8px';
+    notesMarginTop = '8px';
+    notesMarginBottom = '8px';
+    sigMarginTop = '10px';
   }
 
   const selectedFontName = localStorage.getItem('nkb_document_font') || version?.document_font || 'Inter';
@@ -349,20 +434,37 @@ export async function printProductionSheet({ version, formula, materials, catego
 
         <!-- Sheet Table -->
         <table class="sheet-table">
+          <colgroup>
+            <col style="width: ${qWidth}%;" />
+            <col style="width: ${rWidth}%;" />
+            <col style="width: ${sWidth}%;" />
+            <col style="width: ${lWidth}%;" />
+          </colgroup>
           <thead>
-            <tr>
-              <th class="qty-header">Quantity</th>
+            <tr ${getRowHeightStyle('header')}>
+              <th class="qty-header">Quantity (${batchUom})</th>
               <th class="mat-header">Raw Material</th>
+<<<<<<< HEAD
               <th class="lot-header">Lot No.</th>
+=======
+              <th class="sup-header">Supplier / Vendor</th>
+              <th class="lot-header" style="text-align: center;">Lot No.</th>
+>>>>>>> origin/main
             </tr>
           </thead>
           <tbody>
             ${tableRowsHtml}
+<<<<<<< HEAD
             <tr class="total-row">
               <td colspan="3">
+=======
+            <tr class="total-row" ${getRowHeightStyle('total')}>
+              <td class="qty-col">
+>>>>>>> origin/main
                 <span class="checkbox-box" style="visibility: hidden;">☐</span>
                 <span>${formattedTargetQty} ${batchUom}</span>
               </td>
+              <td colspan="3"><strong>TOTAL BATCH QUANTITY</strong></td>
             </tr>
           </tbody>
         </table>
@@ -525,6 +627,7 @@ export async function printProductionSheet({ version, formula, materials, catego
           border-collapse: collapse;
           border: 1px solid #d1d5db;
           margin-bottom: ${tableMarginBottom};
+          table-layout: fixed;
         }
         .sheet-table th {
           background-color: #ffffff;
@@ -536,17 +639,30 @@ export async function printProductionSheet({ version, formula, materials, catego
           text-align: left;
         }
         .sheet-table th.qty-header {
+<<<<<<< HEAD
           width: 130px;
+=======
+>>>>>>> origin/main
           white-space: nowrap;
         }
         .sheet-table th.mat-header {
           padding-left: 10px;
         }
         .sheet-table th.lot-header {
+<<<<<<< HEAD
           width: 160px;
           padding-left: 10px;
           border-left: 1px solid #d1d5db;
         }
+=======
+          text-align: center;
+          border-left: 1px solid #d1d5db;
+        }
+        .lot-col {
+          border-left: 1px solid #e5e7eb;
+          text-align: center;
+        }
+>>>>>>> origin/main
         .phase-header-row td {
           background-color: #e5e7eb;
           font-weight: 800;
@@ -714,6 +830,16 @@ export async function printProductionSheet({ version, formula, materials, catego
             max-width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
+          }
+          .sheet-page {
+            padding-bottom: 0 !important;
+            box-sizing: border-box !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .sheet-page:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
         }
       </style>

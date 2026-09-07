@@ -16,10 +16,12 @@ import {
   Printer,
   Download,
   AlertCircle,
+  Play,
+  Trash2,
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 
-export function CompoundingLogsPage() {
+export function CompoundingLogsPage({ setCurrentPage, setSelectedBatchId }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,9 +30,67 @@ export function CompoundingLogsPage() {
   const [comparisonData, setComparisonData] = useState([]);
   const [comparing, setComparing] = useState(false);
 
+  const handleDeleteLog = async (id, code) => {
+    if (!window.confirm(`Are you sure you want to delete compounding code log '${code}'? This will also remove associated production batch data.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/compounding-codes/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Compounding code log '${code}' deleted successfully.`);
+        fetchLogs();
+      } else {
+        alert(data.message || 'Failed to delete log.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting log.');
+    }
+  };
+
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
+  const [togglingSetting, setTogglingSetting] = useState(false);
+
   useEffect(() => {
     fetchLogs();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = () => {
+    apiFetch('/api/v1/settings')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data) {
+          setAutoSendEnabled(d.data.auto_send_to_operator_mes === 'true' || d.data.auto_send_to_operator_mes === '1');
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleToggleAutoSend = (newVal) => {
+    setTogglingSetting(true);
+    apiFetch('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        settings: { auto_send_to_operator_mes: newVal ? 'true' : 'false' },
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setAutoSendEnabled(newVal);
+          alert(
+            newVal
+              ? '⚡ Auto-Send to Operator Station turned ON! Generated batches will now automatically send to the Operator MES station.'
+              : '🖨️ Auto-Send turned OFF! Generated codes will only PRINT/LOG. No batches will be sent to the Operator station.'
+          );
+        } else {
+          alert(d.message || 'Failed to update setting.');
+        }
+      })
+      .catch((e) => alert(e.message || 'Error updating setting.'))
+      .finally(() => setTogglingSetting(false));
+  };
 
   const fetchLogs = (query = searchQuery) => {
     setLoading(true);
@@ -168,6 +228,46 @@ export function CompoundingLogsPage() {
         </div>
       </div>
 
+      {/* Admin Toggle Banner: Auto-Send Batches to Operator Station */}
+      <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-xs uppercase tracking-wider text-blue-400">Admin Control Toggle</span>
+            <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${autoSendEnabled ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-900'}`}>
+              {autoSendEnabled ? '🟢 ON: Auto-Send Enabled' : '🔴 OFF: Print Only (No Auto-Send to Operator)'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 mt-1">
+            {autoSendEnabled
+              ? 'AUTOMATIC: Kapag nag-generate ng batch/formula code, AWTOMATIKONG MABABATO sa Operator Station ang active batch.'
+              : 'PRINT ONLY: Kapag mag-generate sa batch calculator, MAG-PRIPRINT AT MAG-LOG LAMANG at HINDI MABABATO sa Operator Station.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(false)}
+            disabled={togglingSetting}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              !autoSendEnabled ? 'bg-amber-500 text-slate-900 shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            OFF (Print Only)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleAutoSend(true)}
+            disabled={togglingSetting}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              autoSendEnabled ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ON (Auto-Send)
+          </button>
+        </div>
+      </div>
+
       {/* Search & Filter Toolbar */}
       <form onSubmit={handleSearchSubmit} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
@@ -272,7 +372,7 @@ export function CompoundingLogsPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
               <tr>
-                <th className="p-3.5 w-10 text-center">Select</th>
+                <th className="p-3.5">Select</th>
                 <th className="p-3.5">Compounding Code</th>
                 <th className="p-3.5">Batch Number</th>
                 <th className="p-3.5">Formulation</th>
@@ -281,12 +381,13 @@ export function CompoundingLogsPage() {
                 <th className="p-3.5">Copy Info</th>
                 <th className="p-3.5">Generated By</th>
                 <th className="p-3.5">Date & Time</th>
+                <th className="p-3.5">Compounding Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="p-12 text-center text-slate-400 font-semibold">
+                  <td colSpan="10" className="p-12 text-center text-slate-400 font-semibold">
                     No compounding code logs recorded yet. Generate or print production sheets to automatically populate logs.
                   </td>
                 </tr>
@@ -352,6 +453,43 @@ export function CompoundingLogsPage() {
                           minute: '2-digit',
                           second: '2-digit',
                         })}
+                      </td>
+                      <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2">
+                          {log.production_batch_id ? (
+                            <>
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                                log.batch_status === 'In Progress' ? 'bg-amber-100 text-amber-800' :
+                                log.batch_status === 'Assigned' ? 'bg-blue-100 text-blue-800' :
+                                log.batch_status === 'Pending QC' ? 'bg-purple-100 text-purple-800' :
+                                log.batch_status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {log.batch_status || 'Assigned'}
+                              </span>
+                              {setCurrentPage && (
+                                <button
+                                  onClick={() => {
+                                    if (typeof setSelectedBatchId === 'function') setSelectedBatchId(log.production_batch_id);
+                                    if (typeof setCurrentPage === 'function') setCurrentPage('operator-compounding-screen');
+                                  }}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-md flex items-center gap-1 shadow-xs transition"
+                                  title="Open in MES Compounding Station"
+                                >
+                                  <Play className="w-3 h-3" /> Start
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] italic">Logged</span>
+                          )}
+                          <button
+                            onClick={() => handleDeleteLog(log.id, log.compounding_code)}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded border border-slate-200 transition"
+                            title="Delete Compounding Log Record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

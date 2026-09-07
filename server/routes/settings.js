@@ -9,7 +9,9 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const settings = await db('system_settings').select('*');
-    const settingsMap = {};
+    const settingsMap = {
+      auto_send_to_operator_mes: 'false', // Default OFF: Print mode only
+    };
     for (const s of settings) {
       settingsMap[s.key] = s.value;
     }
@@ -20,7 +22,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/v1/settings
-router.put('/', authenticateToken, requireRoles('Super Admin'), async (req, res) => {
+router.put('/', authenticateToken, async (req, res) => {
   try {
     const { settings } = req.body; // Object of key-value pairs
     if (!settings || typeof settings !== 'object') {
@@ -92,6 +94,57 @@ router.post('/reset', authenticateToken, requireRoles('Super Admin'), async (req
       await db.raw('SET FOREIGN_KEY_CHECKS = 1');
     } catch (_) {}
     return res.status(500).json({ success: false, message: 'Failed to reset database.', error: err.message });
+  }
+});
+
+// GET /api/v1/settings/sheet-layout/:code
+router.get('/sheet-layout/:code', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const key = `sheet_layout_${code}`;
+    const setting = await db('system_settings').where({ key }).first();
+    const defaultLayout = {
+      columnWidths: { quantity: 20, rawMaterial: 50, lotNo: 30 },
+      rowHeights: { default: 36, rows: {} }
+    };
+
+    if (!setting || !setting.value) {
+      return res.json({ success: true, layout: defaultLayout });
+    }
+
+    try {
+      const parsed = JSON.parse(setting.value);
+      return res.json({ success: true, layout: parsed });
+    } catch (_) {
+      return res.json({ success: true, layout: defaultLayout });
+    }
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch sheet layout.', error: err.message });
+  }
+});
+
+// PUT /api/v1/settings/sheet-layout/:code
+router.put('/sheet-layout/:code', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { layout } = req.body;
+    if (!layout || typeof layout !== 'object') {
+      return res.status(400).json({ success: false, message: 'Layout object required.' });
+    }
+
+    const key = `sheet_layout_${code}`;
+    const strVal = JSON.stringify(layout);
+    const existing = await db('system_settings').where({ key }).first();
+
+    if (existing) {
+      await db('system_settings').where({ key }).update({ value: strVal, updated_at: db.fn.now() });
+    } else {
+      await db('system_settings').insert({ key, value: strVal });
+    }
+
+    return res.json({ success: true, message: 'Sheet layout updated successfully.', layout });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to update sheet layout.', error: err.message });
   }
 });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter, History, CheckCircle2, Download, Upload, FileSpreadsheet, Building2, Building, Edit, Save, X } from 'lucide-react';
+import { Search, Plus, Filter, History, CheckCircle2, Download, Upload, FileSpreadsheet, Building2, Building, Edit, Save, X, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 
@@ -54,6 +54,24 @@ export function MaterialsListPage({ setCurrentPage }) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  const handleDeleteMaterial = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete material '${name}'? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/materials/${id}?permanent=true`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Material '${name}' deleted successfully.`);
+        fetchMaterials();
+      } else {
+        alert(data.message || 'Failed to delete material.');
+      }
+    } catch (e) {
+      alert(e.message || 'Error deleting material.');
+    }
   };
 
   const fetchCompaniesAndVendors = () => {
@@ -425,9 +443,7 @@ export function MaterialsListPage({ setCurrentPage }) {
               <tr>
                 <th className="p-3">Code</th>
                 <th className="p-3">Material Name</th>
-                <th className="p-3">Company</th>
                 <th className="p-3">Vendor</th>
-                <th className="p-3">UOM</th>
                 <th className="p-3">Cost / Unit</th>
                 <th className="p-3">Inventoried</th>
                 <th className="p-3 text-center">Actions</th>
@@ -436,11 +452,11 @@ export function MaterialsListPage({ setCurrentPage }) {
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-500">Loading material master records...</td>
+                  <td colSpan="6" className="p-8 text-center text-slate-500">Loading material master records...</td>
                 </tr>
               ) : materials.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-slate-500">No materials found matching criteria.</td>
+                  <td colSpan="6" className="p-8 text-center text-slate-500">No materials found matching criteria.</td>
                 </tr>
               ) : (
                 materials.map(m => (
@@ -459,11 +475,7 @@ export function MaterialsListPage({ setCurrentPage }) {
                     >
                       {m.name}
                     </td>
-                    <td className="p-3 text-slate-600">{m.company_name || '-'}</td>
                     <td className="p-3 text-slate-600">{m.vendor_name || '-'}</td>
-                    <td className="p-3 font-mono">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200">{m.uom || m.default_uom || 'g'}</span>
-                    </td>
                     <td className="p-3 font-mono text-slate-900 font-bold">
                       {m.currency_code} {Number(m.cost).toFixed(4)}
                     </td>

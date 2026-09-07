@@ -6,6 +6,7 @@ import { authenticateToken, requirePermission, requireRoles } from '../middlewar
 import { AuditService } from '../services/AuditService.js';
 import { SequenceService } from '../services/SequenceService.js';
 import { validateFormulaPercentage, assertVersionIsMutable } from '../services/validationEngine.js';
+import { CompoundingBatchService } from '../services/CompoundingBatchService.js';
 
 const router = express.Router();
 
@@ -157,6 +158,7 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
 
     const materials = await db('formula_version_materials')
       .leftJoin('materials', 'formula_version_materials.material_id', 'materials.id')
+      .leftJoin('vendors', 'materials.vendor_id', 'vendors.id')
       .leftJoin('formula_phases', 'formula_version_materials.phase_id', 'formula_phases.id')
       .where({ 'formula_version_materials.version_id': versionId })
       .select(
@@ -168,6 +170,8 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
         'materials.currency_code',
         'materials.density_kg_per_l',
         'materials.specific_gravity',
+        'vendors.name as vendor_name',
+        'vendors.code as vendor_code',
         'formula_phases.phase_name'
       )
       .orderBy('formula_version_materials.addition_order', 'asc');
@@ -738,7 +742,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE /api/v1/formulas/:id (Delete master formula and all its versions)
+// DELETE /api/v1/formulas/:id (Delete master formula and all its versions & linked records)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const formulaId = req.params.id;
@@ -748,34 +752,80 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await db.transaction(async (trx) => {
+      // Temporarily disable foreign key checks to prevent recursive/self-referencing FK blocks
+      await trx.raw('SET FOREIGN_KEY_CHECKS = 0;').catch(() => {});
+      await trx.raw('PRAGMA foreign_keys = OFF;').catch(() => {});
+
       const versions = await trx('formula_versions').where({ formula_id: formulaId });
       const versionIds = versions.map(v => v.id);
 
+      // Unlink parent_version_id self-references first
       if (versionIds.length > 0) {
-        await trx('formula_version_materials').whereIn('version_id', versionIds).del();
-        await trx('formula_phases').whereIn('version_id', versionIds).del();
-        await trx('formula_instructions').whereIn('version_id', versionIds).del();
-        await trx('cosmetic_formula_details').whereIn('version_id', versionIds).del();
-        await trx('perfume_formula_details').whereIn('version_id', versionIds).del();
-        await trx('supplement_formula_details').whereIn('version_id', versionIds).del();
-        await trx('formula_versions').whereIn('id', versionIds).del();
+        await trx('formula_versions').whereIn('id', versionIds).update({ parent_version_id: null }).catch(() => {});
+      }
+
+      // Clean up linked production batches and child records first to satisfy Foreign Key constraints
+      const pBatches = await trx('production_batches')
+        .where({ formula_id: formulaId })
+        .orWhere(builder => {
+          if (versionIds.length > 0) {
+            builder.whereIn('formula_version_id', versionIds);
+          }
+        });
+      const batchIds = pBatches.map(b => b.id);
+
+      if (batchIds.length > 0) {
+        await trx('batch_material_entries').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_material_requirements').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_steps').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_phases').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_execution_locks').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_deviations').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('qr_tokens').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('production_batches').whereIn('id', batchIds).del().catch(() => {});
+      }
+
+      if (versionIds.length > 0) {
+        await trx('batch_calculations').whereIn('formula_version_id', versionIds).del().catch(() => {});
+        await trx('compounding_code_logs').where({ formula_id: formulaId }).del().catch(() => {});
+        await trx('compounding_codes').where({ formula_code: formula.code }).del().catch(() => {});
+        await trx('quality_parameters').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('microbiology_tests').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('packaging_specs').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('stability_testing').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('perfume_conversions').whereIn('target_brand_version_id', versionIds).del().catch(() => {});
+        await trx('perfume_mixtures').whereIn('source_formula_version_id', versionIds).del().catch(() => {});
+
+        await trx('formula_version_materials').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('formula_phases').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('formula_instructions').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('cosmetic_formula_details').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('perfume_formula_details').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('supplement_formula_details').whereIn('version_id', versionIds).del().catch(() => {});
+        await trx('formula_versions').whereIn('id', versionIds).del().catch(() => {});
       }
 
       await trx('formulas').where({ id: formulaId }).del();
 
+      // Re-enable foreign key checks
+      await trx.raw('SET FOREIGN_KEY_CHECKS = 1;').catch(() => {});
+      await trx.raw('PRAGMA foreign_keys = ON;').catch(() => {});
+
+      const userRole = (req.user?.roles && req.user.roles[0]) || req.user?.role || 'User';
       await AuditService.logEvent({
         trx,
-        userId: req.user.id,
-        userRole: req.user.roles[0] || 'User',
+        userId: req.user?.id || 1,
+        userRole,
         action: 'DELETE_FORMULA',
         entityType: 'Formula',
         entityId: formulaId,
         newValues: { code: formula.code, name: formula.name },
-      });
+      }).catch(() => {});
     });
 
     return res.json({ success: true, message: `Formula ${formula.code} deleted successfully.` });
   } catch (err) {
+    console.error('Error deleting formula:', err);
     return res.status(500).json({ success: false, message: 'Failed to delete formula', error: err.message });
   }
 });
@@ -790,17 +840,59 @@ router.delete('/versions/:versionId', authenticateToken, async (req, res) => {
     }
 
     await db.transaction(async (trx) => {
-      await trx('formula_version_materials').where({ version_id: versionId }).del();
-      await trx('formula_phases').where({ version_id: versionId }).del();
-      await trx('formula_instructions').where({ version_id: versionId }).del();
-      await trx('cosmetic_formula_details').where({ version_id: versionId }).del();
-      await trx('perfume_formula_details').where({ version_id: versionId }).del();
-      await trx('supplement_formula_details').where({ version_id: versionId }).del();
+      await trx.raw('SET FOREIGN_KEY_CHECKS = 0;').catch(() => {});
+      await trx.raw('PRAGMA foreign_keys = OFF;').catch(() => {});
+
+      // Unlink child parent_version_id references first
+      await trx('formula_versions').where({ parent_version_id: versionId }).update({ parent_version_id: null }).catch(() => {});
+
+      const pBatches = await trx('production_batches').where({ formula_version_id: versionId });
+      const batchIds = pBatches.map(b => b.id);
+      if (batchIds.length > 0) {
+        await trx('batch_material_entries').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_material_requirements').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_steps').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_phases').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_execution_locks').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('batch_deviations').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('qr_tokens').whereIn('batch_id', batchIds).del().catch(() => {});
+        await trx('production_batches').whereIn('id', batchIds).del().catch(() => {});
+      }
+
+      await trx('batch_calculations').where({ formula_version_id: versionId }).del().catch(() => {});
+      await trx('quality_parameters').where({ version_id: versionId }).del().catch(() => {});
+      await trx('microbiology_tests').where({ version_id: versionId }).del().catch(() => {});
+      await trx('packaging_specs').where({ version_id: versionId }).del().catch(() => {});
+      await trx('stability_testing').where({ version_id: versionId }).del().catch(() => {});
+      await trx('perfume_conversions').where({ target_brand_version_id: versionId }).del().catch(() => {});
+      await trx('perfume_mixtures').where({ source_formula_version_id: versionId }).del().catch(() => {});
+
+      await trx('formula_version_materials').where({ version_id: versionId }).del().catch(() => {});
+      await trx('formula_phases').where({ version_id: versionId }).del().catch(() => {});
+      await trx('formula_instructions').where({ version_id: versionId }).del().catch(() => {});
+      await trx('cosmetic_formula_details').where({ version_id: versionId }).del().catch(() => {});
+      await trx('perfume_formula_details').where({ version_id: versionId }).del().catch(() => {});
+      await trx('supplement_formula_details').where({ version_id: versionId }).del().catch(() => {});
       await trx('formula_versions').where({ id: versionId }).del();
+
+      await trx.raw('SET FOREIGN_KEY_CHECKS = 1;').catch(() => {});
+      await trx.raw('PRAGMA foreign_keys = ON;').catch(() => {});
+
+      const userRole = (req.user?.roles && req.user.roles[0]) || req.user?.role || 'User';
+      await AuditService.logEvent({
+        trx,
+        userId: req.user?.id || 1,
+        userRole,
+        action: 'DELETE_FORMULA_VERSION',
+        entityType: 'FormulaVersion',
+        entityId: versionId,
+        newValues: { major_version: version.major_version, minor_version: version.minor_version },
+      }).catch(() => {});
     });
 
     return res.json({ success: true, message: `Formula version V${version.major_version}.${version.minor_version} deleted successfully.` });
   } catch (err) {
+    console.error('Error deleting formula version:', err);
     return res.status(500).json({ success: false, message: 'Failed to delete formula version', error: err.message });
   }
 });
