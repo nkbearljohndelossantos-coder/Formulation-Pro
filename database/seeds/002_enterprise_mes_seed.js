@@ -11,6 +11,7 @@ export async function seed(knex) {
     { name: 'Production Supervisor', description: 'Batch Assignment, Monitoring, Deviation Review & Force Unlock' },
     { name: 'Compounding Operator', description: 'Touch-Friendly MES Step Weighing & Batch Execution Only' },
     { name: 'QC Specialist', description: 'Quality Inspection, Parameters Entry & Batch Release' },
+    { name: 'Purchasing Department', description: 'Receiving Rejection Ticket Decision Engine & Vendor Return Management' },
   ];
 
   const roleMap = {};
@@ -48,6 +49,8 @@ export async function seed(knex) {
     { key: 'deviation.review', name: 'Review Deviation', description: 'Approve or reject out-of-tolerance weighing deviations' },
     { key: 'correction.approve', name: 'Approve Correction', description: 'Approve weighing entry correction audit records' },
     { key: 'batch.cancel', name: 'Cancel Batch', description: 'Authorize cancellation of in-progress batches' },
+    { key: 'purchasing.view', name: 'View Purchasing Tickets', description: 'Inspect receiving rejection tickets' },
+    { key: 'purchasing.decide', name: 'Purchasing Decision Engine', description: 'Execute Return to Supplier, Hold, or QA Bypass decisions' },
   ];
 
   for (const p of permissionsData) {
@@ -67,6 +70,7 @@ export async function seed(knex) {
     [roleMap['Production Supervisor']]: ['formula.view', 'batch.assign', 'batch.pause', 'batch.cancel', 'lock.force_unlock', 'deviation.review', 'correction.approve', 'reports.view', 'audit.view'].map(getPermId).filter(Boolean),
     [roleMap['Compounding Operator']]: ['batch.execute', 'batch.pause', 'batch.complete', 'batch.submit_qc'].map(getPermId).filter(Boolean),
     [roleMap['QC Specialist']]: ['qc.inspect', 'qc.approve', 'qc.reject', 'reports.view'].map(getPermId).filter(Boolean),
+    [roleMap['Purchasing Department']]: ['purchasing.view', 'purchasing.decide', 'reports.view'].map(getPermId).filter(Boolean),
   };
 
   for (const [roleId, permIds] of Object.entries(rolePermMap)) {
@@ -86,6 +90,7 @@ export async function seed(knex) {
     { username: 'supervisor', email: 'supervisor@nkb.com', first_name: 'David', last_name: 'Miller', roleName: 'Production Supervisor' },
     { username: 'operator', email: 'operator@nkb.com', first_name: 'John', last_name: 'Delos Santos', roleName: 'Compounding Operator' },
     { username: 'qc_spec', email: 'qc@nkb.com', first_name: 'Sarah', last_name: 'Jenkins', roleName: 'QC Specialist' },
+    { username: 'purchasing', email: 'purchasing@nkb.com', first_name: 'Purchasing', last_name: 'Department', roleName: 'Purchasing Department' },
   ];
 
   const adminUser = await knex('users').where({ email: 'admin@nkb.com' }).first();

@@ -501,6 +501,18 @@ export class InventoryService {
 
       const rejectionId = Array.isArray(insertRes) ? (typeof insertRes[0] === 'object' ? insertRes[0].id : insertRes[0]) : insertRes;
 
+      // Auto-create Purchasing Ticket for Purchasing Department review
+      const ticketNumber = `PUR-TKT-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+      await trx('purchasing_tickets').insert({
+        ticket_number: ticketNumber,
+        rejected_material_id: rejectionId,
+        inventory_item_id: inventoryItemId || null,
+        status: 'PENDING_PURCHASING_REVIEW',
+        issue_category: data.issueCategory || 'Quality Deficiency / Receiving Rejection',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
       // 2. Handle stock deduction if linked to active inventory item
       if (inventoryItemId) {
         const item = await trx('inventory_items').where({ id: inventoryItemId }).first();

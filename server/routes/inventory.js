@@ -785,4 +785,227 @@ router.get('/costing', authenticateToken, requirePermission('inventory.view'), a
   }
 });
 
+// PUT /api/v1/inventory/items/:id/qa-status - QA/QC Receiving Supply Confirmation (Release/Hold)
+router.put('/items/:id/qa-status', authenticateToken, requirePermission('inventory.stock_in'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    const item = await db('inventory_items').where({ id }).first();
+    if (!item) return res.status(404).json({ success: false, message: 'Inventory item not found.' });
+
+    await db('inventory_items').where({ id }).update({
+      status,
+      updated_at: new Date(),
+    });
+
+    await AuditService.logEvent({
+      userId: req.user.id,
+      userRole: req.user.roles?.[0] || 'User',
+      action: 'QA_RECEIVING_STATUS_CONFIRMED',
+      entityType: 'InventoryItem',
+      entityId: String(id),
+      newValues: { lotNumber: item.lot_number, status, notes },
+    });
+
+    return res.json({ success: true, message: `Inventory item QA status updated to ${status}.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/v1/inventory/purchasing-tickets - List Purchasing Rejection Tickets
+router.get('/purchasing-tickets', authenticateToken, async (req, res) => {
+  try {
+    const { status, search } = req.query;
+
+    const query = db('purchasing_tickets')
+      .join('rejected_materials', 'purchasing_tickets.rejected_material_id', 'rejected_materials.id')
+      .leftJoin('inventory_items', 'purchasing_tickets.inventory_item_id', 'inventory_items.id')
+      .leftJoin('vendors', 'rejected_materials.vendor_id', 'vendors.id')
+      .leftJoin('users as rb', 'rejected_materials.rejected_by', 'rb.id')
+      .leftJoin('users as db_user', 'purchasing_tickets.decided_by', 'db_user.id')
+      .select(
+        'purchasing_tickets.*',
+        'rejected_materials.rejection_code',
+        'rejected_materials.material_code',
+        'rejected_materials.material_name',
+        'rejected_materials.material_type',
+        'rejected_materials.supplier_lot_number',
+        'rejected_materials.rejected_quantity',
+        'rejected_materials.uom',
+        'rejected_materials.reason as qc_rejection_reason',
+        'rejected_materials.date_rejected',
+        'rejected_materials.disposition',
+        'vendors.name as vendor_name',
+        'vendors.code as vendor_code',
+        'rb.first_name as rejected_by_first_name',
+        'rb.last_name as rejected_by_last_name',
+        'db_user.first_name as decided_by_first_name',
+        'db_user.last_name as decided_by_last_name'
+      );
+
+    if (status && status !== 'All') {
+      query.andWhere('purchasing_tickets.status', status);
+    }
+
+    if (search) {
+      query.andWhere(b => {
+        b.where('purchasing_tickets.ticket_number', 'like', `%${search}%`)
+         .orWhere('rejected_materials.material_name', 'like', `%${search}%`)
+         .orWhere('rejected_materials.material_code', 'like', `%${search}%`)
+         .orWhere('rejected_materials.rejection_code', 'like', `%${search}%`)
+         .orWhere('vendors.name', 'like', `%${search}%`);
+      });
+    }
+
+    const tickets = await query.orderBy('purchasing_tickets.id', 'desc');
+
+    const rejectionIds = tickets.map(t => t.rejected_material_id);
+    let attachmentsMap = {};
+
+    if (rejectionIds.length > 0) {
+      const attachments = await db('rejected_material_attachments')
+        .join('document_attachments', 'rejected_material_attachments.attachment_id', 'document_attachments.id')
+        .leftJoin('users', 'document_attachments.uploaded_by', 'users.id')
+        .whereIn('rejected_material_attachments.rejected_material_id', rejectionIds)
+        .select(
+          'rejected_material_attachments.rejected_material_id',
+          'rejected_material_attachments.description as caption',
+          'document_attachments.id as attachment_id',
+          'document_attachments.filename',
+          'document_attachments.mime_type',
+          'document_attachments.file_size',
+          'document_attachments.created_at as uploaded_at',
+          'users.first_name as uploader_first_name',
+          'users.last_name as uploader_last_name'
+        );
+
+      attachments.forEach(att => {
+        if (!attachmentsMap[att.rejected_material_id]) {
+          attachmentsMap[att.rejected_material_id] = [];
+        }
+        attachmentsMap[att.rejected_material_id].push(att);
+      });
+    }
+
+    const result = tickets.map(t => ({
+      ...t,
+      attachments: attachmentsMap[t.rejected_material_id] || [],
+    }));
+
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch purchasing rejection tickets.', error: err.message });
+  }
+});
+
+// POST /api/v1/inventory/purchasing-tickets/:id/decision - Purchasing Department Decision Engine
+router.post('/purchasing-tickets/:id/decision', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { decision, purchasing_notes, bypass_justification, issue_category } = req.body;
+
+    if (!['RETURN_TO_SUPPLIER', 'ON_HOLD', 'QA_BYPASSED'].includes(decision)) {
+      return res.status(400).json({ success: false, message: 'Invalid decision option. Must be RETURN_TO_SUPPLIER, ON_HOLD, or QA_BYPASSED.' });
+    }
+
+    if (decision === 'QA_BYPASSED' && (!bypass_justification || !String(bypass_justification).trim())) {
+      return res.status(400).json({ success: false, message: 'Purchasing QA Bypass requires a valid justification note.' });
+    }
+
+    return await db.transaction(async (trx) => {
+      const ticket = await trx('purchasing_tickets').where({ id }).first();
+      if (!ticket) return res.status(404).json({ success: false, message: 'Purchasing ticket not found.' });
+
+      const rejection = await trx('rejected_materials').where({ id: ticket.rejected_material_id }).first();
+
+      let newTicketStatus = decision;
+      let newRejectionDisposition = 'Pending Review';
+      let rejectionStatus = 'In Disposition';
+
+      if (decision === 'RETURN_TO_SUPPLIER') {
+        newRejectionDisposition = 'Returned to Supplier';
+        rejectionStatus = 'Closed';
+      } else if (decision === 'ON_HOLD') {
+        newRejectionDisposition = 'Hold / Under Vendor Investigation';
+        rejectionStatus = 'In Disposition';
+      } else if (decision === 'QA_BYPASSED') {
+        newRejectionDisposition = 'Bypassed by Purchasing';
+        rejectionStatus = 'Closed';
+
+        if (ticket.inventory_item_id) {
+          const invItem = await trx('inventory_items').where({ id: ticket.inventory_item_id }).first();
+          if (invItem && rejection) {
+            const currentStock = parseFloat(invItem.current_stock || 0);
+            const rejQty = parseFloat(rejection.rejected_quantity || 0);
+            const restoredCurrent = currentStock + rejQty;
+            const restoredAvailable = parseFloat(invItem.available_stock || 0) + rejQty;
+
+            await trx('inventory_items').where({ id: ticket.inventory_item_id }).update({
+              current_stock: restoredCurrent.toFixed(6),
+              available_stock: restoredAvailable.toFixed(6),
+              status: 'NORMAL',
+              updated_at: new Date(),
+            });
+
+            await trx('inventory_transactions').insert({
+              transaction_code: `TXN-BYPASS-${Date.now()}`,
+              inventory_item_id: ticket.inventory_item_id,
+              item_type: invItem.item_type,
+              material_id: invItem.material_id,
+              transaction_type: 'RELEASE',
+              quantity: rejQty.toFixed(6),
+              uom: invItem.uom,
+              previous_balance: currentStock.toFixed(6),
+              new_balance: restoredCurrent.toFixed(6),
+              lot_number: invItem.lot_number,
+              from_location: 'Rejected Material Area',
+              to_location: invItem.location,
+              reference_number: ticket.ticket_number,
+              reason: `Purchasing QA Bypass Override (${bypass_justification})`,
+              department: 'Purchasing Department',
+              performed_by: req.user.id,
+              created_at: new Date(),
+            });
+          }
+        }
+      }
+
+      await trx('purchasing_tickets').where({ id }).update({
+        status: newTicketStatus,
+        issue_category: issue_category || ticket.issue_category,
+        purchasing_notes: purchasing_notes || null,
+        bypass_justification: bypass_justification || null,
+        decided_by: req.user.id,
+        decided_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      await trx('rejected_materials').where({ id: ticket.rejected_material_id }).update({
+        disposition: newRejectionDisposition,
+        status: rejectionStatus,
+        disposition_notes: purchasing_notes || bypass_justification || null,
+        disposition_by: req.user.id,
+        disposition_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      await AuditService.logEvent({
+        trx,
+        userId: req.user.id,
+        userRole: req.user.roles?.[0] || 'User',
+        action: `PURCHASING_TICKET_DECISION_${decision}`,
+        entityType: 'PurchasingTicket',
+        entityId: String(id),
+        newValues: { ticketNumber: ticket.ticket_number, decision, purchasing_notes, bypass_justification },
+      });
+
+      return res.json({ success: true, message: `Purchasing ticket decision '${decision}' recorded successfully.` });
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 export default router;

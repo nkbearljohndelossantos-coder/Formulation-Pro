@@ -25,6 +25,7 @@ import { CompoundingLogsPage } from './pages/CompoundingLogsPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { MaterialLogbookPage } from './pages/MaterialLogbookPage';
 import { InventoryCostingPage } from './pages/InventoryCostingPage';
+import { PurchasingTicketsPage } from './pages/PurchasingTicketsPage';
 import SampleRequestPage from './pages/SampleRequestPage';
 import SampleRequestsListPage from './pages/SampleRequestsListPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -49,6 +50,7 @@ export function App() {
                         user?.role?.toLowerCase().includes('perfume');
   const isRequestor = (user?.role || '').toLowerCase().includes('requestor');
   const isInventoryAccount = user?.role === 'Inventory Account' || (user?.role || '').toLowerCase().includes('inventory');
+  const isPurchasing = user?.role === 'Purchasing Department' || (user?.role || '').toLowerCase().includes('purchasing');
 
   useEffect(() => {
     if (user) {
@@ -60,6 +62,8 @@ export function App() {
         setCurrentPage('sample-requests-list');
       } else if (isInventoryAccount) {
         setCurrentPage('inventory');
+      } else if (isPurchasing) {
+        setCurrentPage('purchasing-tickets');
       } else if (isPerfumeUser) {
         setCurrentPage('formulation-perfume-no-brand');
       } else if (user.role === 'Formulation Chemist') {
@@ -98,10 +102,20 @@ export function App() {
     'change-password',
   ];
 
+  const purchasingAllowedPages = [
+    'purchasing-tickets',
+    'inventory',
+    'materials-list',
+    'material-logbook',
+    'inventory-costing',
+    'change-password',
+  ];
+
   const isCosmeticDenied = isPerfumeUser && currentPage === 'formulation-cosmetic';
   const isDenied = (isOperator && !operatorAllowedPages.includes(currentPage)) ||
                    (isRequestor && !requestorAllowedPages.includes(currentPage)) ||
                    (isInventoryAccount && !inventoryAllowedPages.includes(currentPage)) ||
+                   (isPurchasing && !purchasingAllowedPages.includes(currentPage)) ||
                    isCosmeticDenied;
 
   const getPageTitle = () => {
@@ -111,6 +125,7 @@ export function App() {
       case 'inventory': return { title: 'Inventory Management System', subtitle: 'Raw Materials, Packaging, Finished Goods & Material Rejections' };
       case 'material-logbook': return { title: 'Material Logbook', subtitle: 'Audit Ledger of Materials In & Out' };
       case 'inventory-costing': return { title: 'Inventory Costing & Valuation Dashboard', subtitle: 'Financial Breakdown & Itemized Valuation for Active Stock & Rejections' };
+      case 'purchasing-tickets': return { title: 'Purchasing Rejection Tickets Portal', subtitle: 'QA Receiving Rejection Reports, Evidence Photos & Decision Engine' };
       case 'create-material': return { title: 'Create Material', subtitle: 'New Master Ingredient Entry' };
       case 'create-vendor': return { title: 'Create Vendor', subtitle: 'Master Vendor & Supplier Registration' };
       case 'create-company': return { title: 'Create Company', subtitle: 'Master Company & Entity Registration' };
@@ -175,6 +190,7 @@ export function App() {
               {currentPage === 'inventory' && <InventoryPage />}
               {currentPage === 'material-logbook' && <MaterialLogbookPage />}
               {currentPage === 'inventory-costing' && <InventoryCostingPage />}
+              {currentPage === 'purchasing-tickets' && <PurchasingTicketsPage />}
               {currentPage === 'create-material' && <CreateMaterialPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-vendor' && <CreateVendorPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-company' && <CreateCompanyPage setCurrentPage={setCurrentPage} />}

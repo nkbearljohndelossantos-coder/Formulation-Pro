@@ -42,6 +42,7 @@ export function Sidebar({ currentPage, setCurrentPage }) {
   const isOperator = user?.role === 'Compounding Operator';
   const isRequestor = (user?.role || '').toLowerCase().includes('requestor');
   const isInventoryAccount = user?.role === 'Inventory Account' || (user?.role || '').toLowerCase().includes('inventory');
+  const isPurchasing = user?.role === 'Purchasing Department' || (user?.role || '').toLowerCase().includes('purchasing');
   const isPerfumeUser = user?.username?.toLowerCase().includes('perfume') ||
                         user?.email?.toLowerCase().includes('perfume') ||
                         user?.role?.toLowerCase().includes('perfume');
@@ -176,6 +177,69 @@ export function Sidebar({ currentPage, setCurrentPage }) {
               >
                 <PlusCircle className="w-4 h-4 text-purple-400" />
                 <span>Create Material</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('change-password')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('change-password')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-4 h-4 text-amber-400" />
+                <span>Change Password</span>
+              </button>
+            </>
+          ) : isPurchasing ? (
+            /* PURCHASING DEPARTMENT PORTAL NAVIGATION */
+            <>
+              <button
+                onClick={() => setCurrentPage('purchasing-tickets')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('purchasing-tickets')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Building2 className="w-4 h-4 text-indigo-400" />
+                <span>Purchasing Tickets</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('inventory')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('inventory')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Boxes className="w-4 h-4 text-blue-400" />
+                <span>Inventory Management</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('materials-list')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('materials-list')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <ListFilter className="w-4 h-4 text-emerald-400" />
+                <span>Material Master List</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('inventory-costing')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('inventory-costing')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span>Inventory Costing</span>
               </button>
 
               <button
@@ -526,6 +590,19 @@ export function Sidebar({ currentPage, setCurrentPage }) {
               >
                 <ShieldCheck className="w-4 h-4 text-slate-400" />
                 <span>Quality Control Hub</span>
+              </button>
+
+              {/* Purchasing Tickets */}
+              <button
+                onClick={() => setCurrentPage('purchasing-tickets')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('purchasing-tickets')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Building2 className="w-4 h-4 text-indigo-400" />
+                <span>Purchasing Tickets</span>
               </button>
 
               {/* Reports */}
