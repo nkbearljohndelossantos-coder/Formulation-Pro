@@ -27,6 +27,7 @@ import {
   LogOut,
   MoreHorizontal,
   KeyRound,
+  DollarSign,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -151,6 +152,18 @@ export function Sidebar({ currentPage, setCurrentPage }) {
               >
                 <BookOpen className="w-4 h-4 text-indigo-400" />
                 <span>Material Logbook</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('inventory-costing')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('inventory-costing')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span>Inventory Costing</span>
               </button>
 
               <button
@@ -290,6 +303,17 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                     >
                       <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Material Logbook</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('inventory-costing')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                        isCurrent('inventory-costing')
+                          ? 'bg-slate-800 text-blue-400 font-semibold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Inventory Costing</span>
                     </button>
                     <button
                       onClick={() => setCurrentPage('create-material')}
@@ -770,6 +794,14 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                   >
                     <BookOpen className="w-6 h-6 text-indigo-400 mb-2" />
                     <span className="text-xs font-semibold">Material Logbook</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleMobileNav('inventory-costing')}
+                    className="flex flex-col items-center justify-center p-4 bg-slate-850 hover:bg-slate-800 rounded-2xl text-slate-300 hover:text-white border border-slate-800 transition"
+                  >
+                    <DollarSign className="w-6 h-6 text-emerald-400 mb-2" />
+                    <span className="text-xs font-semibold">Costing</span>
                   </button>
 
                   <button

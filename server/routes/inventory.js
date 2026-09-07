@@ -574,4 +574,215 @@ router.get('/traceability/:reference', authenticateToken, requirePermission('inv
   }
 });
 
+// GET /api/v1/inventory/costing - Financial Valuation & Costing Breakdown
+router.get('/costing', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const { companyId, search } = req.query;
+
+    // 1. Raw Materials Stock & Valuation
+    const rawQuery = db('inventory_items')
+      .leftJoin('materials', 'inventory_items.material_id', 'materials.id')
+      .leftJoin('companies', 'materials.company_id', 'companies.id')
+      .leftJoin('vendors', 'inventory_items.vendor_id', 'vendors.id')
+      .where('inventory_items.item_type', 'RAW_MATERIAL')
+      .where('inventory_items.current_stock', '>', 0)
+      .select(
+        'inventory_items.id',
+        'inventory_items.lot_number',
+        'inventory_items.current_stock',
+        'inventory_items.uom',
+        'materials.code as material_code',
+        'materials.name as material_name',
+        'materials.cost as unit_cost',
+        'companies.id as company_id',
+        'companies.name as company_name',
+        'vendors.name as vendor_name'
+      );
+
+    if (companyId && companyId !== 'All') {
+      rawQuery.andWhere('materials.company_id', companyId);
+    }
+    if (search) {
+      rawQuery.andWhere(b => {
+        b.where('materials.name', 'like', `%${search}%`)
+         .orWhere('materials.code', 'like', `%${search}%`)
+         .orWhere('inventory_items.lot_number', 'like', `%${search}%`);
+      });
+    }
+
+    const rawItems = (await rawQuery).map(item => {
+      const stock = parseFloat(item.current_stock || 0);
+      const unitCost = parseFloat(item.unit_cost || 0);
+      const lineCost = stock * unitCost;
+      return {
+        ...item,
+        current_stock: stock,
+        unit_cost: unitCost,
+        line_cost: Number(lineCost.toFixed(2)),
+      };
+    });
+
+    // 2. Packaging Stock & Valuation
+    const packagingQuery = db('inventory_items')
+      .leftJoin('materials', 'inventory_items.material_id', 'materials.id')
+      .leftJoin('companies', 'materials.company_id', 'companies.id')
+      .leftJoin('vendors', 'inventory_items.vendor_id', 'vendors.id')
+      .where('inventory_items.item_type', 'PACKAGING')
+      .where('inventory_items.current_stock', '>', 0)
+      .select(
+        'inventory_items.id',
+        'inventory_items.lot_number',
+        'inventory_items.current_stock',
+        'inventory_items.uom',
+        'materials.code as material_code',
+        'materials.name as material_name',
+        'materials.cost as unit_cost',
+        'companies.id as company_id',
+        'companies.name as company_name',
+        'vendors.name as vendor_name'
+      );
+
+    if (companyId && companyId !== 'All') {
+      packagingQuery.andWhere('materials.company_id', companyId);
+    }
+    if (search) {
+      packagingQuery.andWhere(b => {
+        b.where('materials.name', 'like', `%${search}%`)
+         .orWhere('materials.code', 'like', `%${search}%`)
+         .orWhere('inventory_items.lot_number', 'like', `%${search}%`);
+      });
+    }
+
+    const packagingItems = (await packagingQuery).map(item => {
+      const stock = parseFloat(item.current_stock || 0);
+      const unitCost = parseFloat(item.unit_cost || 0);
+      const lineCost = stock * unitCost;
+      return {
+        ...item,
+        current_stock: stock,
+        unit_cost: unitCost,
+        line_cost: Number(lineCost.toFixed(2)),
+      };
+    });
+
+    // 3. Finished Products Stock & Valuation
+    const finishedQuery = db('inventory_items')
+      .leftJoin('formulas', 'inventory_items.formula_id', 'formulas.id')
+      .leftJoin('formula_versions', 'inventory_items.formula_version_id', 'formula_versions.id')
+      .leftJoin('formula_cost_snapshots', 'formula_versions.id', 'formula_cost_snapshots.version_id')
+      .leftJoin('production_batches', 'inventory_items.batch_id', 'production_batches.id')
+      .where('inventory_items.item_type', 'FINISHED_GOODS')
+      .where('inventory_items.current_stock', '>', 0)
+      .select(
+        'inventory_items.id',
+        'inventory_items.lot_number',
+        'inventory_items.current_stock',
+        'inventory_items.uom',
+        'formulas.code as product_code',
+        'formulas.name as product_name',
+        'formula_versions.compounding_code',
+        'production_batches.batch_number',
+        'formula_cost_snapshots.cost_per_unit as unit_cost'
+      );
+
+    if (search) {
+      finishedQuery.andWhere(b => {
+        b.where('formulas.name', 'like', `%${search}%`)
+         .orWhere('formulas.code', 'like', `%${search}%`)
+         .orWhere('inventory_items.lot_number', 'like', `%${search}%`)
+         .orWhere('production_batches.batch_number', 'like', `%${search}%`);
+      });
+    }
+
+    const finishedItems = (await finishedQuery).map(item => {
+      const stock = parseFloat(item.current_stock || 0);
+      const unitCost = parseFloat(item.unit_cost || 0);
+      const lineCost = stock * unitCost;
+      return {
+        ...item,
+        current_stock: stock,
+        unit_cost: unitCost,
+        line_cost: Number(lineCost.toFixed(2)),
+      };
+    });
+
+    // 4. Rejected Materials Valuation
+    const rejectedQuery = db('rejected_materials')
+      .leftJoin('materials', 'rejected_materials.material_id', 'materials.id')
+      .leftJoin('companies', 'materials.company_id', 'companies.id')
+      .select(
+        'rejected_materials.id',
+        'rejected_materials.rejection_code',
+        'rejected_materials.material_code',
+        'rejected_materials.material_name',
+        'rejected_materials.material_type',
+        'rejected_materials.rejected_quantity',
+        'rejected_materials.uom',
+        'rejected_materials.disposition',
+        'rejected_materials.status',
+        'materials.cost as unit_cost',
+        'companies.id as company_id',
+        'companies.name as company_name'
+      );
+
+    if (companyId && companyId !== 'All') {
+      rejectedQuery.andWhere('materials.company_id', companyId);
+    }
+    if (search) {
+      rejectedQuery.andWhere(b => {
+        b.where('rejected_materials.material_name', 'like', `%${search}%`)
+         .orWhere('rejected_materials.material_code', 'like', `%${search}%`)
+         .orWhere('rejected_materials.rejection_code', 'like', `%${search}%`);
+      });
+    }
+
+    const rejectedItems = (await rejectedQuery).map(item => {
+      const qty = parseFloat(item.rejected_quantity || 0);
+      const unitCost = parseFloat(item.unit_cost || 0);
+      const lineCost = qty * unitCost;
+      return {
+        ...item,
+        rejected_quantity: qty,
+        unit_cost: unitCost,
+        line_cost: Number(lineCost.toFixed(2)),
+      };
+    });
+
+    // Aggregations
+    const rawValuation = rawItems.reduce((acc, i) => acc + i.line_cost, 0);
+    const packagingValuation = packagingItems.reduce((acc, i) => acc + i.line_cost, 0);
+    const finishedValuation = finishedItems.reduce((acc, i) => acc + i.line_cost, 0);
+    const activeInventoryValuation = rawValuation + packagingValuation + finishedValuation;
+    const rejectedValuation = rejectedItems.reduce((acc, i) => acc + i.line_cost, 0);
+    const overallCosting = activeInventoryValuation + rejectedValuation;
+
+    const companies = await db('companies').where({ is_active: true }).select('id', 'name', 'code').orderBy('name', 'asc');
+
+    return res.json({
+      success: true,
+      summary: {
+        overallCosting: Number(overallCosting.toFixed(2)),
+        activeInventoryValuation: Number(activeInventoryValuation.toFixed(2)),
+        rawValuation: Number(rawValuation.toFixed(2)),
+        packagingValuation: Number(packagingValuation.toFixed(2)),
+        finishedValuation: Number(finishedValuation.toFixed(2)),
+        rejectedValuation: Number(rejectedValuation.toFixed(2)),
+        rawCount: rawItems.length,
+        packagingCount: packagingItems.length,
+        finishedCount: finishedItems.length,
+        rejectedCount: rejectedItems.length,
+      },
+      data: {
+        rawMaterials: rawItems,
+        packaging: packagingItems,
+        finishedProducts: finishedItems,
+        rejectedMaterials: rejectedItems,
+      },
+      companies,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch inventory costing data.', error: err.message });
+  }
+});
+
 export default router;
