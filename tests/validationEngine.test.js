@@ -31,7 +31,7 @@ describe('Validation Engine', () => {
       { material_id: 1, percentage: '50.000000' },
     ];
 
-    const result = validateFormulaPercentage(materials);
+    const result = validateFormulaPercentage(materials, '0.010000', true);
     expect(result.isValid).toBe(false);
     expect(result.message).toContain('Duplicate material ID');
   });

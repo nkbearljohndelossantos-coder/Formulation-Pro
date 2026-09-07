@@ -137,6 +137,7 @@ export function OperatorFormulaViewPage({ setCurrentPage, batchId, setSelectedBa
                   <th className="py-3.5 px-6 text-right">Composition %</th>
                   <th className="py-3.5 px-6 text-right">Target Weight (kg)</th>
                   <th className="py-3.5 px-6 text-right">Tolerance Range</th>
+                  <th className="py-3.5 px-6">Lot No.</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -150,6 +151,7 @@ export function OperatorFormulaViewPage({ setCurrentPage, batchId, setSelectedBa
                     <td className="py-3.5 px-6 text-right font-mono text-slate-500">
                       {Number(req.min_weight).toFixed(4)} - {Number(req.max_weight).toFixed(4)} kg
                     </td>
+                    <td className="py-3.5 px-6 font-mono text-slate-300"></td>
                   </tr>
                 ))}
               </tbody>

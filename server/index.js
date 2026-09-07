@@ -21,8 +21,10 @@ import reportRoutes from './routes/reports.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLogs.js';
 import compoundingCodeRoutes from './routes/compoundingCodes.js';
+import inventoryRoutes from './routes/inventory.js';
 import { idempotencyMiddleware } from './middleware/idempotency.js';
 import { ensurePerfumeAdminAccounts } from './services/seedPerfumeAdminService.js';
+import { seedInventoryRoleAndPermissions } from './services/seedInventoryRoleService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,6 +115,9 @@ app.use('/api/v1/audit-logs', auditLogRoutes);
 app.use('/api/compounding-codes', compoundingCodeRoutes);
 app.use('/api/v1/compounding-codes', compoundingCodeRoutes);
 
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/v1/inventory', inventoryRoutes);
+
 // Health and Readiness Check Endpoints
 app.get('/api/v1/health', async (req, res) => {
   try {
@@ -196,6 +201,7 @@ async function initDatabase() {
     await db.migrate.latest();
     console.log('✅ Database migrations up to date.');
     await ensurePerfumeAdminAccounts();
+    await seedInventoryRoleAndPermissions();
   } catch (err) {
     console.error('Database migration note:', err.message);
   }

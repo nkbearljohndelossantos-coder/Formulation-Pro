@@ -6,6 +6,7 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { AuditService } from '../services/AuditService.js';
 import { SignatureService } from '../services/SignatureService.js';
 import { SequenceService } from '../services/SequenceService.js';
+import { InventoryService } from '../services/InventoryService.js';
 
 const router = express.Router();
 

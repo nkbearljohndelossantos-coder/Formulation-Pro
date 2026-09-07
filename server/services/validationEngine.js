@@ -25,9 +25,19 @@ export const ROLE_WORKFLOW_PERMISSIONS = {
  * @param {Array} materials - List of version materials with `percentage` property
  * @param {string|number} tolerance - Configured tolerance e.g. 0.01%
  */
-export function validateFormulaPercentage(materials, tolerance = '0.010000') {
+export function validateFormulaPercentage(materials, tolerance = '0.010000', checkDuplicates = false) {
   if (!materials || materials.length === 0) {
     return { isValid: false, totalPct: '0.000000', message: 'Formula contains no material composition lines' };
+  }
+
+  if (checkDuplicates) {
+    const seen = new Set();
+    for (const item of materials) {
+      if (item.material_id && seen.has(item.material_id)) {
+        return { isValid: false, totalPct: '0.000000', message: `Duplicate material ID ${item.material_id} found in formula composition` };
+      }
+      if (item.material_id) seen.add(item.material_id);
+    }
   }
 
   let sum = new Decimal(0);

@@ -1,0 +1,436 @@
+import { express } from '../cjsRequire.js';
+import db from '../db.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { InventoryService } from '../services/InventoryService.js';
+import { AuditService } from '../services/AuditService.js';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+
+const router = express.Router();
+const UPLOAD_DIR = path.join(process.cwd(), 'server', 'storage', 'uploads');
+
+// GET /api/v1/inventory/dashboard - KPI Summary Cards
+router.get('/dashboard', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const totalRawMaterialsRes = await db('inventory_items').where({ item_type: 'RAW_MATERIAL' }).count('id as count').first();
+    const totalPackagingRes = await db('inventory_items').where({ item_type: 'PACKAGING' }).count('id as count').first();
+    const totalFinishedProductsRes = await db('inventory_items').where({ item_type: 'FINISHED_GOODS' }).count('id as count').first();
+
+    const lowStockRes = await db('inventory_items').where({ status: 'LOW_STOCK' }).count('id as count').first();
+    const outOfStockRes = await db('inventory_items').where({ status: 'OUT_OF_STOCK' }).count('id as count').first();
+    const qcHoldRes = await db('inventory_items').where({ status: 'QC_HOLD' }).count('id as count').first();
+
+    const reservedSumRes = await db('inventory_items').sum('reserved_stock as sum').first();
+    const rejectedOpenRes = await db('rejected_materials').whereIn('status', ['Open', 'In Disposition']).count('id as count').first();
+
+    return res.json({
+      success: true,
+      data: {
+        totalRawMaterials: Number(totalRawMaterialsRes?.count || 0),
+        totalPackaging: Number(totalPackagingRes?.count || 0),
+        totalFinishedProducts: Number(totalFinishedProductsRes?.count || 0),
+        lowStock: Number(lowStockRes?.count || 0),
+        outOfStock: Number(outOfStockRes?.count || 0),
+        qcHold: Number(qcHoldRes?.count || 0),
+        reservedStock: Number(reservedSumRes?.sum || 0),
+        rejectedMaterials: Number(rejectedOpenRes?.count || 0),
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch inventory dashboard KPIs.', error: err.message });
+  }
+});
+
+// GET /api/v1/inventory/raw-materials - List Raw Material Stock
+router.get('/raw-materials', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const { search, location, status } = req.query;
+
+    const query = db('inventory_items')
+      .leftJoin('materials', 'inventory_items.material_id', 'materials.id')
+      .leftJoin('vendors', 'inventory_items.vendor_id', 'vendors.id')
+      .where('inventory_items.item_type', 'RAW_MATERIAL')
+      .select(
+        'inventory_items.*',
+        'materials.code as material_code',
+        'materials.name as material_name',
+        'materials.category as material_group',
+        'materials.description as inci_name',
+        'vendors.name as vendor_name',
+        'vendors.code as vendor_code'
+      );
+
+    if (location && location !== 'All') {
+      query.andWhere('inventory_items.location', location);
+    }
+    if (status && status !== 'All') {
+      query.andWhere('inventory_items.status', status);
+    }
+    if (search) {
+      query.andWhere(b => {
+        b.where('materials.name', 'like', `%${search}%`)
+         .orWhere('materials.code', 'like', `%${search}%`)
+         .orWhere('inventory_items.lot_number', 'like', `%${search}%`)
+         .orWhere('inventory_items.supplier_lot_number', 'like', `%${search}%`);
+      });
+    }
+
+    const items = await query.orderBy('inventory_items.updated_at', 'desc');
+    return res.json({ success: true, data: items });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch raw material inventory.', error: err.message });
+  }
+});
+
+// GET /api/v1/inventory/packaging - List Packaging Materials Stock
+router.get('/packaging', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const { search, location, status } = req.query;
+
+    const query = db('inventory_items')
+      .leftJoin('materials', 'inventory_items.material_id', 'materials.id')
+      .leftJoin('vendors', 'inventory_items.vendor_id', 'vendors.id')
+      .where('inventory_items.item_type', 'PACKAGING')
+      .select(
+        'inventory_items.*',
+        'materials.code as material_code',
+        'materials.name as material_name',
+        'materials.category as packaging_group',
+        'vendors.name as vendor_name'
+      );
+
+    if (location && location !== 'All') {
+      query.andWhere('inventory_items.location', location);
+    }
+    if (status && status !== 'All') {
+      query.andWhere('inventory_items.status', status);
+    }
+    if (search) {
+      query.andWhere(b => {
+        b.where('materials.name', 'like', `%${search}%`)
+         .orWhere('materials.code', 'like', `%${search}%`)
+         .orWhere('inventory_items.lot_number', 'like', `%${search}%`);
+      });
+    }
+
+    const items = await query.orderBy('inventory_items.updated_at', 'desc');
+    return res.json({ success: true, data: items });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch packaging material inventory.', error: err.message });
+  }
+});
+
+// GET /api/v1/inventory/finished-products - List Finished Goods Inventory
+router.get('/finished-products', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const { search, location, status } = req.query;
+
+    const query = db('inventory_items')
+      .leftJoin('formulas', 'inventory_items.formula_id', 'formulas.id')
+      .leftJoin('formula_versions', 'inventory_items.formula_version_id', 'formula_versions.id')
+      .leftJoin('production_batches', 'inventory_items.batch_id', 'production_batches.id')
+      .where('inventory_items.item_type', 'FINISHED_GOODS')
+      .select(
+        'inventory_items.*',
+        'formulas.code as product_code',
+        'formulas.name as product_name',
+        'formula_versions.compounding_code',
+        'formula_versions.major_version',
+        'formula_versions.minor_version',
+        'production_batches.batch_number',
+        'production_batches.started_at as production_date',
+        'production_batches.completed_at as batch_completed_at'
+      );
+
+    if (location && location !== 'All') {
+      query.andWhere('inventory_items.location', location);
+    }
+    if (status && status !== 'All') {
+      query.andWhere('inventory_items.status', status);
+    }
+    if (search) {
+      query.andWhere(b => {
+        b.where('formulas.name', 'like', `%${search}%`)
+         .orWhere('formulas.code', 'like', `%${search}%`)
+         .orWhere('inventory_items.lot_number', 'like', `%${search}%`)
+         .orWhere('production_batches.batch_number', 'like', `%${search}%`);
+      });
+    }
+
+    const items = await query.orderBy('inventory_items.updated_at', 'desc');
+    return res.json({ success: true, data: items });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch finished product inventory.', error: err.message });
+  }
+});
+
+// GET /api/v1/inventory/rejected - List Rejected Materials with Attachments
+router.get('/rejected', authenticateToken, requirePermission('rejected_material.view'), async (req, res) => {
+  try {
+    const { search, disposition, status } = req.query;
+
+    const query = db('rejected_materials')
+      .leftJoin('users as rb', 'rejected_materials.rejected_by', 'rb.id')
+      .leftJoin('users as db_user', 'rejected_materials.disposition_by', 'db_user.id')
+      .select(
+        'rejected_materials.*',
+        'rb.first_name as rejected_by_first_name',
+        'rb.last_name as rejected_by_last_name',
+        'db_user.first_name as disposition_by_first_name',
+        'db_user.last_name as disposition_by_last_name'
+      );
+
+    if (disposition && disposition !== 'All') {
+      query.andWhere('rejected_materials.disposition', disposition);
+    }
+    if (status && status !== 'All') {
+      query.andWhere('rejected_materials.status', status);
+    }
+    if (search) {
+      query.andWhere(b => {
+        b.where('rejected_materials.material_name', 'like', `%${search}%`)
+         .orWhere('rejected_materials.material_code', 'like', `%${search}%`)
+         .orWhere('rejected_materials.rejection_code', 'like', `%${search}%`)
+         .orWhere('rejected_materials.supplier_lot_number', 'like', `%${search}%`);
+      });
+    }
+
+    const rejections = await query.orderBy('rejected_materials.id', 'desc');
+
+    // Fetch attachments for each rejection
+    const rejectionIds = rejections.map(r => r.id);
+    let attachmentsMap = {};
+
+    if (rejectionIds.length > 0) {
+      const attachments = await db('rejected_material_attachments')
+        .join('document_attachments', 'rejected_material_attachments.attachment_id', 'document_attachments.id')
+        .leftJoin('users', 'document_attachments.uploaded_by', 'users.id')
+        .whereIn('rejected_material_attachments.rejected_material_id', rejectionIds)
+        .select(
+          'rejected_material_attachments.rejected_material_id',
+          'rejected_material_attachments.description as attachment_description',
+          'document_attachments.id as attachment_id',
+          'document_attachments.filename',
+          'document_attachments.mime_type',
+          'document_attachments.file_size',
+          'document_attachments.created_at as uploaded_at',
+          'users.first_name as uploader_first_name',
+          'users.last_name as uploader_last_name'
+        );
+
+      attachments.forEach(att => {
+        if (!attachmentsMap[att.rejected_material_id]) {
+          attachmentsMap[att.rejected_material_id] = [];
+        }
+        attachmentsMap[att.rejected_material_id].push(att);
+      });
+    }
+
+    const result = rejections.map(r => ({
+      ...r,
+      attachments: attachmentsMap[r.id] || [],
+    }));
+
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch rejected materials.', error: err.message });
+  }
+});
+
+// POST /api/v1/inventory/stock-in - Receive / Stock In Lot
+router.post('/stock-in', authenticateToken, requirePermission('inventory.stock_in'), async (req, res) => {
+  try {
+    const result = await InventoryService.stockIn(req.body, req.user);
+    return res.json({ success: true, message: 'Inventory stock in logged successfully.', data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/v1/inventory/stock-out - Stock Out / Deduct Inventory
+router.post('/stock-out', authenticateToken, requirePermission('inventory.stock_out'), async (req, res) => {
+  try {
+    const result = await InventoryService.stockOut(req.body, req.user);
+    return res.json({ success: true, message: 'Inventory stock out logged successfully.', data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/v1/inventory/adjust - Adjust Inventory Quantity
+router.post('/adjust', authenticateToken, requirePermission('inventory.adjust'), async (req, res) => {
+  try {
+    const result = await InventoryService.adjustStock(req.body, req.user);
+    return res.json({ success: true, message: 'Inventory stock adjustment logged successfully.', data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/v1/inventory/transfer - Transfer Inventory Between Locations
+router.post('/transfer', authenticateToken, requirePermission('inventory.transfer'), async (req, res) => {
+  try {
+    const result = await InventoryService.transferStock(req.body, req.user);
+    return res.json({ success: true, message: 'Inventory stock transfer logged successfully.', data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/v1/inventory/items/:id/history - Transaction Ledger History
+router.get('/items/:id/history', authenticateToken, requirePermission('inventory.history'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await db('inventory_items').where({ id }).first();
+    if (!item) return res.status(404).json({ success: false, message: 'Inventory item not found.' });
+
+    const transactions = await db('inventory_transactions')
+      .leftJoin('users', 'inventory_transactions.performed_by', 'users.id')
+      .where('inventory_transactions.inventory_item_id', id)
+      .select(
+        'inventory_transactions.*',
+        'users.first_name as user_first_name',
+        'users.last_name as user_last_name'
+      )
+      .orderBy('inventory_transactions.id', 'desc');
+
+    return res.json({ success: true, data: { item, transactions } });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch inventory item history.', error: err.message });
+  }
+});
+
+// POST /api/v1/inventory/rejected - Create Rejection Record with Attachments
+router.post('/rejected', authenticateToken, requirePermission('rejected_material.create'), async (req, res) => {
+  try {
+    const { data, attachments } = req.body;
+    const result = await InventoryService.rejectMaterial(data || req.body, attachments || req.body.attachments || [], req.user);
+    return res.json({ success: true, message: 'Material rejection record created successfully.', data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/v1/inventory/rejected/:id/attachments - Upload Additional Attachment to Rejection
+router.post('/rejected/:id/attachments', authenticateToken, requirePermission('rejected_material.create'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dataBase64, filename, mimeType, description } = req.body;
+
+    if (!dataBase64 || !filename) {
+      return res.status(400).json({ success: false, message: 'File asset and filename are required.' });
+    }
+
+    const rejection = await db('rejected_materials').where({ id }).first();
+    if (!rejection) return res.status(404).json({ success: false, message: 'Rejection record not found.' });
+
+    const base64Data = dataBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    const fileExt = path.extname(filename) || '.bin';
+    const storedName = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${fileExt}`;
+    const storagePath = path.join(UPLOAD_DIR, storedName);
+
+    fs.writeFileSync(storagePath, buffer);
+    const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
+
+    const docRes = await db('document_attachments').insert({
+      filename,
+      stored_name: storedName,
+      mime_type: mimeType || 'application/octet-stream',
+      file_size: buffer.length,
+      checksum_sha256: checksum,
+      uploaded_by: req.user.id,
+      classification: 'Confidential',
+      malware_scan_status: 'Clean',
+      storage_path: storagePath,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const docId = Array.isArray(docRes) ? (typeof docRes[0] === 'object' ? docRes[0].id : docRes[0]) : docRes;
+
+    await db('rejected_material_attachments').insert({
+      rejected_material_id: id,
+      attachment_id: docId,
+      description: description || null,
+      created_at: new Date(),
+    });
+
+    await AuditService.logEvent({
+      userId: req.user.id,
+      userRole: req.user.roles?.[0] || 'User',
+      action: 'REJECTION_ATTACHMENT_UPLOADED',
+      entityType: 'RejectedMaterial',
+      entityId: String(id),
+      newValues: { filename, attachmentId: docId },
+    });
+
+    return res.json({ success: true, message: 'Attachment uploaded successfully.', data: { attachmentId: docId, filename } });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/v1/inventory/rejected/:id/attachments/:attachmentId - Unlink Attachment
+router.delete('/rejected/:id/attachments/:attachmentId', authenticateToken, requirePermission('rejected_material.create'), async (req, res) => {
+  try {
+    const { id, attachmentId } = req.params;
+
+    const link = await db('rejected_material_attachments')
+      .where({ rejected_material_id: id, attachment_id: attachmentId })
+      .first();
+
+    if (!link) {
+      return res.status(404).json({ success: false, message: 'Attachment link not found.' });
+    }
+
+    await db('rejected_material_attachments')
+      .where({ rejected_material_id: id, attachment_id: attachmentId })
+      .delete();
+
+    await AuditService.logEvent({
+      userId: req.user.id,
+      userRole: req.user.roles?.[0] || 'User',
+      action: 'REJECTION_ATTACHMENT_DELETED',
+      entityType: 'RejectedMaterial',
+      entityId: String(id),
+      newValues: { attachmentId },
+    });
+
+    return res.json({ success: true, message: 'Attachment removed successfully.' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/v1/inventory/rejected/:id/disposition - Set Rejection Disposition
+router.put('/rejected/:id/disposition', authenticateToken, requirePermission('rejected_material.disposition'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { disposition, notes } = req.body;
+
+    const result = await InventoryService.dispositionRejectedMaterial(id, disposition, notes, req.user);
+    return res.json({ success: true, message: 'Rejection disposition updated successfully.', data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/v1/inventory/traceability/:reference - Forward & Reverse Traceability
+router.get('/traceability/:reference', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const { reference } = req.params;
+    const result = await InventoryService.getTraceabilityTree(reference);
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: `No traceability record found for reference '${reference}'.` });
+    }
+
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch traceability tree.', error: err.message });
+  }
+});
+
+export default router;

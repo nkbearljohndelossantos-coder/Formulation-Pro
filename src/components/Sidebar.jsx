@@ -164,6 +164,17 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                       <span>Material List</span>
                     </button>
                     <button
+                      onClick={() => setCurrentPage('inventory')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                        isCurrent('inventory')
+                          ? 'bg-slate-800 text-blue-400 font-semibold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <Boxes className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Inventory</span>
+                    </button>
+                    <button
                       onClick={() => setCurrentPage('create-material')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
                         isCurrent('create-material')

@@ -22,6 +22,7 @@ import { UsersRolesPage } from './pages/UsersRolesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CreateFormulaPage } from './pages/CreateFormulaPage';
 import { CompoundingLogsPage } from './pages/CompoundingLogsPage';
+import { InventoryPage } from './pages/InventoryPage';
 
 // Compounding Operator Portal Pages
 import { OperatorDashboardPage } from './pages/operator/OperatorDashboardPage';
@@ -78,6 +79,7 @@ export function App() {
     switch (currentPage) {
       case 'dashboard': return { title: 'Dashboard', subtitle: 'Manufacturing KPIs & Formulation Overview' };
       case 'materials-list': return { title: 'Material Master List', subtitle: 'Raw Material Ingredients' };
+      case 'inventory': return { title: 'Inventory Management System', subtitle: 'Raw Materials, Packaging, Finished Goods & Material Rejections' };
       case 'create-material': return { title: 'Create Material', subtitle: 'New Master Ingredient Entry' };
       case 'create-vendor': return { title: 'Create Vendor', subtitle: 'Master Vendor & Supplier Registration' };
       case 'create-company': return { title: 'Create Company', subtitle: 'Master Company & Entity Registration' };
@@ -134,6 +136,7 @@ export function App() {
             <>
               {currentPage === 'dashboard' && <DashboardPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'materials-list' && <MaterialsListPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'inventory' && <InventoryPage />}
               {currentPage === 'create-material' && <CreateMaterialPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-vendor' && <CreateVendorPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-company' && <CreateCompanyPage setCurrentPage={setCurrentPage} />}

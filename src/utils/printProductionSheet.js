@@ -199,10 +199,11 @@ export async function printProductionSheet({ version, formula, materials, catego
   const phaseKeys = Object.keys(phaseMap);
   if (phaseKeys.length === 0) {
     tableRowsHtml = `
-      <tr class="phase-header-row"><td colspan="2">Phase A</td></tr>
+      <tr class="phase-header-row"><td colspan="3">Phase A</td></tr>
       <tr class="ingredient-row">
         <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty}</td>
         <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
+        <td class="lot-col">&nbsp;</td>
       </tr>
     `;
   } else {
@@ -211,7 +212,7 @@ export async function printProductionSheet({ version, formula, materials, catego
 
       tableRowsHtml += `
         <tr class="phase-header-row">
-          <td colspan="2">${phaseTitle}</td>
+          <td colspan="3">${phaseTitle}</td>
         </tr>
       `;
 
@@ -228,6 +229,7 @@ export async function printProductionSheet({ version, formula, materials, catego
               <span>${formattedQty}</span>
             </td>
             <td class="mat-col">${matName}</td>
+            <td class="lot-col">&nbsp;</td>
           </tr>
         `;
       });
@@ -351,14 +353,15 @@ export async function printProductionSheet({ version, formula, materials, catego
             <tr>
               <th class="qty-header">Quantity</th>
               <th class="mat-header">Raw Material</th>
+              <th class="lot-header">Lot No.</th>
             </tr>
           </thead>
           <tbody>
             ${tableRowsHtml}
             <tr class="total-row">
-              <td colspan="2">
+              <td colspan="3">
                 <span class="checkbox-box" style="visibility: hidden;">☐</span>
-                <span>${formattedTargetQty}</span>
+                <span>${formattedTargetQty} ${batchUom}</span>
               </td>
             </tr>
           </tbody>
@@ -533,11 +536,16 @@ export async function printProductionSheet({ version, formula, materials, catego
           text-align: left;
         }
         .sheet-table th.qty-header {
-          width: 125px;
+          width: 130px;
           white-space: nowrap;
         }
         .sheet-table th.mat-header {
           padding-left: 10px;
+        }
+        .sheet-table th.lot-header {
+          width: 160px;
+          padding-left: 10px;
+          border-left: 1px solid #d1d5db;
         }
         .phase-header-row td {
           background-color: #e5e7eb;
@@ -564,7 +572,7 @@ export async function printProductionSheet({ version, formula, materials, catego
           vertical-align: middle;
         }
         .qty-col {
-          width: 125px;
+          width: 130px;
           font-weight: 700;
           font-family: ${fontFamilyCss};
           font-variant-numeric: tabular-nums;
@@ -575,6 +583,10 @@ export async function printProductionSheet({ version, formula, materials, catego
           font-weight: 600;
           color: #000;
           padding-left: 10px;
+        }
+        .lot-col {
+          width: 160px;
+          border-left: 1px solid #e2e8f0;
         }
         .total-row td {
           background-color: #e5e7eb;
