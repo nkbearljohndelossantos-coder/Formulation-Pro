@@ -219,20 +219,12 @@ export async function printProductionSheet({ version, formula, materials, catego
   const phaseKeys = Object.keys(phaseMap);
   if (phaseKeys.length === 0) {
     tableRowsHtml = `
-<<<<<<< HEAD
-      <tr class="phase-header-row"><td colspan="3">Phase A</td></tr>
-      <tr class="ingredient-row">
-        <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty}</td>
-        <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
-        <td class="lot-col">&nbsp;</td>
-=======
       <tr class="phase-header-row" ${getRowHeightStyle('phase-0')}><td colspan="4">Phase A</td></tr>
       <tr class="ingredient-row" ${getRowHeightStyle('item-0')}>
         <td class="qty-col"><span class="checkbox-box">☐</span> ${formattedTargetQty} ${batchUom}</td>
         <td class="mat-col">RAW MATERIAL BASE COMPOSITION</td>
         <td class="sup-col"></td>
         <td class="lot-col"></td>
->>>>>>> origin/main
       </tr>
     `;
   } else {
@@ -240,13 +232,8 @@ export async function printProductionSheet({ version, formula, materials, catego
       const phaseTitle = formatPhaseTitle(pName, pIdx);
 
       tableRowsHtml += `
-<<<<<<< HEAD
-        <tr class="phase-header-row">
-          <td colspan="3">${phaseTitle}</td>
-=======
         <tr class="phase-header-row" ${getRowHeightStyle(`phase-${pIdx}`)}>
           <td colspan="4">${phaseTitle}</td>
->>>>>>> origin/main
         </tr>
       `;
 
@@ -274,12 +261,8 @@ export async function printProductionSheet({ version, formula, materials, catego
               <span>${formattedQty}</span>
             </td>
             <td class="mat-col">${matName}</td>
-<<<<<<< HEAD
-            <td class="lot-col">&nbsp;</td>
-=======
             <td class="sup-col">${supName}</td>
             <td class="lot-col"></td>
->>>>>>> origin/main
           </tr>
         `;
       });
@@ -444,23 +427,14 @@ export async function printProductionSheet({ version, formula, materials, catego
             <tr ${getRowHeightStyle('header')}>
               <th class="qty-header">Quantity (${batchUom})</th>
               <th class="mat-header">Raw Material</th>
-<<<<<<< HEAD
-              <th class="lot-header">Lot No.</th>
-=======
               <th class="sup-header">Supplier / Vendor</th>
               <th class="lot-header" style="text-align: center;">Lot No.</th>
->>>>>>> origin/main
             </tr>
           </thead>
           <tbody>
             ${tableRowsHtml}
-<<<<<<< HEAD
-            <tr class="total-row">
-              <td colspan="3">
-=======
             <tr class="total-row" ${getRowHeightStyle('total')}>
               <td class="qty-col">
->>>>>>> origin/main
                 <span class="checkbox-box" style="visibility: hidden;">☐</span>
                 <span>${formattedTargetQty} ${batchUom}</span>
               </td>
@@ -639,22 +613,12 @@ export async function printProductionSheet({ version, formula, materials, catego
           text-align: left;
         }
         .sheet-table th.qty-header {
-<<<<<<< HEAD
-          width: 130px;
-=======
->>>>>>> origin/main
           white-space: nowrap;
         }
         .sheet-table th.mat-header {
           padding-left: 10px;
         }
         .sheet-table th.lot-header {
-<<<<<<< HEAD
-          width: 160px;
-          padding-left: 10px;
-          border-left: 1px solid #d1d5db;
-        }
-=======
           text-align: center;
           border-left: 1px solid #d1d5db;
         }
@@ -662,7 +626,6 @@ export async function printProductionSheet({ version, formula, materials, catego
           border-left: 1px solid #e5e7eb;
           text-align: center;
         }
->>>>>>> origin/main
         .phase-header-row td {
           background-color: #e5e7eb;
           font-weight: 800;

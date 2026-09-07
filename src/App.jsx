@@ -22,13 +22,10 @@ import { UsersRolesPage } from './pages/UsersRolesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CreateFormulaPage } from './pages/CreateFormulaPage';
 import { CompoundingLogsPage } from './pages/CompoundingLogsPage';
-<<<<<<< HEAD
 import { InventoryPage } from './pages/InventoryPage';
-=======
 import SampleRequestPage from './pages/SampleRequestPage';
 import SampleRequestsListPage from './pages/SampleRequestsListPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
->>>>>>> origin/main
 
 // Compounding Operator Portal Pages
 import { OperatorDashboardPage } from './pages/operator/OperatorDashboardPage';
