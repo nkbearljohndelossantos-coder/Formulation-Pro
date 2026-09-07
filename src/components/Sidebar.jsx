@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Boxes,
+  BookOpen,
   FlaskConical,
   Calculator,
   History,
@@ -141,6 +142,18 @@ export function Sidebar({ currentPage, setCurrentPage }) {
               </button>
 
               <button
+                onClick={() => setCurrentPage('material-logbook')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isCurrent('material-logbook')
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-4 h-4 text-indigo-400" />
+                <span>Material Logbook</span>
+              </button>
+
+              <button
                 onClick={() => setCurrentPage('create-material')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                   isCurrent('create-material')
@@ -266,6 +279,17 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                     >
                       <Boxes className="w-3.5 h-3.5 text-slate-400" />
                       <span>Inventory</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('material-logbook')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                        isCurrent('material-logbook')
+                          ? 'bg-slate-800 text-blue-400 font-semibold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Material Logbook</span>
                     </button>
                     <button
                       onClick={() => setCurrentPage('create-material')}
@@ -738,6 +762,14 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                   >
                     <ListFilter className="w-6 h-6 text-emerald-400 mb-2" />
                     <span className="text-xs font-semibold">Material List</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleMobileNav('material-logbook')}
+                    className="flex flex-col items-center justify-center p-4 bg-slate-850 hover:bg-slate-800 rounded-2xl text-slate-300 hover:text-white border border-slate-800 transition"
+                  >
+                    <BookOpen className="w-6 h-6 text-indigo-400 mb-2" />
+                    <span className="text-xs font-semibold">Material Logbook</span>
                   </button>
 
                   <button

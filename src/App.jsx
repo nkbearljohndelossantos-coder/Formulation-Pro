@@ -23,6 +23,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { CreateFormulaPage } from './pages/CreateFormulaPage';
 import { CompoundingLogsPage } from './pages/CompoundingLogsPage';
 import { InventoryPage } from './pages/InventoryPage';
+import { MaterialLogbookPage } from './pages/MaterialLogbookPage';
 import SampleRequestPage from './pages/SampleRequestPage';
 import SampleRequestsListPage from './pages/SampleRequestsListPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -90,6 +91,7 @@ export function App() {
   const inventoryAllowedPages = [
     'inventory',
     'materials-list',
+    'material-logbook',
     'create-material',
     'change-password',
   ];
@@ -105,6 +107,7 @@ export function App() {
       case 'dashboard': return { title: 'Dashboard', subtitle: 'Manufacturing KPIs & Formulation Overview' };
       case 'materials-list': return { title: 'Material Master List', subtitle: 'Raw Material Ingredients' };
       case 'inventory': return { title: 'Inventory Management System', subtitle: 'Raw Materials, Packaging, Finished Goods & Material Rejections' };
+      case 'material-logbook': return { title: 'Material Logbook', subtitle: 'Audit Ledger of Materials In & Out' };
       case 'create-material': return { title: 'Create Material', subtitle: 'New Master Ingredient Entry' };
       case 'create-vendor': return { title: 'Create Vendor', subtitle: 'Master Vendor & Supplier Registration' };
       case 'create-company': return { title: 'Create Company', subtitle: 'Master Company & Entity Registration' };
@@ -167,6 +170,7 @@ export function App() {
               {currentPage === 'dashboard' && <DashboardPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'materials-list' && <MaterialsListPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'inventory' && <InventoryPage />}
+              {currentPage === 'material-logbook' && <MaterialLogbookPage />}
               {currentPage === 'create-material' && <CreateMaterialPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-vendor' && <CreateVendorPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'create-company' && <CreateCompanyPage setCurrentPage={setCurrentPage} />}

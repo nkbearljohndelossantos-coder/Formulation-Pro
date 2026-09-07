@@ -168,7 +168,8 @@ router.get('/finished-products', authenticateToken, requirePermission('inventory
 // GET /api/v1/inventory/rejected - List Rejected Materials with Attachments
 router.get('/rejected', authenticateToken, requirePermission('rejected_material.view'), async (req, res) => {
   try {
-    const { search, disposition, status } = req.query;
+    const { search, disposition, status, material_type, item_type } = req.query;
+    const targetType = material_type || item_type;
 
     const query = db('rejected_materials')
       .leftJoin('users as rb', 'rejected_materials.rejected_by', 'rb.id')
@@ -186,6 +187,9 @@ router.get('/rejected', authenticateToken, requirePermission('rejected_material.
     }
     if (status && status !== 'All') {
       query.andWhere('rejected_materials.status', status);
+    }
+    if (targetType && targetType !== 'All') {
+      query.andWhere('rejected_materials.material_type', targetType);
     }
     if (search) {
       query.andWhere(b => {
@@ -235,6 +239,143 @@ router.get('/rejected', authenticateToken, requirePermission('rejected_material.
     return res.json({ success: true, data: result });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to fetch rejected materials.', error: err.message });
+  }
+});
+
+// GET /api/v1/inventory/logbook - Real-Time Material In/Out Audit Logbook
+router.get('/logbook', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
+  try {
+    const { direction, startDate, endDate, companyId, vendorId, search, sort } = req.query;
+
+    const query = db('inventory_transactions')
+      .leftJoin('inventory_items', 'inventory_transactions.inventory_item_id', 'inventory_items.id')
+      .leftJoin('materials', 'inventory_transactions.material_id', 'materials.id')
+      .leftJoin('companies', 'materials.company_id', 'companies.id')
+      .leftJoin('vendors', 'inventory_items.vendor_id', 'vendors.id')
+      .leftJoin('users', 'inventory_transactions.performed_by', 'users.id')
+      .select(
+        'inventory_transactions.*',
+        'materials.code as material_code',
+        'materials.name as material_name',
+        'materials.category as material_category',
+        'companies.id as company_id',
+        'companies.name as company_name',
+        'companies.code as company_code',
+        'vendors.id as vendor_id',
+        'vendors.name as vendor_name',
+        'vendors.code as vendor_code',
+        'users.first_name as user_first_name',
+        'users.last_name as user_last_name',
+        'users.email as user_email'
+      );
+
+    // Direction Filter (IN, OUT, ADJUSTMENT, TRANSFER)
+    if (direction && direction !== 'ALL') {
+      if (direction === 'IN') {
+        query.whereIn('inventory_transactions.transaction_type', ['STOCK_IN', 'ADJUSTMENT_IN', 'RETURN', 'REUSE', 'RELEASE']);
+      } else if (direction === 'OUT') {
+        query.whereIn('inventory_transactions.transaction_type', ['STOCK_OUT', 'ADJUSTMENT_OUT', 'DISPOSAL', 'CONSUMPTION', 'REJECTION']);
+      } else if (direction === 'ADJUSTMENT') {
+        query.whereIn('inventory_transactions.transaction_type', ['ADJUSTMENT_IN', 'ADJUSTMENT_OUT']);
+      } else if (direction === 'TRANSFER') {
+        query.where('inventory_transactions.transaction_type', 'TRANSFER');
+      } else {
+        query.where('inventory_transactions.transaction_type', direction);
+      }
+    }
+
+    // Date & Time Range Filters
+    if (startDate) {
+      const start = new Date(startDate);
+      if (!isNaN(start.getTime())) {
+        query.andWhere('inventory_transactions.created_at', '>=', start);
+      }
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      if (!isNaN(end.getTime())) {
+        if (endDate.length === 10) {
+          end.setHours(23, 59, 59, 999);
+        }
+        query.andWhere('inventory_transactions.created_at', '<=', end);
+      }
+    }
+
+    // Company & Vendor Filters
+    if (companyId && companyId !== 'All') {
+      query.andWhere('materials.company_id', companyId);
+    }
+
+    if (vendorId && vendorId !== 'All') {
+      query.andWhere('inventory_items.vendor_id', vendorId);
+    }
+
+    // Search Query
+    if (search) {
+      query.andWhere(b => {
+        b.where('materials.name', 'like', `%${search}%`)
+         .orWhere('materials.code', 'like', `%${search}%`)
+         .orWhere('inventory_transactions.lot_number', 'like', `%${search}%`)
+         .orWhere('inventory_transactions.transaction_code', 'like', `%${search}%`)
+         .orWhere('inventory_transactions.reference_number', 'like', `%${search}%`)
+         .orWhere('companies.name', 'like', `%${search}%`)
+         .orWhere('vendors.name', 'like', `%${search}%`)
+         .orWhere('users.first_name', 'like', `%${search}%`)
+         .orWhere('users.last_name', 'like', `%${search}%`);
+      });
+    }
+
+    // Sorting Logic
+    if (sort === 'date_asc') {
+      query.orderBy('inventory_transactions.created_at', 'asc').orderBy('inventory_transactions.id', 'asc');
+    } else if (sort === 'alpha_asc') {
+      query.orderBy('materials.name', 'asc').orderBy('inventory_transactions.created_at', 'desc');
+    } else if (sort === 'alpha_desc') {
+      query.orderBy('materials.name', 'desc').orderBy('inventory_transactions.created_at', 'desc');
+    } else if (sort === 'company_asc') {
+      query.orderBy('companies.name', 'asc').orderBy('materials.name', 'asc');
+    } else {
+      query.orderBy('inventory_transactions.created_at', 'desc').orderBy('inventory_transactions.id', 'desc');
+    }
+
+    const transactions = await query;
+
+    let totalInQty = 0;
+    let totalOutQty = 0;
+    let inCount = 0;
+    let outCount = 0;
+
+    transactions.forEach(t => {
+      const q = parseFloat(t.quantity || 0);
+      const isStockIn = ['STOCK_IN', 'ADJUSTMENT_IN', 'RETURN', 'REUSE', 'RELEASE'].includes(t.transaction_type);
+      if (isStockIn) {
+        totalInQty += q;
+        inCount++;
+      } else {
+        totalOutQty += q;
+        outCount++;
+      }
+    });
+
+    const companies = await db('companies').where({ is_active: true }).select('id', 'name', 'code').orderBy('name', 'asc');
+    const vendors = await db('vendors').select('id', 'name', 'code').orderBy('name', 'asc');
+
+    return res.json({
+      success: true,
+      data: transactions,
+      summary: {
+        totalMovements: transactions.length,
+        inCount,
+        outCount,
+        totalInQty: Number(totalInQty.toFixed(2)),
+        totalOutQty: Number(totalOutQty.toFixed(2)),
+      },
+      companies,
+      vendors,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch material logbook.', error: err.message });
   }
 });
 
