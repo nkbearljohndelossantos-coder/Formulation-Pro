@@ -612,6 +612,35 @@ export function PerfumeNoBrandPage({ setCurrentPage }) {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-xs">
+                  <tr>
+                    <td colSpan={3} className="p-3 text-right uppercase tracking-wider text-slate-700 font-extrabold text-[11px]">
+                      Total Formula Percentage:
+                    </td>
+                    <td className="p-3 text-right">
+                      <span
+                        className={`inline-block font-mono text-sm px-3 py-1 rounded-lg border font-extrabold ${
+                          Math.abs(totalPercentage - 100) < 0.001
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
+                            : 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
+                        }`}
+                      >
+                        {totalPercentage.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td colSpan={2} className="p-3 text-xs text-slate-600 font-semibold">
+                      {Math.abs(totalPercentage - 100) < 0.001 ? (
+                        <span className="text-emerald-700 flex items-center gap-1 font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> 100.00% Balanced
+                        </span>
+                      ) : (
+                        <span className="text-rose-700 flex items-center gap-1 font-bold">
+                          <ShieldAlert className="w-3.5 h-3.5 text-rose-600" /> Imbalanced (Diff: {(100 - totalPercentage).toFixed(2)}%)
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 

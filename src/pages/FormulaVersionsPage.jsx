@@ -242,6 +242,17 @@ export function FormulaVersionsPage({ setCurrentPage }) {
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-xs">
+                      <tr>
+                        <td colSpan={2} className="p-2.5 text-right font-extrabold text-slate-700 uppercase tracking-wider text-[11px]">
+                          TOTAL PERCENTAGE:
+                        </td>
+                        <td className="p-2.5 font-mono text-emerald-800 font-extrabold text-xs">
+                          {((versionDetail.materials || []).reduce((sum, m) => sum + (parseFloat(m.percentage) || 0), 0)).toFixed(2)}%
+                        </td>
+                        <td colSpan={2} className="p-2.5"></td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </div>
