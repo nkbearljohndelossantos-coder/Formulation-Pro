@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 
-// Standard Perfume Formula Presets requested by user
+// Standard Perfume Brand Formula Presets requested by user
 const PRESET_WITHOUT_WATER = [
   { name: 'Ethyl', code: 'MAT-ETHYL', percentage: '80.00', role: 'Solvent / Base' },
   { name: 'Parfum', code: 'MAT-PARFUM', percentage: '14.00', role: 'Fragrance Oil' },
@@ -124,7 +124,6 @@ export function PerfumeBrandPage({ setCurrentPage }) {
     const updated = [...formulaIngredients];
     updated[index] = { ...updated[index], [field]: value };
 
-    // If material selection matched from master materials list, link code & id
     if (field === 'material_id') {
       const selectedMat = masterMaterials.find(m => String(m.id) === String(value));
       if (selectedMat) {
@@ -166,7 +165,6 @@ export function PerfumeBrandPage({ setCurrentPage }) {
     if (Math.abs(diff) < 0.0001) return;
 
     const updated = [...formulaIngredients];
-    // Find Ethyl or Water or first solvent
     let solventIdx = updated.findIndex(item => item.name.toLowerCase().includes('ethyl'));
     if (solventIdx === -1) {
       solventIdx = updated.findIndex(item => item.name.toLowerCase().includes('water'));
@@ -196,7 +194,6 @@ export function PerfumeBrandPage({ setCurrentPage }) {
     setSaveSuccessMsg('');
 
     try {
-      // 1. Create Formula Master
       const res1 = await apiFetch('/api/v1/formulas', {
         method: 'POST',
         body: JSON.stringify({
@@ -219,7 +216,6 @@ export function PerfumeBrandPage({ setCurrentPage }) {
 
       const versionId = data1.versionId || data1.data?.version_id;
 
-      // 2. Prepare Version Materials
       const materialsPayload = formulaIngredients.map((item, idx) => {
         let matId = item.material_id;
         if (!matId) {
@@ -228,7 +224,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
         }
 
         return {
-          material_id: matId || 1, // Fallback to 1 if dummy
+          material_id: matId || 1,
           material_code_snapshot: item.code || `MAT-${idx + 1}`,
           material_name_snapshot: item.name,
           percentage: (parseFloat(item.percentage) || 0).toFixed(6),
@@ -238,7 +234,6 @@ export function PerfumeBrandPage({ setCurrentPage }) {
         };
       });
 
-      // 3. Save Version Composition
       const res2 = await apiFetch(`/api/v1/formulas/versions/${versionId}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -253,7 +248,6 @@ export function PerfumeBrandPage({ setCurrentPage }) {
         throw new Error(data2.message || 'Failed to save formula version materials.');
       }
 
-      // 4. Approve Formula Version for immediate conversion use
       await apiFetch(`/api/v1/formulas/versions/${versionId}/approve`, {
         method: 'PUT',
         body: JSON.stringify({ action: 'APPROVE', comments: 'Auto-approved for Perfume Conversion Engine' }),
@@ -372,40 +366,46 @@ export function PerfumeBrandPage({ setCurrentPage }) {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header & Sub-Navigation Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen text-slate-900 font-sans">
+      {/* Header & Sub-Navigation Tabs (Clean Light Theme) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-amber-400" /> Perfume Brand Formulation & Conversion Engine
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-amber-500" /> Perfume Brand Formulation & Conversion Engine
           </h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 mt-0.5">
             Formulate brand presets (Without Water & With Water), revise ingredient percentages, and run conversion balance.
           </p>
         </div>
 
-        {/* Tab Buttons */}
-        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+        {/* Tab Buttons (Light Theme) */}
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('editor')}
-            className={`px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-              activeTab === 'editor' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              activeTab === 'editor'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" /> Formula Presets & Editor
           </button>
           <button
             onClick={() => setActiveTab('convert')}
-            className={`px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-              activeTab === 'convert' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              activeTab === 'convert'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Calculator className="w-3.5 h-3.5" /> Conversion Calculator
           </button>
           <button
             onClick={() => setActiveTab('conversion-history')}
-            className={`px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-              activeTab === 'conversion-history' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              activeTab === 'conversion-history'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Layers className="w-3.5 h-3.5" /> Conversion History
@@ -416,13 +416,13 @@ export function PerfumeBrandPage({ setCurrentPage }) {
       {/* TAB 1: FORMULA PRESETS & REVISION EDITOR */}
       {activeTab === 'editor' && (
         <div className="space-y-6">
-          {/* Preset Selector Cards */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+          {/* Preset Selector Cards (Clean Light Theme) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <Wand2 className="w-4 h-4 text-amber-400" /> Select Standard Perfume Formula Template
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <Wand2 className="w-4 h-4 text-amber-500" /> Select Standard Perfume Formula Template
               </h3>
-              <span className="text-[11px] text-slate-400">Click a preset below to instantly load its formulation base</span>
+              <span className="text-[11px] text-slate-500">Click a preset below to instantly load its formulation base</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -431,40 +431,40 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 onClick={() => handleLoadPreset('WITHOUT_WATER')}
                 className={`p-4 rounded-xl border cursor-pointer transition-all ${
                   selectedFormulaPreset === 'WITHOUT_WATER'
-                    ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
-                    : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                    ? 'bg-amber-50/80 border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                    : 'bg-slate-50/80 border-slate-200 hover:border-amber-300 hover:bg-amber-50/30'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Droplet className="w-5 h-5 text-amber-400" />
-                    <h4 className="font-bold text-sm text-white">Without Water (Concentrated)</h4>
+                    <Droplet className="w-5 h-5 text-amber-600" />
+                    <h4 className="font-bold text-sm text-slate-900">Without Water (Concentrated 80% Base)</h4>
                   </div>
-                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-full">
+                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-bold rounded-full">
                     5 Ingredients • 100.00%
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mb-3">Pure anhydrous perfume formulation base without aqueous dilution.</p>
-                <div className="grid grid-cols-5 gap-1 text-[11px] font-mono bg-slate-950 p-2 rounded-lg border border-slate-800/80 text-center">
+                <p className="text-xs text-slate-600 mb-3">Pure anhydrous perfume formulation base without aqueous dilution.</p>
+                <div className="grid grid-cols-5 gap-1 text-[11px] font-mono bg-white p-2 rounded-lg border border-slate-200 text-center shadow-2xs">
                   <div>
-                    <span className="text-slate-500 block">Ethyl</span>
-                    <span className="font-bold text-amber-300">80.00%</span>
+                    <span className="text-slate-500 block text-[10px]">Ethyl</span>
+                    <span className="font-bold text-amber-700">80.00%</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Parfum</span>
-                    <span className="font-bold text-purple-300">14.00%</span>
+                    <span className="text-slate-500 block text-[10px]">Parfum</span>
+                    <span className="font-bold text-purple-700">14.00%</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Peg-40</span>
-                    <span className="font-bold text-blue-300">1.00%</span>
+                    <span className="text-slate-500 block text-[10px]">Peg-40</span>
+                    <span className="font-bold text-blue-700">1.00%</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Procol</span>
-                    <span className="font-bold text-emerald-300">3.00%</span>
+                    <span className="text-slate-500 block text-[10px]">Procol</span>
+                    <span className="font-bold text-emerald-700">3.00%</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Fixative</span>
-                    <span className="font-bold text-rose-300">2.00%</span>
+                    <span className="text-slate-500 block text-[10px]">Fixative</span>
+                    <span className="font-bold text-rose-700">2.00%</span>
                   </div>
                 </div>
               </div>
@@ -474,58 +474,58 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 onClick={() => handleLoadPreset('WITH_WATER')}
                 className={`p-4 rounded-xl border cursor-pointer transition-all ${
                   selectedFormulaPreset === 'WITH_WATER'
-                    ? 'bg-blue-500/10 border-blue-500 shadow-lg shadow-blue-500/10'
-                    : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                    ? 'bg-blue-50/80 border-blue-500 shadow-md ring-2 ring-blue-500/20'
+                    : 'bg-slate-50/80 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <Droplet className="w-5 h-5 text-blue-400" />
-                    <h4 className="font-bold text-sm text-white">With Water (Hydrated Base)</h4>
+                    <Droplet className="w-5 h-5 text-blue-600" />
+                    <h4 className="font-bold text-sm text-slate-900">With Water (Hydrated 68% Base)</h4>
                   </div>
-                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] font-bold rounded-full">
+                  <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 text-[10px] font-bold rounded-full">
                     6 Ingredients • 100.00%
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mb-3">Hydrated perfume formulation base containing 12.00% deionized water.</p>
-                <div className="grid grid-cols-6 gap-1 text-[11px] font-mono bg-slate-950 p-2 rounded-lg border border-slate-800/80 text-center">
+                <p className="text-xs text-slate-600 mb-3">Hydrated perfume formulation base containing 12.00% deionized water.</p>
+                <div className="grid grid-cols-6 gap-1 text-[11px] font-mono bg-white p-2 rounded-lg border border-slate-200 text-center shadow-2xs">
                   <div>
                     <span className="text-slate-500 block text-[10px]">Ethyl</span>
-                    <span className="font-bold text-amber-300">68.00%</span>
+                    <span className="font-bold text-amber-700">68.00%</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Parfum</span>
-                    <span className="font-bold text-purple-300">14.00%</span>
+                    <span className="font-bold text-purple-700">14.00%</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Peg-40</span>
-                    <span className="font-bold text-blue-300">1.00%</span>
+                    <span className="font-bold text-blue-700">1.00%</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Procol</span>
-                    <span className="font-bold text-emerald-300">3.00%</span>
+                    <span className="font-bold text-emerald-700">3.00%</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Fixative</span>
-                    <span className="font-bold text-rose-300">2.00%</span>
+                    <span className="font-bold text-rose-700">2.00%</span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Water</span>
-                    <span className="font-bold text-cyan-300">12.00%</span>
+                    <span className="font-bold text-cyan-700">12.00%</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Interactive Formula Revision Editor */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          {/* Interactive Formula Revision Editor (Light Theme) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
               <div>
-                <h3 className="font-bold text-white text-base flex items-center gap-2">
-                  <FileEdit className="w-5 h-5 text-amber-400" /> Formula Composition & Revision Workspace
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <FileEdit className="w-5 h-5 text-amber-500" /> Formula Composition & Revision Workspace
                 </h3>
-                <p className="text-xs text-slate-400">Modify percentages, swap ingredients, add custom rows, and auto-balance.</p>
+                <p className="text-xs text-slate-500">Modify percentages, swap ingredients, add custom rows, and auto-balance.</p>
               </div>
 
               {/* Total Percentage Counter & Auto-Balance */}
@@ -533,14 +533,14 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 <div
                   className={`px-4 py-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 ${
                     Math.abs(totalPercentage - 100) < 0.001
-                      ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300'
-                      : 'bg-rose-950/80 border-rose-600 text-rose-300 animate-pulse'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                      : 'bg-rose-50 border-rose-300 text-rose-800 animate-pulse'
                   }`}
                 >
                   {Math.abs(totalPercentage - 100) < 0.001 ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   ) : (
-                    <ShieldAlert className="w-4 h-4 text-rose-400" />
+                    <ShieldAlert className="w-4 h-4 text-rose-600" />
                   )}
                   Total: {totalPercentage.toFixed(2)}%
                 </div>
@@ -549,9 +549,9 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                   type="button"
                   onClick={handleAutoBalance}
                   title="Automatically adjust Ethyl/Water percentage to sum exactly to 100.00%"
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-amber-900 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
                 >
-                  <Wand2 className="w-3.5 h-3.5 text-amber-400" /> Auto-Balance 100%
+                  <Wand2 className="w-3.5 h-3.5 text-amber-500" /> Auto-Balance 100%
                 </button>
               </div>
             </div>
@@ -559,43 +559,43 @@ export function PerfumeBrandPage({ setCurrentPage }) {
             {/* Formula Meta Information Inputs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Formula Name *</label>
+                <label className="block text-slate-700 font-semibold mb-1">Formula Name *</label>
                 <input
                   type="text"
                   value={formulaMeta.name}
                   onChange={e => setFormulaMeta({ ...formulaMeta, name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-bold"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500"
                   placeholder="e.g. Perfume Brand - Without Water"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Target Batch Size (kg)</label>
+                <label className="block text-slate-700 font-semibold mb-1">Target Batch Size (kg)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formulaMeta.targetBatchSize}
                   onChange={e => setFormulaMeta({ ...formulaMeta, targetBatchSize: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-emerald-300 font-mono font-bold"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-emerald-700 font-mono font-bold focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-slate-300 font-semibold mb-1">Revision Reason / Notes</label>
+                <label className="block text-slate-700 font-semibold mb-1">Revision Reason / Notes</label>
                 <input
                   type="text"
                   value={formulaMeta.revisionReason}
                   onChange={e => setFormulaMeta({ ...formulaMeta, revisionReason: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-300"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-800 focus:ring-2 focus:ring-amber-500"
                   placeholder="e.g. Revised Parfum concentration to 14.00%"
                 />
               </div>
             </div>
 
             {/* Ingredients Composition Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-800">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+              <table className="w-full text-left text-xs text-slate-800">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase">
                   <tr>
                     <th className="p-3 w-12">#</th>
                     <th className="p-3">Ingredient / Raw Material Name</th>
@@ -605,22 +605,22 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                     <th className="p-3 w-16 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 bg-slate-950">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {formulaIngredients.map((ing, idx) => (
-                    <tr key={idx} className="hover:bg-slate-900/50">
-                      <td className="p-3 font-mono text-slate-500">{idx + 1}</td>
+                    <tr key={idx} className="hover:bg-slate-50/80 transition">
+                      <td className="p-3 font-mono text-slate-400 font-bold">{idx + 1}</td>
                       <td className="p-3">
                         <div className="space-y-1">
                           <input
                             type="text"
                             value={ing.name}
                             onChange={e => handleIngredientChange(idx, 'name', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-white font-bold"
+                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500"
                           />
                           {masterMaterials.length > 0 && (
                             <select
                               onChange={e => handleIngredientChange(idx, 'material_id', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-[11px] text-slate-400"
+                              className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-[11px] text-slate-600"
                             >
                               <option value="">-- Or link from Master Materials --</option>
                               {masterMaterials.map(m => (
@@ -637,7 +637,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                           type="text"
                           value={ing.code || ''}
                           onChange={e => handleIngredientChange(idx, 'code', e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 font-mono text-amber-400 font-bold"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 font-mono text-amber-700 font-bold"
                         />
                       </td>
                       <td className="p-3 text-right">
@@ -649,9 +649,9 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                             max="100"
                             value={ing.percentage}
                             onChange={e => handleIngredientChange(idx, 'percentage', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 font-mono text-right font-extrabold text-emerald-300 pr-6"
+                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono text-right font-extrabold text-emerald-700 pr-6"
                           />
-                          <span className="absolute right-2 top-2 text-slate-500 font-bold">%</span>
+                          <span className="absolute right-2 top-2 text-slate-400 font-bold">%</span>
                         </div>
                       </td>
                       <td className="p-3">
@@ -659,7 +659,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                           type="text"
                           value={ing.role || ''}
                           onChange={e => handleIngredientChange(idx, 'role', e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-700"
                           placeholder="e.g. Solvent, Fixative"
                         />
                       </td>
@@ -667,7 +667,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                         <button
                           type="button"
                           onClick={() => handleRemoveIngredientRow(idx)}
-                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
                           title="Remove Ingredient Row"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -684,24 +684,24 @@ export function PerfumeBrandPage({ setCurrentPage }) {
               <button
                 type="button"
                 onClick={handleAddIngredientRow}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
               >
-                <Plus className="w-4 h-4 text-emerald-400" /> Add Ingredient Row
+                <Plus className="w-4 h-4 text-emerald-600" /> Add Ingredient Row
               </button>
 
               <button
                 type="button"
                 onClick={handleSaveFormula}
                 disabled={savingFormula}
-                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all"
+                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all"
               >
                 <Save className="w-4 h-4" /> {savingFormula ? 'Saving & Approving Formula...' : 'Save & Approve Brand Formula'}
               </button>
             </div>
 
             {saveSuccessMsg && (
-              <div className="p-4 bg-emerald-950/80 border border-emerald-800 rounded-xl text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs flex items-center gap-2 shadow-2xs">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                 <span className="font-bold">{saveSuccessMsg}</span>
               </div>
             )}
@@ -709,23 +709,21 @@ export function PerfumeBrandPage({ setCurrentPage }) {
         </div>
       )}
 
-      {/* TAB 2: CONVERSION CALCULATOR */}
+      {/* TAB 2: CONVERSION CALCULATOR (Clean Light Theme) */}
       {activeTab === 'convert' && (
         <div className="space-y-6">
-          {/* Step 1 & Step 2 Selection Card */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
-            <h3 className="font-bold text-white text-base border-b border-slate-800 pb-3">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+            <h3 className="font-bold text-slate-900 text-base border-b border-slate-200 pb-3">
               1. Select Source Recorded Mixture & Target Approved Brand Formula
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-              {/* Select Mixture */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Source Recorded Mixture *</label>
+                <label className="block text-slate-700 font-semibold mb-1.5">Source Recorded Mixture *</label>
                 <select
                   value={selectedMixtureId}
                   onChange={e => setSelectedMixtureId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-bold"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="">-- Select Recorded Source Mixture --</option>
                   {mixtures.map(m => (
@@ -736,13 +734,12 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 </select>
               </div>
 
-              {/* Select Target Brand Formula */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Target Approved Brand Formula Version *</label>
+                <label className="block text-slate-700 font-semibold mb-1.5">Target Approved Brand Formula Version *</label>
                 <select
                   value={selectedBrandVersionId}
                   onChange={e => setSelectedBrandVersionId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-amber-300 font-bold"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-amber-700 font-bold focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="">-- Select Target Approved Brand Formula --</option>
                   {brandFormulas.map(f =>
@@ -757,28 +754,26 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 </select>
               </div>
 
-              {/* Conversion Mode */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Conversion Mode</label>
+                <label className="block text-slate-700 font-semibold mb-1.5">Conversion Mode</label>
                 <select
                   value={mode}
                   onChange={e => setMode(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-bold"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="FIXED_TARGET_WEIGHT">Mode 1: Fixed Target Batch Weight</option>
                   <option value="AUTO_MINIMUM_FINAL_WEIGHT">Mode 2: Auto-Calculate Minimum Final Batch Weight</option>
                 </select>
               </div>
 
-              {/* Specified Target Weight (for Mode 1) */}
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Target Batch Weight (kg)</label>
+                <label className="block text-slate-700 font-semibold mb-1.5">Target Batch Weight (kg)</label>
                 <input
                   type="number"
                   step="0.0001"
                   value={specifiedTargetWeight}
                   onChange={e => setSpecifiedTargetWeight(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-emerald-300 font-mono font-bold"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-emerald-700 font-mono font-bold focus:ring-2 focus:ring-amber-500"
                 />
               </div>
             </div>
@@ -786,7 +781,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
             <button
               onClick={runCalculation}
               disabled={loading}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all"
+              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all"
             >
               <Calculator className="w-4 h-4" /> {loading ? 'Calculating Mathematical Balance...' : 'Calculate Brand Additions'}
             </button>
@@ -794,34 +789,30 @@ export function PerfumeBrandPage({ setCurrentPage }) {
 
           {/* CALCULATION RESULTS PANEL */}
           {calcResult && (
-            <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
-              {/* Feasibility / Infeasibility Banner */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
               {!calcResult.is_feasible ? (
-                <div className="p-4 bg-rose-950/90 border-2 border-rose-600 rounded-xl text-rose-200 text-xs space-y-2">
-                  <div className="flex items-center gap-2 font-extrabold text-sm text-rose-300 uppercase tracking-wider">
-                    <ShieldAlert className="w-5 h-5 text-rose-400" /> Blocking Warning: Conversion Infeasible by Addition Alone!
+                <div className="p-4 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-extrabold text-sm text-rose-700 uppercase tracking-wider">
+                    <ShieldAlert className="w-5 h-5 text-rose-600" /> Blocking Warning: Conversion Infeasible by Addition Alone!
                   </div>
-                  <pre className="whitespace-pre-wrap font-sans text-slate-200">{calcResult.blocking_warning_text}</pre>
-                  <p className="text-[11px] text-rose-300 italic">
-                    Note: You may still save this record under status 'INFEASIBLE' for history and audit analysis, but it CANNOT be marked COMPLETED.
-                  </p>
+                  <pre className="whitespace-pre-wrap font-sans text-slate-800">{calcResult.blocking_warning_text}</pre>
                 </div>
               ) : (
-                <div className="p-4 bg-emerald-950/80 border border-emerald-800 rounded-xl text-emerald-300 text-xs flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <div>
-                    <p className="font-bold text-sm text-white">Mathematical Balance Feasible!</p>
-                    <p className="text-slate-300">
-                      Calculated final batch weight: <span className="font-mono font-bold text-emerald-300">{calcResult.final_target_weight} kg</span> (Min feasible weight: {calcResult.min_feasible_weight} kg).
+                    <p className="font-bold text-sm text-slate-900">Mathematical Balance Feasible!</p>
+                    <p className="text-slate-700">
+                      Calculated final batch weight: <span className="font-mono font-bold text-emerald-700">{calcResult.final_target_weight} kg</span> (Min feasible weight: {calcResult.min_feasible_weight} kg).
                     </p>
                   </div>
                 </div>
               )}
 
               {/* Additions Breakdown Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs text-slate-800">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase">
                     <tr>
                       <th className="p-3">Material Code</th>
                       <th className="p-3">Material Name</th>
@@ -832,16 +823,16 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                       {calcResult.is_feasible && <th className="p-3">Actual Addition (kg)</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {calcResult.additions.map(a => (
-                      <tr key={a.material_id} className={a.is_negative ? 'bg-rose-950/30' : 'hover:bg-slate-800/40'}>
-                        <td className="p-3 font-mono font-bold text-amber-400">{a.material_code}</td>
-                        <td className="p-3 font-medium text-white">{a.material_name}</td>
-                        <td className="p-3 font-mono text-purple-300 font-bold">{Number(a.target_percentage).toFixed(4)}%</td>
+                      <tr key={a.material_id} className={a.is_negative ? 'bg-rose-50/60' : 'hover:bg-slate-50'}>
+                        <td className="p-3 font-mono font-bold text-amber-700">{a.material_code}</td>
+                        <td className="p-3 font-medium text-slate-900">{a.material_name}</td>
+                        <td className="p-3 font-mono text-purple-700 font-bold">{Number(a.target_percentage).toFixed(4)}%</td>
                         <td className="p-3 font-mono">{Number(a.existing_amount).toFixed(4)}</td>
                         <td className="p-3 font-mono">{Number(a.target_amount).toFixed(4)}</td>
-                        <td className={`p-3 font-mono font-bold ${a.is_negative ? 'text-rose-400' : 'text-emerald-300'}`}>
-                          {Number(a.required_addition).toFixed(4)} {a.is_negative && '(EXCESS - CANNOT ADD)'}
+                        <td className={`p-3 font-mono font-bold ${a.is_negative ? 'text-rose-600' : 'text-emerald-700'}`}>
+                          {Number(a.required_addition).toFixed(4)} {a.is_negative && '(EXCESS)'}
                         </td>
                         {calcResult.is_feasible && (
                           <td className="p-3">
@@ -855,7 +846,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                                   [a.material_id]: e.target.value,
                                 })
                               }
-                              className="w-28 bg-slate-950 border border-slate-800 rounded px-2 py-1 font-mono text-xs font-bold text-emerald-300"
+                              className="w-28 bg-white border border-slate-300 rounded px-2 py-1 font-mono text-xs font-bold text-emerald-700"
                             />
                           </td>
                         )}
@@ -865,11 +856,11 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 </table>
               </div>
 
-              {/* Save / Complete Action Bar */}
-              <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+              {/* Action Bar */}
+              <div className="flex items-center justify-between border-t border-slate-200 pt-4">
                 <button
                   onClick={saveConversionRecord}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold flex items-center gap-2"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-2xs"
                 >
                   Save Analysis Record ({calcResult.is_feasible ? 'CALCULATED' : 'INFEASIBLE'})
                 </button>
@@ -877,7 +868,7 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                 {calcResult.is_feasible && (
                   <button
                     onClick={completeConversion}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 flex items-center gap-2"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2"
                   >
                     Mark Conversion COMPLETED & Save Snapshot
                   </button>
@@ -890,10 +881,10 @@ export function PerfumeBrandPage({ setCurrentPage }) {
 
       {/* TAB 3: CONVERSION HISTORY */}
       {activeTab === 'conversion-history' && (
-        <div className="glass-panel rounded-2xl overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 uppercase">
+            <table className="w-full text-left text-xs text-slate-800">
+              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase">
                 <tr>
                   <th className="p-3.5">ID</th>
                   <th className="p-3.5">Source Mixture</th>
@@ -905,24 +896,24 @@ export function PerfumeBrandPage({ setCurrentPage }) {
                   <th className="p-3.5">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {history.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="p-8 text-center text-slate-500">No conversion history records found.</td>
                   </tr>
                 ) : (
                   history.map(h => (
-                    <tr key={h.id} className="hover:bg-slate-800/40">
-                      <td className="p-3.5 font-mono text-slate-400">#{h.id}</td>
-                      <td className="p-3.5 font-medium text-white">{h.mixture_code} — {h.mixture_name}</td>
-                      <td className="p-3.5 font-semibold text-amber-300">{h.target_brand_formula_code} ({h.target_brand_formula_name})</td>
-                      <td className="p-3.5 text-[11px] font-mono text-slate-400">{h.mode}</td>
-                      <td className="p-3.5 font-mono font-bold text-emerald-300">{Number(h.final_target_weight).toFixed(2)} kg</td>
+                    <tr key={h.id} className="hover:bg-slate-50 transition">
+                      <td className="p-3.5 font-mono text-slate-500">#{h.id}</td>
+                      <td className="p-3.5 font-medium text-slate-900">{h.mixture_code} — {h.mixture_name}</td>
+                      <td className="p-3.5 font-semibold text-amber-700">{h.target_brand_formula_code} ({h.target_brand_formula_name})</td>
+                      <td className="p-3.5 text-[11px] font-mono text-slate-500">{h.mode}</td>
+                      <td className="p-3.5 font-mono font-bold text-emerald-700">{Number(h.final_target_weight).toFixed(2)} kg</td>
                       <td className="p-3.5 font-bold">
-                        {h.is_feasible ? <span className="text-emerald-400">Yes</span> : <span className="text-rose-400">INFEASIBLE</span>}
+                        {h.is_feasible ? <span className="text-emerald-600">Yes</span> : <span className="text-rose-600">INFEASIBLE</span>}
                       </td>
                       <td className="p-3.5"><StatusBadge status={h.conversion_status} /></td>
-                      <td className="p-3.5 font-mono text-slate-400">{new Date(h.created_at).toLocaleDateString()}</td>
+                      <td className="p-3.5 font-mono text-slate-500">{new Date(h.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))
                 )}
