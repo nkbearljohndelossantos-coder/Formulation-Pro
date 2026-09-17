@@ -12,6 +12,7 @@ import { CreateCompanyPage } from './pages/CreateCompanyPage';
 import { CosmeticFormulatorPage } from './pages/CosmeticFormulatorPage';
 import { PerfumeNoBrandPage } from './pages/PerfumeNoBrandPage';
 import { PerfumeBrandPage } from './pages/PerfumeBrandPage';
+import { PerfumeWorkspacePage } from './pages/PerfumeWorkspacePage';
 import { FoodSupplementPage } from './pages/FoodSupplementPage';
 import { BatchCalculatorPage } from './pages/BatchCalculatorPage';
 import { FormulaVersionsPage } from './pages/FormulaVersionsPage';
@@ -131,6 +132,7 @@ export function App() {
       case 'create-company': return { title: 'Create Company', subtitle: 'Master Company & Entity Registration' };
       case 'create-formula': return { title: 'Create Formula', subtitle: 'New Master Formulation Entry' };
       case 'formulation-cosmetic': return { title: 'Cosmetic Formulation', subtitle: 'Phase A-C, pH & Viscosity Specs' };
+      case 'formulation-perfume-workspace': return { title: 'Perfume Formulation Workspace', subtitle: 'Isolated Perfume R&D Hub — Brand Conversion Engine, Presets, Maceration & Calculations' };
       case 'formulation-perfume-no-brand': return { title: 'Perfume – No Brand', subtitle: 'Generic Base & Maceration Controls' };
       case 'formulation-perfume-brand': return { title: 'Perfume – Brand', subtitle: 'Brand Formula & Conversion Engine' };
       case 'formulation-supplement': return { title: 'Food Supplement', subtitle: 'Capsules, Tablets & q.s. Math' };
@@ -212,6 +214,7 @@ export function App() {
                   onClearInitialVersion={() => setActiveFormulaVersionId(null)}
                 />
               )}
+              {currentPage === 'formulation-perfume-workspace' && <PerfumeWorkspacePage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-perfume-no-brand' && <PerfumeNoBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-perfume-brand' && <PerfumeBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-supplement' && <FoodSupplementPage setCurrentPage={setCurrentPage} />}

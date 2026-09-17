@@ -444,6 +444,17 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                       </button>
                     )}
                     <button
+                      onClick={() => setCurrentPage('formulation-perfume-workspace')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
+                        isCurrent('formulation-perfume-workspace')
+                          ? 'bg-slate-800 text-amber-400 font-semibold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Perfume Workspace</span>
+                    </button>
+                    <button
                       onClick={() => setCurrentPage('formulation-perfume-no-brand')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
                         isCurrent('formulation-perfume-no-brand')
