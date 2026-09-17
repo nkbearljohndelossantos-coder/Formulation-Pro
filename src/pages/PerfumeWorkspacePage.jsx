@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PerfumeBrandPage } from './PerfumeBrandPage';
 import { PerfumeNoBrandPage } from './PerfumeNoBrandPage';
+import { PerfumeBatchCalculator } from './PerfumeBatchCalculator';
 import {
   Sparkles,
   FlaskConical,
@@ -12,12 +13,13 @@ import {
   Sliders,
   FileText,
   Filter,
+  Calculator,
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { StatusBadge } from '../components/Badge';
 
-export function PerfumeWorkspacePage({ setCurrentPage }) {
-  const [activeTab, setActiveTab] = useState('brand'); // 'brand', 'nobrand', 'maceration', 'directory'
+export function PerfumeWorkspacePage({ setCurrentPage, setSelectedBatchId }) {
+  const [activeTab, setActiveTab] = useState('brand'); // 'brand', 'nobrand', 'batch-calculator', 'maceration', 'directory'
 
   // Maceration & Aging Tracker State
   const [macerationLogs, setMacerationLogs] = useState([
@@ -106,6 +108,16 @@ export function PerfumeWorkspacePage({ setCurrentPage }) {
             <FlaskConical className="w-4 h-4 text-white" /> Perfume No-Brand
           </button>
           <button
+            onClick={() => setActiveTab('batch-calculator')}
+            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
+              activeTab === 'batch-calculator'
+                ? 'bg-emerald-600 text-white font-extrabold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Calculator className="w-4 h-4 text-emerald-200" /> Batch Calculator
+          </button>
+          <button
             onClick={() => setActiveTab('maceration')}
             className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'maceration'
@@ -139,6 +151,13 @@ export function PerfumeWorkspacePage({ setCurrentPage }) {
       {activeTab === 'nobrand' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <PerfumeNoBrandPage setCurrentPage={setCurrentPage} />
+        </div>
+      )}
+
+      {/* WORKSPACE SUB-MODULE 3: PERFUME BATCH CALCULATOR */}
+      {activeTab === 'batch-calculator' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <PerfumeBatchCalculator setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />
         </div>
       )}
 

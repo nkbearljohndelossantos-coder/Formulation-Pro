@@ -214,7 +214,7 @@ export function App() {
                   onClearInitialVersion={() => setActiveFormulaVersionId(null)}
                 />
               )}
-              {currentPage === 'formulation-perfume-workspace' && <PerfumeWorkspacePage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'formulation-perfume-workspace' && <PerfumeWorkspacePage setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />}
               {currentPage === 'formulation-perfume-no-brand' && <PerfumeNoBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-perfume-brand' && <PerfumeBrandPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'formulation-supplement' && <FoodSupplementPage setCurrentPage={setCurrentPage} />}
