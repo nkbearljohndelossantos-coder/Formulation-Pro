@@ -84,7 +84,16 @@ function showCopySelectorModal(onConfirm) {
   };
 }
 
-export async function printProductionSheet({ version, formula, materials, categoryDetails, user, copies: requestedCopies, layoutConfig }) {
+export async function printProductionSheet({
+  version,
+  formula,
+  materials,
+  categoryDetails,
+  user,
+  copies: requestedCopies,
+  layoutConfig,
+  isPerfume: explicitIsPerfume
+}) {
   if (!version) {
     alert('Invalid formula version selected.');
     return;
@@ -93,7 +102,16 @@ export async function printProductionSheet({ version, formula, materials, catego
   // If copy count hasn't been set by user, show the in-app copy selector modal first!
   if (typeof requestedCopies !== 'number' || requestedCopies < 1) {
     showCopySelectorModal((selectedCopies) => {
-      printProductionSheet({ version, formula, materials, categoryDetails, user, copies: selectedCopies, layoutConfig });
+      printProductionSheet({
+        version,
+        formula,
+        materials,
+        categoryDetails,
+        user,
+        copies: selectedCopies,
+        layoutConfig,
+        isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume
+      });
     });
     return;
   }
@@ -124,16 +142,18 @@ export async function printProductionSheet({ version, formula, materials, catego
   const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
 
   const isPerfume = Boolean(
+    explicitIsPerfume ||
+    version?.isPerfume ||
+    formula?.isPerfume ||
     (formula?.product_category || '').toLowerCase().includes('perfume') ||
     (formula?.formula_type || '').toLowerCase().includes('perfume') ||
     (formula?.category || '').toLowerCase().includes('perfume') ||
+    (formula?.brand_type || '').toLowerCase().includes('brand') ||
     (formula?.name || '').toLowerCase().includes('perfume') ||
     (formulaCode || '').toLowerCase().includes('prf') ||
     (version?.formula_name || '').toLowerCase().includes('perfume') ||
     (version?.compounding_code || '').toLowerCase().includes('prf') ||
-    (categoryDetails?.odor_profile || categoryDetails?.chilling_temp_c || categoryDetails?.maceration_days) ||
-    version?.isPerfume ||
-    formula?.isPerfume
+    (categoryDetails?.odor_profile || categoryDetails?.chilling_temp_c || categoryDetails?.maceration_days)
   );
 
   // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
@@ -537,9 +557,15 @@ export async function printProductionSheet({ version, formula, materials, catego
         <!-- Notes / Instructions -->
         <div class="notes-container">
           <div class="notes-heading">NOTES / INSTRUCTIONS:</div>
+          ${isPerfume ? `
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow step order strictly: Phase A (Solvents & Humectants) → Phase B (Fragrance Premix) → Phase C (Fixative & Aging).</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Verify all raw material tare and net weights before addition.</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Record lot numbers and transfer batch to chilling chamber (4°C) for stabilization prior to final filtration.</div>
+          ` : `
           <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow the step order as indicated</div>
           <div class="notes-bullet"><span class="bullet-icon">◆</span> Verify all quantities before processing</div>
           <div class="notes-bullet"><span class="bullet-icon">◆</span> Record actual quantities used</div>
+          `}
         </div>
 
         <!-- Signatures Row -->
@@ -548,21 +574,21 @@ export async function printProductionSheet({ version, formula, materials, catego
             <div class="sig-title">Prepared by:</div>
             <div class="sig-name">${preparedByName}</div>
             <div class="sig-line"></div>
-            <div class="sig-subtext">Name & Signature</div>
+            <div class="sig-subtext">${isPerfume ? 'Formulator Signature' : 'Name & Signature'}</div>
           </div>
 
           <div class="sig-box">
             <div class="sig-title">Checked by:</div>
             <div class="sig-name">&nbsp;</div>
             <div class="sig-line"></div>
-            <div class="sig-subtext">QC Name & Signature</div>
+            <div class="sig-subtext">${isPerfume ? 'QC Chemist Signature' : 'QC Name & Signature'}</div>
           </div>
 
           <div class="sig-box">
             <div class="sig-title">Completed by:</div>
             <div class="sig-name">&nbsp;</div>
             <div class="sig-line"></div>
-            <div class="sig-subtext">Production Team & Date</div>
+            <div class="sig-subtext">${isPerfume ? 'Production Operator & Date' : 'Production Team & Date'}</div>
           </div>
         </div>
 

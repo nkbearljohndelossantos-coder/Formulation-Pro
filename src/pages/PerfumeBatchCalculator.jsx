@@ -433,6 +433,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   const handlePrintPdf = () => {
     if (!batchResult) return;
     printProductionSheet({
+      isPerfume: true,
       version: {
         compounding_code: batchResult.compounding_code,
         formula_code: batchResult.formula_code,
@@ -443,10 +444,13 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         overrideBatchSize: batchResult.target_batch_qty,
         target_batch_uom: batchResult.target_uom || 'kg',
         version_status: 'APPROVED',
+        isPerfume: true,
       },
       formula: {
         code: batchResult.formula_code,
         name: batchResult.formula_name,
+        product_category: 'Perfume Brand',
+        isPerfume: true,
       },
       materials: (batchResult.items || []).map(i => ({
         material_name_snapshot: i.material_name_snapshot,

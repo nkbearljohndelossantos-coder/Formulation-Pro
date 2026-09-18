@@ -1138,7 +1138,14 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                     <Calculator className="w-4 h-4" /> Scale in Batch Calculator
                   </button>
                   <button
-                    onClick={() => printProductionSheet({ version: activeVersion, formula: { code: activeVersion.formula_code, name: activeVersion.formula_name }, materials, categoryDetails: perfumeDetails, user })}
+                    onClick={() => printProductionSheet({
+                      isPerfume: true,
+                      version: { ...activeVersion, isPerfume: true },
+                      formula: { code: activeVersion.formula_code, name: activeVersion.formula_name, product_category: 'Perfume', isPerfume: true },
+                      materials,
+                      categoryDetails: perfumeDetails,
+                      user
+                    })}
                     className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
                   >
                     <Printer className="w-4 h-4" /> Save / Export PDF
