@@ -58,11 +58,11 @@ const PERFUME_PRESETS = [
     category: 'Perfume Brand',
     brandType: 'Brand Core',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '80.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost: '0.12' },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost: '1.85' },
-      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant', cost: '0.25' },
-      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost: '0.95' },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '80.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
+      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
+      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost: '0.95' },
     ],
   },
   {
@@ -71,12 +71,12 @@ const PERFUME_PRESETS = [
     category: 'Perfume Brand',
     brandType: 'Brand Core',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost: '0.12' },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost: '1.85' },
-      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant', cost: '0.25' },
-      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost: '0.95' },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A - Solvents & Base', role: 'Diluent / Solvent', cost: '0.01' },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
+      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
+      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost: '0.95' },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A', role: 'Diluent / Solvent', cost: '0.01' },
     ],
   },
   {
@@ -85,11 +85,11 @@ const PERFUME_PRESETS = [
     category: 'Perfume No-Brand',
     brandType: 'No Brand',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '85.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost: '0.12' },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '9.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost: '1.85' },
-      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant', cost: '0.25' },
-      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '85.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '9.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
+      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
+      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost_g: 0.95 },
     ],
   },
   {
@@ -98,12 +98,12 @@ const PERFUME_PRESETS = [
     category: 'Perfume No-Brand',
     brandType: 'No Brand',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost: '0.12' },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost: '1.85' },
-      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant', cost: '0.25' },
-      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost: '0.95' },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A - Solvents & Base', role: 'Diluent / Solvent', cost: '0.01' },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
+      { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
+      { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost: '0.95' },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A', role: 'Diluent / Solvent', cost: '0.01' },
     ],
   },
 ];
@@ -249,18 +249,20 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
           });
 
           const normalizePhase = (pName, idx) => {
-            if (!pName) return 'Phase A - Solvents & Base';
+            if (!pName) return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
+            const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
+            if (match) {
+              const letter = match[1].toUpperCase();
+              if (/^[A-F]$/.test(letter)) return `Phase ${letter}`;
+            }
             const lower = String(pName).toLowerCase();
-            if (lower.includes('water') || lower.includes('alcohol') || lower.includes('phase a') || lower.includes('solvent')) {
-              return 'Phase A - Solvents & Base';
-            }
-            if (lower.includes('fragrance') || lower.includes('parfum') || lower.includes('oil') || lower.includes('phase b')) {
-              return 'Phase B - Fragrance Premix';
-            }
-            if (lower.includes('fixative') || lower.includes('aging') || lower.includes('phase c')) {
-              return 'Phase C - Fixative & Aging';
-            }
-            return pName;
+            if (lower.includes('water') || lower.includes('phase a') || lower.includes('solvent') || lower.includes('alcohol')) return 'Phase A';
+            if (lower.includes('surfactant') || lower.includes('oil') || lower.includes('phase b') || lower.includes('fragrance') || lower.includes('parfum')) return 'Phase B';
+            if (lower.includes('active') || lower.includes('phase c') || lower.includes('fixative') || lower.includes('aging')) return 'Phase C';
+            if (lower.includes('cooling') || lower.includes('phase d')) return 'Phase D';
+            if (lower.includes('post') || lower.includes('phase e')) return 'Phase E';
+            if (lower.includes('phase f')) return 'Phase F';
+            return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
           };
 
           const seenLoaded = new Set();
@@ -328,8 +330,8 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
 
   const isReadOnly = activeVersion && (activeVersion.version_status === 'APPROVED' || activeVersion.version_status === 'SUPERSEDED' || activeVersion.version_status === 'LOCKED');
 
-  const addLine = (phaseName = 'Phase A - Solvents & Base') => {
-    const mat = availableMaterials[0] || { id: 1, code: 'MAT-NEW', name: 'Raw Material', uom: 'g', cost: '0.00' };
+  const addLine = (phaseName = 'Phase A') => {
+    const mat = availableMaterials[0] || { id: 1, code: 'MAT-001', name: 'Material', uom: 'g', cost: '0.00' };
     setMaterials([
       ...materials,
       {
@@ -339,7 +341,7 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
         uom_snapshot: 'g',
         raw_uom: mat.uom || 'g',
         percentage: '0.00',
-        function_name: 'Solvent Base',
+        function_name: 'Ingredient',
         phase_name: phaseName,
         cost: mat.cost || '0.00',
         addition_order: materials.length + 1,
@@ -348,10 +350,6 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
   };
 
   const removeLine = (idx) => {
-    if (materials.length <= 1) {
-      alert('A formulation must contain at least 1 ingredient.');
-      return;
-    }
     const updated = materials.filter((_, i) => i !== idx);
     setMaterials(updated);
   };
@@ -1007,25 +1005,14 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
             </div>
           )}
 
-          {/* Phase-Based Perfume Composition Table */}
+          {/* Composition Table */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Phase-Based Perfume Composition Table</h3>
-                <p className="text-xs text-slate-500">Categorized by Phase A (Solvents & Base), Phase B (Fragrance Premix), Phase C (Fixative & Aging).</p>
-              </div>
+              <h3 className="font-bold text-slate-900 text-sm">Phase-Based Composition Table</h3>
               {!isReadOnly && (
-                <div className="flex items-center gap-2">
-                  <button onClick={() => addLine('Phase A - Solvents & Base')} className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold border border-slate-300">
-                    + Phase A Line
-                  </button>
-                  <button onClick={() => addLine('Phase B - Fragrance Premix')} className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-lg text-xs font-bold border border-purple-200">
-                    + Phase B Line
-                  </button>
-                  <button onClick={() => addLine('Phase C - Fixative & Aging')} className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-bold border border-amber-200">
-                    + Phase C Line
-                  </button>
-                </div>
+                <button onClick={() => addLine('Phase A')} className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold flex items-center gap-1 border border-blue-200">
+                  <Plus className="w-3.5 h-3.5" /> Add Material Line
+                </button>
               )}
             </div>
 
@@ -1034,11 +1021,11 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                 <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase">
                   <tr>
                     <th className="p-3">Phase</th>
-                    <th className="p-3">Material / Ingredient</th>
+                    <th className="p-3">Material</th>
                     <th className="p-3 text-right">Unit Cost (PHP/g)</th>
                     <th className="p-3 text-right">Line Cost (PHP)</th>
-                    <th className="p-3 w-32">Percentage (%)</th>
-                    <th className="p-3 text-right">Req. Weight</th>
+                    <th className="p-3">Percentage (%)</th>
+                    <th className="p-3 text-right">Req. Weight (g)</th>
                     <th className="p-3">UOM</th>
                     {!isReadOnly && <th className="p-3 text-center">Remove</th>}
                   </tr>
@@ -1046,99 +1033,75 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                 <tbody className="divide-y divide-slate-200">
                   {materials.map((m, idx) => {
                     const unitCostG = getCostPerGram(m);
-                    const batchSize = parseFloat(activeVersion?.target_batch_size || 100);
-                    const batchUom = activeVersion?.target_batch_uom || 'kg';
+                    const batchSizeG = parseFloat(activeVersion?.target_batch_size || 100);
                     const pct = parseFloat(m.percentage || 0);
-                    const reqWeight = (pct / 100) * batchSize;
-                    const reqWeightGrams = batchUom === 'kg' ? reqWeight * 1000 : reqWeight;
+                    const reqWeightGrams = (pct / 100) * batchSizeG;
                     const lineCost = reqWeightGrams * unitCostG;
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-3 font-semibold text-slate-800">
-                          {!isReadOnly ? (
+                        <td className="p-3">
+                          {isReadOnly ? (
+                            <span className="font-semibold text-slate-900">{m.phase_name}</span>
+                          ) : (
                             <select
-                              value={m.phase_name}
+                              value={['Phase A', 'Phase B', 'Phase C', 'Phase D', 'Phase E', 'Phase F'].includes(m.phase_name) ? m.phase_name : `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`}
                               onChange={e => handleMaterialChange(idx, 'phase_name', e.target.value)}
-                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-600 shadow-2xs"
+                              className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-600 w-32 shadow-xs"
                             >
-                              <option value="Phase A - Solvents & Base">Phase A - Solvents & Base</option>
-                              <option value="Phase B - Fragrance Premix">Phase B - Fragrance Premix</option>
-                              <option value="Phase C - Fixative & Aging">Phase C - Fixative & Aging</option>
+                              <option value="Phase A">Phase A</option>
+                              <option value="Phase B">Phase B</option>
+                              <option value="Phase C">Phase C</option>
+                              <option value="Phase D">Phase D</option>
+                              <option value="Phase E">Phase E</option>
+                              <option value="Phase F">Phase F</option>
                             </select>
-                          ) : (
-                            <span>{m.phase_name}</span>
                           )}
-                        </td>
-                        <td className="p-3 font-medium text-slate-900">
-                          {!isReadOnly ? (
-                            <div className="space-y-1">
-                              <input
-                                type="text"
-                                value={m.material_name_snapshot}
-                                onChange={e => handleMaterialChange(idx, 'material_name_snapshot', e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600 shadow-2xs"
-                                placeholder="Material Name"
-                              />
-                              {availableMaterials.length > 0 && (
-                                <select
-                                  value={m.material_id || ''}
-                                  onChange={e => handleMaterialChange(idx, 'material_id', e.target.value)}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] text-slate-600"
-                                >
-                                  <option value="">-- Link from Inventory Master --</option>
-                                  {availableMaterials.map(mat => (
-                                    <option key={mat.id} value={mat.id}>
-                                      {mat.code} — {mat.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="font-bold text-slate-900">{m.material_name_snapshot}</div>
-                              <div className="text-[10px] font-mono text-slate-500">{m.material_code_snapshot}</div>
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-3 text-right font-mono text-slate-600">
-                          PHP {unitCostG.toFixed(2)}
-                        </td>
-                        <td className="p-3 text-right font-mono font-bold text-blue-800">
-                          PHP {lineCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="p-3">
-                          {!isReadOnly ? (
-                            <div className="relative inline-block w-24">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={m.percentage}
-                                onChange={e => handleMaterialChange(idx, 'percentage', e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono text-right font-bold text-indigo-700 text-xs focus:outline-none focus:border-amber-600 pr-5 shadow-2xs"
-                              />
-                              <span className="absolute right-1.5 top-1 text-slate-400 font-bold text-[10px]">%</span>
-                            </div>
+                          {isReadOnly ? (
+                            <span className="font-medium text-slate-900">{m.material_name_snapshot}</span>
                           ) : (
-                            <span className="font-mono font-bold text-indigo-700">{pct.toFixed(2)}%</span>
+                            <select
+                              value={m.material_id}
+                              onChange={e => handleMaterialChange(idx, 'material_id', e.target.value)}
+                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-medium w-64"
+                            >
+                              {!availableMaterials.some(mat => mat.id === m.material_id) && m.material_name_snapshot && (
+                                <option value={m.material_id}>{m.material_name_snapshot}</option>
+                              )}
+                              {availableMaterials.map(mat => (
+                                <option key={mat.id} value={mat.id}>{mat.name}</option>
+                              ))}
+                            </select>
                           )}
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-slate-900">
-                          {reqWeight.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchUom}
+                        <td className="p-3 text-right font-mono text-slate-600 font-semibold">
+                          PHP {unitCostG.toFixed(1)}
                         </td>
-                        <td className="p-3 font-mono text-slate-500">
-                          {batchUom}
+                        <td className="p-3 text-right font-mono text-blue-700 font-bold">
+                          PHP {lineCost.toFixed(1)}
                         </td>
+                        <td className="p-3">
+                          {isReadOnly ? (
+                            <span className="font-mono font-bold text-slate-900">{Number(m.percentage || 0).toFixed(2)}%</span>
+                          ) : (
+                            <input
+                              type="number"
+                              step="any"
+                              value={m.percentage}
+                              onChange={e => handleMaterialChange(idx, 'percentage', e.target.value)}
+                              className="w-28 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-600 shadow-xs"
+                            />
+                          )}
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-800 font-bold">
+                          {reqWeightGrams.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
+                        </td>
+                        <td className="p-3 font-mono text-slate-700 font-bold">g</td>
                         {!isReadOnly && (
                           <td className="p-3 text-center">
-                            <button
-                              onClick={() => removeLine(idx)}
-                              className="p-1 text-slate-400 hover:text-rose-600 transition rounded"
-                              title="Remove Line"
-                            >
+                            <button onClick={() => removeLine(idx)} className="p-1 text-rose-600 hover:bg-rose-50 rounded">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
@@ -1146,37 +1109,32 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                       </tr>
                     );
                   })}
-                </tbody>
-                {/* Total Percentage & Costing Summary Row (tfoot) */}
-                <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
-                  <tr>
-                    <td colSpan={3} className="p-3 uppercase tracking-wider text-slate-700 font-bold">
-                      Total Formulation Summary:
+
+                  {/* Summary Cost & Percentage Row */}
+                  <tr className="bg-slate-50 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+                    <td className="p-3" colSpan="2">
+                      Total Formulation Summary
                     </td>
-                    <td className="p-3 text-right font-mono text-blue-900 font-extrabold text-sm">
+                    <td className="p-3 text-right font-mono text-slate-500">
+                      —
+                    </td>
+                    <td className="p-3 text-right font-mono text-blue-800 text-sm">
                       PHP {materials.reduce((acc, m) => {
-                        const uCost = getCostPerGram(m);
-                        const bSize = parseFloat(activeVersion?.target_batch_size || 100);
-                        const bUom = activeVersion?.target_batch_uom || 'kg';
-                        const p = parseFloat(m.percentage || 0);
-                        const rW = (p / 100) * bSize;
-                        const rWG = bUom === 'kg' ? rW * 1000 : rW;
-                        return acc + (rWG * uCost);
-                      }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        const pct = parseFloat(m.percentage) || 0;
+                        const unitCostG = getCostPerGram(m);
+                        const batchSize = parseFloat(activeVersion?.target_batch_size) || 100;
+                        return acc + (pct / 100) * batchSize * unitCostG;
+                      }, 0).toFixed(1)}
                     </td>
-                    <td className="p-3">
-                      <span className={`inline-block font-mono text-xs px-2 py-0.5 rounded font-extrabold ${isValidPct ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                        {totalPct}%
-                      </span>
+                    <td className="p-3 font-mono text-indigo-700">
+                      {totalPct}%
                     </td>
-                    <td className="p-3 text-right font-mono text-slate-900 font-extrabold text-sm">
-                      {Number(activeVersion?.target_batch_size || 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} {activeVersion?.target_batch_uom || 'kg'}
+                    <td className="p-3 text-right font-mono text-emerald-900 font-extrabold text-sm">
+                      {parseFloat(activeVersion?.target_batch_size || 100).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
                     </td>
-                    <td colSpan={!isReadOnly ? 2 : 1} className="p-3 text-slate-500 font-medium">
-                      {isValidPct ? 'Balanced (100.00%)' : 'Imbalanced'}
-                    </td>
+                    <td className="p-3" colSpan={isReadOnly ? 1 : 2}></td>
                   </tr>
-                </tfoot>
+                </tbody>
               </table>
             </div>
           </div>
