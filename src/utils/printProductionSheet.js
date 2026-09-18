@@ -490,71 +490,160 @@ export async function printProductionSheet({
         <!-- Quality Parameters & Specifications Table -->
         <div style="margin-top: 15px; margin-bottom: 20px;">
           <div style="font-weight: 800; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.3px; color: #000;">
-            QUALITY PARAMETERS & SPECIFICATIONS:
+            ${isPerfume ? 'QUALITY PARAMETERS & QC EVALUATION REVIEW:' : 'QUALITY PARAMETERS & SPECIFICATIONS:'}
           </div>
           ${isPerfume ? `
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 11px;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #94a3b8; font-size: 10px;">
+            <thead>
+              <tr style="background-color: #f1f5f9; border-bottom: 1.5px solid #94a3b8; text-transform: uppercase; font-size: 9.5px; font-weight: 800; letter-spacing: 0.3px; color: #334155;">
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1; width: 23%; text-align: left;">Quality Parameter</th>
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1; width: 33%; text-align: left;">Approved Specification</th>
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1; width: 44%; text-align: left;">Actual QC Review / Finding (Chechekan)</th>
+              </tr>
+            </thead>
             <tbody>
               <tr>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 22%;">Appearance & Clarity:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; width: 28%;">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>Clear, transparent, homogeneous liquid</span>
-                </td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 20%;">Color:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; width: 30%;">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>Conforms to approved standard</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Odor:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db;">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>Characteristic fragrance; conforms to approved standard</span>
-                </td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Specific Gravity:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db;">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>Per approved specification</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Alcohol Content:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db;">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>Per approved specification</span>
-                </td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Chilling:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; font-weight: 700;">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>4°C for 24–48 hours</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Chilling Observation:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db;" colspan="3">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>No visible precipitation, sediment, haze, or phase separation</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Maceration / Aging:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db;" colspan="3">
-                  <span style="display: inline-block; width: 12px; height: 12px; border: 1.5px solid #334155; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
-                  <span>Minimum 14–30 days in sealed stainless-steel drum at ambient room temperature</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Final QC Status:</td>
-                <td style="padding: 5px 8px; border: 1px solid #d1d5db; font-weight: 700;" colspan="3">
-                  <span style="display: inline-block; margin-right: 30px;">
-                    <span style="display: inline-block; width: 13px; height: 13px; border: 2px solid #0f172a; border-radius: 2px; margin-right: 6px; vertical-align: middle;"></span>
-                    PASS
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Appearance & Clarity</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Clear, transparent, homogeneous liquid</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Clear &amp; Transparent
+                  </span>
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Slightly Hazy
                   </span>
                   <span style="display: inline-block;">
-                    <span style="display: inline-block; width: 13px; height: 13px; border: 2px solid #0f172a; border-radius: 2px; margin-right: 6px; vertical-align: middle;"></span>
-                    FAIL
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Turbid / Precipitate
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Color</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Conforms to approved standard</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 14px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Conforms to Standard
+                  </span>
+                  <span style="display: inline-block;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Off-Color / Discolored
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Odor / Fragrance</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Characteristic fragrance; conforms to standard</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Characteristic / Conforms
+                  </span>
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Off-Odor
+                  </span>
+                  <span style="display: inline-block;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Weak Scent
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Specific Gravity</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Within Spec
+                  </span>
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Out of Spec
+                  </span>
+                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: ________ ]</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Alcohol Content</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Within Spec
+                  </span>
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Out of Spec
+                  </span>
+                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: _____ % ]</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Chilling (4°C)</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">4°C for 24–48 hours</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    24 Hours
+                  </span>
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    48 Hours
+                  </span>
+                  <span style="display: inline-block;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Not Done
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Chilling Observation</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">No visible precipitation, sediment, haze</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Clear / No Precipitation
+                  </span>
+                  <span style="display: inline-block;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    With Sediments / Haze
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Maceration / Aging</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Minimum 14–30 days in sealed drum</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Completed (&ge;14 Days)
+                  </span>
+                  <span style="display: inline-block; margin-right: 12px;">
+                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    Ongoing Aging
+                  </span>
+                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Day: ___ / 30 ]</span>
+                </td>
+              </tr>
+              <tr style="background-color: #fffbeb;">
+                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; background-color: #fef3c7; font-weight: 800; color: #78350f;">Final QC Status</td>
+                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 600; color: #78350f;">Quality Disposition for Release / Filling</td>
+                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 700;">
+                  <span style="display: inline-block; margin-right: 20px; color: #065f46;">
+                    <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #065f46; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
+                    PASS (Approved)
+                  </span>
+                  <span style="display: inline-block; margin-right: 20px; color: #9f1239;">
+                    <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #9f1239; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
+                    FAIL (Rejected)
+                  </span>
+                  <span style="display: inline-block; color: #92400e;">
+                    <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #92400e; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
+                    ON HOLD
                   </span>
                 </td>
               </tr>

@@ -930,86 +930,177 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
 
               {/* Quality Parameters & Specifications Table (Perfume Standard) */}
               <div className="space-y-1.5 pt-1">
-                <div className="font-extrabold text-slate-900 text-xs tracking-wider uppercase">QUALITY PARAMETERS & SPECIFICATIONS:</div>
-                <div className="overflow-x-auto border border-slate-300 rounded">
+                <div className="font-extrabold text-slate-900 text-xs tracking-wider uppercase">QUALITY PARAMETERS & QC EVALUATION REVIEW:</div>
+                <div className="overflow-x-auto border border-slate-300 rounded-lg shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <tbody className="divide-y divide-slate-200">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-200 text-[11px] uppercase tracking-wider font-bold text-slate-700">
+                        <th className="p-2.5 w-1/4">Quality Parameter</th>
+                        <th className="p-2.5 w-1/3">Approved Specification</th>
+                        <th className="p-2.5">Actual QC Review / Finding (Chechekan)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Appearance & Clarity:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>Clear, transparent, homogeneous liquid</span>
-                          </span>
-                        </td>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Color:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>Conforms to approved standard</span>
-                          </span>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Appearance & Clarity</td>
+                        <td className="p-2.5 text-slate-600">Clear, transparent, homogeneous liquid</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Clear & Transparent</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Slightly Hazy</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Turbid / Precipitate</span>
+                            </label>
+                          </div>
                         </td>
                       </tr>
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Odor:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>Characteristic fragrance; conforms to approved standard</span>
-                          </span>
-                        </td>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Specific Gravity:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>Per approved specification</span>
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Alcohol Content:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>Per approved specification</span>
-                          </span>
-                        </td>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Chilling:</td>
-                        <td className="p-2 font-mono font-bold text-slate-900 w-1/4">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>4°C for 24–48 hours</span>
-                          </span>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Color</td>
+                        <td className="p-2.5 text-slate-600">Conforms to approved standard</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Conforms to Standard</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Off-Color / Discolored</span>
+                            </label>
+                          </div>
                         </td>
                       </tr>
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Chilling Observation:</td>
-                        <td className="p-2 text-slate-900 font-medium" colSpan="3">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>No visible precipitation, sediment, haze, or phase separation</span>
-                          </span>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Odor / Fragrance</td>
+                        <td className="p-2.5 text-slate-600">Characteristic fragrance; conforms to approved standard</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Characteristic / Conforms</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Off-Odor</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Weak Scent</span>
+                            </label>
+                          </div>
                         </td>
                       </tr>
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Maceration / Aging:</td>
-                        <td className="p-2 text-slate-900 font-medium" colSpan="3">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                            <span>Minimum 14–30 days in sealed stainless-steel drum at ambient room temperature</span>
-                          </span>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Specific Gravity</td>
+                        <td className="p-2.5 text-slate-600">Per approved specification</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Within Spec</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Out of Spec</span>
+                            </label>
+                            <span className="text-[11px] text-slate-500 font-mono">[ Actual: _________ ]</span>
+                          </div>
                         </td>
                       </tr>
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Final QC Status:</td>
-                        <td className="p-2 text-slate-900 font-bold" colSpan="3">
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Alcohol Content</td>
+                        <td className="p-2.5 text-slate-600">Per approved specification</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Within Spec</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Out of Spec</span>
+                            </label>
+                            <span className="text-[11px] text-slate-500 font-mono">[ Actual: _______ % ]</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Chilling (4°C)</td>
+                        <td className="p-2.5 text-slate-600">4°C for 24–48 hours</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>24 Hours</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>48 Hours</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Not Done</span>
+                            </label>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Chilling Observation</td>
+                        <td className="p-2.5 text-slate-600">No visible precipitation, sediment, haze, or phase separation</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Clear / No Precipitation</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>With Sediments / Haze</span>
+                            </label>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Maceration / Aging</td>
+                        <td className="p-2.5 text-slate-600">Minimum 14–30 days in sealed stainless-steel drum</td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Completed (≥14 Days)</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                              <span>Ongoing Aging</span>
+                            </label>
+                            <span className="text-[11px] text-slate-500 font-mono">[ Day: ___ / 30 ]</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr className="bg-amber-50/40">
+                        <td className="p-2.5 bg-amber-100/60 font-black text-slate-900">Final QC Status</td>
+                        <td className="p-2.5 font-semibold text-slate-700">Quality Disposition for Release / Filling</td>
+                        <td className="p-2.5 font-bold">
                           <div className="flex items-center gap-6">
-                            <span className="inline-flex items-center gap-1.5 text-slate-900">
-                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span> PASS
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 text-slate-900">
-                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span> FAIL
-                            </span>
+                            <label className="inline-flex items-center gap-1.5 text-emerald-800 font-extrabold cursor-pointer">
+                              <span className="w-4 h-4 border-2 border-emerald-800 rounded-xs inline-block shrink-0"></span>
+                              <span>PASS (Approved)</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 text-rose-800 font-extrabold cursor-pointer">
+                              <span className="w-4 h-4 border-2 border-rose-800 rounded-xs inline-block shrink-0"></span>
+                              <span>FAIL (Rejected)</span>
+                            </label>
+                            <label className="inline-flex items-center gap-1.5 text-amber-800 font-bold cursor-pointer">
+                              <span className="w-4 h-4 border-2 border-amber-800 rounded-xs inline-block shrink-0"></span>
+                              <span>ON HOLD</span>
+                            </label>
                           </div>
                         </td>
                       </tr>
