@@ -28,9 +28,8 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Formula version not found.' });
     }
 
-    if (version.version_status !== 'APPROVED') {
-      return res.status(400).json({ success: false, message: 'Only APPROVED formula versions can be selected for batch calculation.' });
-    }
+    // Note: APPROVED versions can be dispatched to MES, while DRAFT versions can be previewed/calculated.
+    const isApproved = (version.version_status || '').toUpperCase() === 'APPROVED';
 
     const categoryDetails = await db('cosmetic_formula_details').where({ version_id: versionId }).first();
 
@@ -84,8 +83,9 @@ router.post('/', authenticateToken, async (req, res) => {
       const rawCost = new Decimal(m.current_cost || m.cost || '0');
       const rawUom = String(m.default_uom || m.uom || 'g').trim().toLowerCase();
       const unitCostG = rawUom === 'kg' ? rawCost.div(1000) : rawCost;
+      const unitCostPerTargetUom = (targetUom.toLowerCase() === 'kg') ? unitCostG.times(1000) : unitCostG;
 
-      const lineCostDec = scaledQtyDec.times(unitCostG);
+      const lineCostDec = scaledQtyDec.times(unitCostPerTargetUom);
       totalBatchCost = totalBatchCost.plus(lineCostDec);
 
       items.push({
@@ -95,7 +95,7 @@ router.post('/', authenticateToken, async (req, res) => {
         phase_name: m.phase_name || 'Phase A - Water Phase',
         percentage: pctDec.toFixed(4),
         scaled_qty: scaledQtyDec.toFixed(2),
-        scaled_uom: 'g',
+        scaled_uom: targetUom || 'g',
         unit_cost_g: unitCostG.toFixed(4),
         cost_per_uom: rawCost.toFixed(4),
         line_cost: lineCostDec.toFixed(2),
@@ -151,7 +151,7 @@ router.post('/', authenticateToken, async (req, res) => {
         const settingRow = await trx('system_settings').where({ key: 'auto_send_to_operator_mes' }).first();
         const isAutoSendEnabled = settingRow ? (settingRow.value === 'true' || settingRow.value === '1') : false;
 
-        if (isAutoSendEnabled) {
+        if (isAutoSendEnabled && isApproved) {
           mesBatchId = await CompoundingBatchService.createBatch({
             trx,
             compoundingCode: generatedCpCode,

@@ -1,647 +1,993 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Calculator,
   Printer,
-  Sparkles,
-  Droplet,
-  FlaskConical,
-  CheckCircle2,
-  Play,
-  Layers,
+  DollarSign,
   Search,
   ChevronDown,
-  X,
   Check,
-  DollarSign,
+  X,
+  Play,
   Scale,
-  RefreshCw
+  FlaskConical,
+  Droplet,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
-import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
+import ExcelProductionSheetTable from '../components/ExcelProductionSheetTable';
 
-// Perfume Standard Formulation Ratios
+// Standard Perfume Formulations Ratios (Presets)
 const PERFUME_PRESETS = [
   {
-    id: 'brand-without-water',
+    id: 'preset_brand-without-water',
+    code: 'PRF-BRAND-NOWATER',
     name: 'Perfume Brand — Without Water (Concentrated 80% Base)',
     category: 'Perfume Brand',
     waterType: 'Without Water',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 80.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 14.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
-      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '80.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', unit_cost_g: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', unit_cost_g: '0.25' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', unit_cost_g: '1.85' },
+      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', unit_cost_g: '0.45' },
+      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', unit_cost_g: '0.95' },
     ]
   },
   {
-    id: 'brand-with-water',
+    id: 'preset_brand-with-water',
+    code: 'PRF-BRAND-WATER',
     name: 'Perfume Brand — With Water (Hydrated 68% Base)',
     category: 'Perfume Brand',
     waterType: 'With Water',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 68.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: 12.00, phase: 'Phase A - Solvents & Base', role: 'Diluent', cost_g: 0.01 },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 14.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
-      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', unit_cost_g: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', unit_cost_g: '0.25' },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A - Solvents & Base', role: 'Diluent', unit_cost_g: '0.01' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', unit_cost_g: '1.85' },
+      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', unit_cost_g: '0.45' },
+      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', unit_cost_g: '0.95' },
     ]
   },
   {
-    id: 'nobrand-without-water',
+    id: 'preset_nobrand-without-water',
+    code: 'PRF-NOBRAND-NOWATER',
     name: 'Perfume No-Brand — Without Water (Concentrated 85% Base)',
     category: 'Perfume No-Brand',
     waterType: 'Without Water',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 85.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 9.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
-      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '85.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', unit_cost_g: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', unit_cost_g: '0.25' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '9.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', unit_cost_g: '1.85' },
+      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', unit_cost_g: '0.45' },
+      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', unit_cost_g: '0.95' },
     ]
   },
   {
-    id: 'nobrand-with-water',
+    id: 'preset_nobrand-with-water',
+    code: 'PRF-NOBRAND-WATER',
     name: 'Perfume No-Brand — With Water (Hydrated 68% Base)',
     category: 'Perfume No-Brand',
     waterType: 'With Water',
     items: [
-      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 68.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: 12.00, phase: 'Phase A - Solvents & Base', role: 'Diluent', cost_g: 0.01 },
-      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 14.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
-      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
+      { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A - Solvents & Base', role: 'Solvent / Base', unit_cost_g: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', unit_cost_g: '0.25' },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A - Solvents & Base', role: 'Diluent', unit_cost_g: '0.01' },
+      { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', unit_cost_g: '1.85' },
+      { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B - Fragrance Premix', role: 'Solubilizer', unit_cost_g: '0.45' },
+      { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C - Fixative & Aging', role: 'Odor Fixative', unit_cost_g: '0.95' },
     ]
   }
 ];
 
 export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, initialVersionId }) {
   const { user } = useAuth();
-  const [selectedPresetId, setSelectedPresetId] = useState('brand-without-water');
-  const [dbFormulas, setDbFormulas] = useState([]);
-  const [selectedDbVersionId, setSelectedDbVersionId] = useState(initialVersionId ? String(initialVersionId) : '');
-  const [loadedDbVersionData, setLoadedDbVersionData] = useState(null);
-  const [loadingFormula, setLoadingFormula] = useState(false);
-  
-  // Scaling Parameters
-  const [targetBatchWeightKg, setTargetBatchWeightKg] = useState('50.00');
+  const [formulas, setFormulas] = useState([]);
+  const [selectedVersionId, setSelectedVersionId] = useState(initialVersionId ? String(initialVersionId) : '');
+  const [targetBatchQty, setTargetBatchQty] = useState('50.00');
+  const [targetUom, setTargetUom] = useState('kg');
   const [processLossPct, setProcessLossPct] = useState('0.50');
-  
-  const [scaledResult, setScaledResult] = useState(null);
-  const [isCalculating, setIsCalculating] = useState(false);
 
-  // Sync initialVersionId if passed from parent
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef(null);
+
+  const [batchResult, setBatchResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
+  const [togglingSetting, setTogglingSetting] = useState(false);
+  const [currentSheetLayout, setCurrentSheetLayout] = useState(null);
+
+  // Sync initialVersionId if provided
   useEffect(() => {
     if (initialVersionId) {
-      setSelectedDbVersionId(String(initialVersionId));
-      setSelectedPresetId('');
+      setSelectedVersionId(String(initialVersionId));
     }
   }, [initialVersionId]);
 
-  // Load backend database perfume formulas
   useEffect(() => {
+    fetchFormulas();
+    fetchSettings();
+  }, []);
+
+  const fetchFormulas = () => {
     apiFetch('/api/v1/formulas')
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.data)) {
-          const perf = d.data.filter(f => {
-            const cat = (f.product_category || '').toLowerCase();
-            const type = (f.formula_type || '').toLowerCase();
-            const name = (f.name || '').toLowerCase();
-            const cat2 = (f.category || '').toLowerCase();
-            return cat.includes('perfume') || type.includes('perfume') || name.includes('perfume') || cat2.includes('perfume');
-          });
-          setDbFormulas(perf);
-
-          // If no version is selected yet and we have custom formulas in the DB, select the first one!
-          if (!selectedDbVersionId && !initialVersionId && perf.length > 0) {
-            const firstVer = perf[0].versions?.[0];
-            if (firstVer) {
-              setSelectedDbVersionId(String(firstVer.id));
-              setSelectedPresetId('');
-            }
-          }
+          setFormulas(d.data);
         }
       })
       .catch(() => {});
-  }, [initialVersionId]);
+  };
 
-  // Fetch full formula version details (including materials and phase items) whenever selectedDbVersionId changes
-  useEffect(() => {
-    if (!selectedDbVersionId) {
-      setLoadedDbVersionData(null);
-      return;
-    }
-    setLoadingFormula(true);
-    apiFetch(`/api/v1/formulas/versions/${selectedDbVersionId}`)
+  const fetchSettings = () => {
+    apiFetch('/api/v1/settings')
       .then(r => r.json())
       .then(d => {
-        setLoadingFormula(false);
         if (d.success && d.data) {
-          setLoadedDbVersionData(d.data);
-          if (d.data.version?.target_batch_size) {
-            const sz = parseFloat(d.data.version.target_batch_size);
-            const uom = (d.data.version.target_batch_uom || 'kg').toLowerCase();
-            if (sz > 0) {
-              setTargetBatchWeightKg((uom === 'g') ? (sz / 1000).toFixed(2) : sz.toFixed(2));
-            }
-          }
+          setAutoSendEnabled(d.data.auto_send_to_operator_mes === 'true' || d.data.auto_send_to_operator_mes === '1');
         }
       })
-      .catch(() => setLoadingFormula(false));
-  }, [selectedDbVersionId]);
+      .catch(() => {});
+  };
 
-  // Compute live scaling whenever formula, loaded materials, target batch size, or process loss changes
+  const handleToggleAutoSend = (newVal) => {
+    setTogglingSetting(true);
+    apiFetch('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        settings: { auto_send_to_operator_mes: newVal ? 'true' : 'false' }
+      })
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setAutoSendEnabled(newVal);
+        } else {
+          alert(d.message || 'Failed to update setting.');
+        }
+      })
+      .catch(e => alert(e.message || 'Error updating setting.'))
+      .finally(() => setTogglingSetting(false));
+  };
+
   useEffect(() => {
-    calculateScaling();
-  }, [selectedPresetId, selectedDbVersionId, loadedDbVersionData, targetBatchWeightKg, processLossPct]);
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const calculateScaling = () => {
-    const targetKg = parseFloat(targetBatchWeightKg) || 0;
-    const targetGrams = targetKg * 1000;
-    const lossMultiplier = 1 + ((parseFloat(processLossPct) || 0) / 100);
+  // Helper to check if formula is perfume
+  const isPerfume = (f) => {
+    const cat = (f.product_category || '').toLowerCase();
+    const type = (f.formula_type || '').toLowerCase();
+    const name = (f.name || '').toLowerCase();
+    const cat2 = (f.category || '').toLowerCase();
+    return cat.includes('perfume') || type.includes('perfume') || name.includes('perfume') || cat2.includes('perfume');
+  };
 
-    let formulaName = '';
-    let formulaCode = '';
-    let items = [];
+  // Build formula options for searchable selection dropdown
+  const formulaOptions = [];
 
-    // 1. If a Database Formula Version is selected and loaded, use its REAL materials and specs
-    if (selectedDbVersionId && loadedDbVersionData) {
-      const f = loadedDbVersionData.formula || {};
-      const v = loadedDbVersionData.version || {};
-      const mats = loadedDbVersionData.materials || [];
+  // 1. Database Perfume Formulas (both Approved and Draft)
+  const perfumeDbFormulas = formulas.filter(isPerfume);
+  const otherDbFormulas = formulas.filter(f => !isPerfume(f));
 
-      formulaName = `${f.name || 'Perfume Formula'} (V${v.major_version ?? 1}.${v.minor_version ?? 0})`;
-      formulaCode = f.code || v.compounding_code || 'PRF-001';
+  // If there are perfume formulas in DB, list them first
+  const targetFormulas = perfumeDbFormulas.length > 0 ? [...perfumeDbFormulas, ...otherDbFormulas] : formulas;
 
-      items = mats.map(m => {
-        const rawCost = parseFloat(m.cost || m.current_cost || m.unit_cost_g || 0);
-        const uom = String(m.material_uom || m.uom || m.raw_uom || m.uom_snapshot || 'g').trim().toLowerCase();
-        const cost_g = (uom === 'kg') ? rawCost / 1000 : rawCost;
+  targetFormulas.forEach(f => {
+    (f.versions || []).forEach(v => {
+      const isPerf = isPerfume(f);
+      formulaOptions.push({
+        id: String(v.id),
+        isPreset: false,
+        formulaCode: f.code,
+        formulaName: f.name,
+        versionStr: `V${v.major_version}.${v.minor_version}`,
+        status: (v.version_status || 'DRAFT').toUpperCase(),
+        displayText: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version} ${v.version_status || 'DRAFT'})`,
+        categoryTag: isPerf ? (f.product_category || 'Perfume') : 'Cosmetic',
+        isPerfume: isPerf,
+      });
+    });
+  });
+
+  // 2. Standard Perfume Presets
+  PERFUME_PRESETS.forEach(p => {
+    formulaOptions.push({
+      id: p.id,
+      isPreset: true,
+      formulaCode: p.code,
+      formulaName: p.name,
+      versionStr: 'V1.0',
+      status: 'PRESET',
+      displayText: `Standard Preset: ${p.name}`,
+      categoryTag: p.category,
+      isPerfume: true,
+    });
+  });
+
+  // Set default selection if none selected yet
+  useEffect(() => {
+    if (!selectedVersionId && formulaOptions.length > 0) {
+      const firstPerfumeVer = formulaOptions.find(o => !o.isPreset && o.isPerfume && o.status === 'APPROVED')
+        || formulaOptions.find(o => !o.isPreset && o.isPerfume)
+        || formulaOptions.find(o => !o.isPreset)
+        || formulaOptions[0];
+      if (firstPerfumeVer) {
+        setSelectedVersionId(firstPerfumeVer.id);
+      }
+    }
+  }, [formulas]);
+
+  const filteredOptions = formulaOptions.filter(opt => {
+    const q = searchQuery.toLowerCase();
+    return (
+      opt.formulaCode.toLowerCase().includes(q) ||
+      opt.formulaName.toLowerCase().includes(q) ||
+      opt.versionStr.toLowerCase().includes(q) ||
+      opt.displayText.toLowerCase().includes(q) ||
+      opt.categoryTag.toLowerCase().includes(q)
+    );
+  });
+
+  const selectedOption = formulaOptions.find(opt => String(opt.id) === String(selectedVersionId));
+
+  // Helper to rank phases (Phase A = 65, Phase B = 66, Phase C = 67, etc.)
+  const getPhaseRank = (phaseStr) => {
+    if (!phaseStr) return 99;
+    const s = String(phaseStr).trim().toLowerCase();
+    const match = s.match(/phase\s+([a-z0-9]+)/i);
+    if (match) {
+      return match[1].toUpperCase().charCodeAt(0);
+    }
+    if (s.includes('phase a') || s.includes('solvent') || s.includes('water')) return 65;
+    if (s.includes('phase b') || s.includes('fragrance') || s.includes('oil')) return 66;
+    if (s.includes('phase c') || s.includes('fixative') || s.includes('aging')) return 67;
+    return 99;
+  };
+
+  const runBatchScaling = async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    if (!selectedVersionId) {
+      alert('Please select a perfume formula version or preset.');
+      return;
+    }
+
+    setLoading(true);
+
+    // Case A: Preset formula selected
+    if (String(selectedVersionId).startsWith('preset_')) {
+      const preset = PERFUME_PRESETS.find(p => p.id === selectedVersionId) || PERFUME_PRESETS[0];
+      const targetQty = parseFloat(targetBatchQty) || 50;
+      const lossPct = parseFloat(processLossPct) || 0;
+      const lossMultiplier = 1 + (lossPct / 100);
+
+      // Convert targetQty to grams for costing if targetUom is kg
+      const isKg = targetUom === 'kg';
+      const targetGrams = isKg ? targetQty * 1000 : targetQty;
+
+      let totalBatchCost = 0;
+      const items = preset.items.map(m => {
+        const pct = parseFloat(m.percentage) || 0;
+        const scaledQty = (pct / 100) * targetQty * lossMultiplier;
+        const scaledGrams = (pct / 100) * targetGrams * lossMultiplier;
+        const unitCostG = parseFloat(m.unit_cost_g) || 0;
+        const lineCost = scaledGrams * unitCostG;
+        totalBatchCost += lineCost;
 
         return {
-          name: m.material_name_snapshot || m.material_name || m.name || 'Raw Material',
-          code: m.material_code_snapshot || m.material_code || m.code || 'MAT-000',
-          percentage: parseFloat(m.percentage) || 0,
-          phase: m.phase_name || 'Phase A - Solvents & Base',
-          role: m.role || m.function_name || 'Ingredient',
-          cost_g: cost_g
+          material_id: null,
+          material_code_snapshot: m.code,
+          material_name_snapshot: m.name,
+          phase_name: m.phase_name,
+          percentage: pct.toFixed(2),
+          scaled_qty: scaledQty.toFixed(2),
+          scaled_uom: targetUom,
+          unit_cost_g: unitCostG.toFixed(4),
+          line_cost: lineCost.toFixed(2),
+          currency_code: 'PHP',
+          supplier: 'NKB Approved Supplier'
         };
       });
+
+      items.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
+
+      const cpCode = `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
+      setBatchResult({
+        compounding_code: cpCode,
+        batch_number: cpCode.replace('CP-', 'BAT-'),
+        formula_code: preset.code,
+        formula_name: preset.name,
+        version: '1.0',
+        target_batch_qty: targetQty.toFixed(2),
+        target_uom: targetUom,
+        process_loss_pct: lossPct.toFixed(2),
+        total_batch_cost: totalBatchCost.toFixed(2),
+        items,
+        categoryDetails: {
+          target_ph: '5.8 - 6.2',
+          actual_ph: '[ ________ ]',
+          viscosity_cp: 'Liquid (1.2 cP)',
+          appearance: 'Clear, transparent liquid',
+          remarks: 'Macerate for 14 days at room temperature after 24h chilling at 4°C.'
+        }
+      });
+      setLoading(false);
+      return;
     }
 
-    // 2. Fallback to standard preset if no DB version or items empty
-    if (items.length === 0) {
-      const presetId = selectedPresetId || 'brand-without-water';
-      const preset = PERFUME_PRESETS.find(p => p.id === presetId) || PERFUME_PRESETS[0];
-      formulaName = preset.name;
-      formulaCode = `PRF-${preset.id.toUpperCase()}`;
-      items = preset.items;
-    }
-
-    // Helper to rank phases (Phase A = 65, Phase B = 66, Phase C = 67, etc.)
-    const getPhaseRank = (phaseStr) => {
-      if (!phaseStr) return 99;
-      const s = String(phaseStr).trim().toLowerCase();
-      const match = s.match(/phase\s+([a-z0-9]+)/i);
-      if (match) {
-        return match[1].toUpperCase().charCodeAt(0);
-      }
-      if (s.includes('phase a') || s.includes('solvent') || s.includes('water')) return 65;
-      if (s.includes('phase b') || s.includes('fragrance') || s.includes('oil')) return 66;
-      if (s.includes('phase c') || s.includes('fixative') || s.includes('aging')) return 67;
-      return 99;
-    };
-
-    // Sort items so all Phase A items are grouped together, followed by Phase B, Phase C, etc.
-    const sortedItems = [...items].sort((a, b) => {
-      const rankA = getPhaseRank(a.phase || a.phase_name);
-      const rankB = getPhaseRank(b.phase || b.phase_name);
-      return rankA - rankB;
-    });
-
-    // Scale line items
-    let totalPct = 0;
-    let totalScaledGrams = 0;
-    let totalBatchCost = 0;
-
-    const scaledItems = sortedItems.map(item => {
-      const pct = parseFloat(item.percentage) || 0;
-      totalPct += pct;
-      
-      const scaledGrams = (pct / 100) * targetGrams * lossMultiplier;
-      totalScaledGrams += scaledGrams;
-      
-      const unitCostG = parseFloat(item.cost_g || 0);
-      const lineCost = scaledGrams * unitCostG;
-      totalBatchCost += lineCost;
-
-      return {
-        ...item,
-        percentage: pct,
-        scaledGrams,
-        scaledKg: scaledGrams / 1000,
-        unitCostG,
-        lineCost
-      };
-    });
-
-    const cpCode = loadedDbVersionData?.version?.compounding_code || `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
-    const costPerKg = targetKg > 0 ? totalBatchCost / targetKg : 0;
-    const costPer100ml = (costPerKg / 1000) * 85; // 85g approx weight per 100ml perfume bottle
-
-    setScaledResult({
-      compoundingCode: cpCode,
-      formulaName,
-      formulaCode,
-      targetKg,
-      targetGrams,
-      lossPct: parseFloat(processLossPct) || 0,
-      items: scaledItems,
-      totalPct,
-      totalScaledGrams,
-      totalScaledKg: totalScaledGrams / 1000,
-      totalBatchCost,
-      costPerKg,
-      costPer100ml
-    });
-  };
-
-  const handlePresetWeightClick = (kgVal) => {
-    setTargetBatchWeightKg(kgVal.toString());
-  };
-
-  const handlePrintPdf = () => {
-    if (!scaledResult) return;
-    printProductionSheet({
-      version: {
-        compounding_code: scaledResult.compoundingCode,
-        formula_code: scaledResult.formulaCode,
-        formula_name: scaledResult.formulaName,
-        major_version: loadedDbVersionData?.version?.major_version || 1,
-        minor_version: loadedDbVersionData?.version?.minor_version || 0,
-        target_batch_size: scaledResult.targetKg,
-        overrideBatchSize: scaledResult.targetKg,
-        target_batch_uom: 'kg',
-        version_status: loadedDbVersionData?.version?.version_status || 'APPROVED',
-      },
-      formula: {
-        code: scaledResult.formulaCode,
-        name: scaledResult.formulaName,
-      },
-      materials: scaledResult.items.map(i => ({
-        material_name_snapshot: i.name,
-        material_code_snapshot: i.code,
-        phase_name: i.phase,
-        percentage: i.percentage,
-        supplier: 'NKB Approved Supplier'
-      })),
-      categoryDetails: loadedDbVersionData?.categoryDetails,
-      user
-    });
-  };
-
-  const handleDispatchToOperator = async () => {
-    if (!scaledResult) return;
-    setIsCalculating(true);
+    // Case B: Database Formula Version selected -> Call Backend Batch Calculation Engine
     try {
       const res = await apiFetch('/api/v1/batch-calculations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          versionId: selectedDbVersionId || 1,
-          targetBatchQty: scaledResult.targetKg,
-          targetUom: 'kg',
-          processLossPct: scaledResult.lossPct
-        })
+          versionId: selectedVersionId,
+          targetBatchQty,
+          targetUom,
+          processLossPct,
+        }),
       });
-      const data = await res.json();
-      setIsCalculating(false);
+      const d = await res.json();
+      setLoading(false);
 
-      if (data.success) {
-        alert(`✅ Compounding Batch ${scaledResult.compoundingCode} successfully dispatched to MES Operator Station!`);
-        if (data.productionBatchId && typeof setSelectedBatchId === 'function') {
-          setSelectedBatchId(data.productionBatchId);
-          if (typeof setCurrentPage === 'function') {
-            setCurrentPage('operator-compounding-screen');
-          }
+      if (d.success && d.data) {
+        if (Array.isArray(d.data.items)) {
+          d.data.items.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
         }
+        setBatchResult(d.data);
       } else {
-        alert(`Notice: ${data.message || 'Batch sheet generated locally.'}`);
+        console.warn('Batch scaling server response:', d.message);
+        fallbackScaleFromVersion(selectedVersionId);
       }
-    } catch (e) {
-      setIsCalculating(false);
-      alert(`Local batch scaling ready for printing.`);
+    } catch (err) {
+      console.warn('Error calling batch calculation API, falling back to version fetch:', err.message);
+      fallbackScaleFromVersion(selectedVersionId);
     }
   };
 
+  // Client-side fallback scaling in case version is draft or offline
+  const fallbackScaleFromVersion = async (vId) => {
+    try {
+      const vRes = await apiFetch(`/api/v1/formulas/versions/${vId}`);
+      const vData = await vRes.json();
+      setLoading(false);
+
+      if (vData.success && vData.data) {
+        const formula = vData.data.formula || {};
+        const version = vData.data.version || {};
+        const materials = vData.data.materials || [];
+        const categoryDetails = vData.data.categoryDetails;
+
+        const targetQty = parseFloat(targetBatchQty) || 50;
+        const lossPct = parseFloat(processLossPct) || 0;
+        const lossMultiplier = 1 + (lossPct / 100);
+        const isKg = targetUom === 'kg';
+        const targetGrams = isKg ? targetQty * 1000 : targetQty;
+
+        let totalBatchCost = 0;
+        const items = materials.map(m => {
+          const pct = parseFloat(m.percentage) || 0;
+          const scaledQty = (pct / 100) * targetQty * lossMultiplier;
+          const scaledGrams = (pct / 100) * targetGrams * lossMultiplier;
+          
+          const rawCost = parseFloat(m.cost || m.current_cost || m.unit_cost_g || 0);
+          const rawUom = String(m.material_uom || m.uom || 'g').trim().toLowerCase();
+          const unitCostG = rawUom === 'kg' ? rawCost / 1000 : rawCost;
+          const lineCost = scaledGrams * unitCostG;
+          totalBatchCost += lineCost;
+
+          return {
+            material_id: m.material_id,
+            material_code_snapshot: m.material_code_snapshot || m.material_code || m.code || 'MAT-000',
+            material_name_snapshot: m.material_name_snapshot || m.material_name || m.name || 'Raw Material',
+            phase_name: m.phase_name || 'Phase A - Solvents & Base',
+            percentage: pct.toFixed(2),
+            scaled_qty: scaledQty.toFixed(2),
+            scaled_uom: targetUom,
+            unit_cost_g: unitCostG.toFixed(4),
+            line_cost: lineCost.toFixed(2),
+            currency_code: 'PHP',
+            supplier: m.vendor_name || 'NKB Approved Supplier'
+          };
+        });
+
+        items.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
+
+        const cpCode = version.compounding_code || `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
+        setBatchResult({
+          compounding_code: cpCode,
+          batch_number: cpCode.replace('CP-', 'BAT-'),
+          formula_code: formula.code || 'PRF-FORM',
+          formula_name: formula.name || 'Perfume Formulation',
+          version: `${version.major_version ?? 1}.${version.minor_version ?? 0}`,
+          target_batch_qty: targetQty.toFixed(2),
+          target_uom: targetUom,
+          process_loss_pct: lossPct.toFixed(2),
+          total_batch_cost: totalBatchCost.toFixed(2),
+          items,
+          categoryDetails
+        });
+      } else {
+        alert('Could not scale formula: ' + (vData.message || 'Unable to load version materials'));
+      }
+    } catch (e) {
+      setLoading(false);
+      alert('Scaling error: ' + e.message);
+    }
+  };
+
+  const handlePresetWeightClick = (qtyVal, uomVal) => {
+    setTargetBatchQty(qtyVal.toString());
+    if (uomVal) setTargetUom(uomVal);
+  };
+
+  const handlePrintPdf = () => {
+    if (!batchResult) return;
+    printProductionSheet({
+      version: {
+        compounding_code: batchResult.compounding_code,
+        formula_code: batchResult.formula_code,
+        formula_name: batchResult.formula_name,
+        major_version: batchResult.version?.split('.')[0] || 1,
+        minor_version: batchResult.version?.split('.')[1] || 0,
+        target_batch_size: batchResult.target_batch_qty,
+        overrideBatchSize: batchResult.target_batch_qty,
+        target_batch_uom: batchResult.target_uom || 'kg',
+        version_status: 'APPROVED',
+      },
+      formula: {
+        code: batchResult.formula_code,
+        name: batchResult.formula_name,
+      },
+      materials: (batchResult.items || []).map(i => ({
+        material_name_snapshot: i.material_name_snapshot,
+        material_code_snapshot: i.material_code_snapshot,
+        phase_name: i.phase_name,
+        percentage: i.percentage,
+        supplier: i.supplier || 'NKB Approved Supplier'
+      })),
+      categoryDetails: batchResult.categoryDetails,
+      user,
+      layoutConfig: currentSheetLayout
+    });
+  };
+
+  // Group items by phase for Production Sheet layout (Phase A, Phase B, Phase C...)
+  const phaseMap = {};
+  if (batchResult && Array.isArray(batchResult.items)) {
+    batchResult.items.forEach(item => {
+      const pName = item.phase_name || 'Phase A - Solvents & Base';
+      if (!phaseMap[pName]) phaseMap[pName] = [];
+      phaseMap[pName].push(item);
+    });
+  }
+
+  // Sort phase keys in proper alphabetical order
+  const phaseKeys = Object.keys(phaseMap).sort((a, b) => getPhaseRank(a) - getPhaseRank(b));
+
+  // Compute metrics for financial KPI cards
+  const targetQtyNum = Number(batchResult?.target_batch_qty) || 0;
+  const targetUomStr = batchResult?.target_uom || 'kg';
+  const totalCostNum = Number(batchResult?.total_batch_cost) || 0;
+
+  // Normalize to Grams and Kilograms
+  const totalWeightGrams = targetUomStr === 'kg' ? targetQtyNum * 1000 : targetQtyNum;
+  const totalWeightKg = targetUomStr === 'kg' ? targetQtyNum : targetQtyNum / 1000;
+
+  const costPerGram = totalWeightGrams > 0 ? totalCostNum / totalWeightGrams : 0;
+  const costPerKg = totalWeightKg > 0 ? totalCostNum / totalWeightKg : 0;
+  const costPer100mlBottle = costPerGram * 85; // ~85 grams average perfume liquid weight per 100ml bottle
+
   return (
-    <div className="p-6 space-y-6 bg-slate-50 min-h-screen text-slate-900 font-sans">
-      {/* Module Title Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-6 space-y-6 max-w-5xl mx-auto font-sans">
+      {/* Header */}
+      <div className="border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1">
+          <Calculator className="w-4 h-4 text-emerald-600" /> Dedicated Perfume Compounding Module
+        </div>
+        <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <Calculator className="w-5 h-5 text-emerald-700" /> Perfume Production Batch Sheet Calculator
+        </h1>
+        <p className="text-xs text-slate-500">
+          Scale approved perfume formulations (Brand & No-Brand) to target batch quantities matching the official Production Sheet standard.
+        </p>
+      </div>
+
+      {/* Admin Dispatch Control Banner for Auto-Send to Operator Toggle */}
+      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1">
-            <Calculator className="w-4 h-4 text-emerald-600" /> Dedicated Perfume Compounding Module
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-400">Admin Dispatch Control</span>
+            <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${autoSendEnabled ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-900'}`}>
+              {autoSendEnabled ? '🟢 ON: Auto-Send Enabled' : '🔴 OFF: Print Only (No Auto-Send)'}
+            </span>
           </div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            🧮 Perfume Batch Weight Scaling & Compounding Calculator
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Scale Perfume Brand and Perfume No-Brand formulas into exact raw material addition weights (kg / grams) with process loss accounting.
+          <p className="text-xs text-slate-300 mt-1">
+            {autoSendEnabled
+              ? 'AUTOMATIC: Pag nag-calc / generate, AWTOMATIKONG MABABATO sa Operator Station ang active batch.'
+              : 'PRINT ONLY: Pag nag-calc / generate, MAG-PRIPRINT AT MAG-LO-LOG LAMANG at HINDI MABABATO sa Operator Station.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
           <button
             type="button"
-            onClick={handlePrintPdf}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition"
+            onClick={() => handleToggleAutoSend(false)}
+            disabled={togglingSetting}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              !autoSendEnabled ? 'bg-amber-500 text-slate-900 shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
           >
-            <Printer className="w-4 h-4 text-amber-400" /> Print Production Sheet
+            OFF (Print Only)
           </button>
           <button
             type="button"
-            onClick={handleDispatchToOperator}
-            disabled={isCalculating}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition"
+            onClick={() => handleToggleAutoSend(true)}
+            disabled={togglingSetting}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              autoSendEnabled ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+            }`}
           >
-            <Play className="w-4 h-4" /> Dispatch to Operator
+            ON (Auto-Send)
           </button>
         </div>
       </div>
 
-      {/* Control Panel & Target Batch Setup */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+      {/* Scaling Form */}
+      <form onSubmit={runBatchScaling} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
         <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500" /> 1. Select Perfume Formula & Target Batch Parameters
+          <Sparkles className="w-4 h-4 text-emerald-600" /> Select Approved Perfume Formula & Target Batch Parameters
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-          {/* Unified Formula Selection Dropdown */}
-          <div className="md:col-span-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="block text-slate-700 font-bold">
-                Select Perfume Formulation *
-              </label>
-              {loadingFormula && (
-                <span className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 animate-pulse">
-                  <RefreshCw className="w-3 h-3 animate-spin" /> Loading formula materials...
-                </span>
-              )}
-              {selectedDbVersionId && !loadingFormula && (
-                <span className="text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  ✓ Database Formula Active
-                </span>
-              )}
-            </div>
-
-            <select
-              value={selectedDbVersionId ? `db_${selectedDbVersionId}` : `preset_${selectedPresetId}`}
-              onChange={e => {
-                const val = e.target.value;
-                if (val.startsWith('db_')) {
-                  const vId = val.replace('db_', '');
-                  setSelectedDbVersionId(vId);
-                  setSelectedPresetId('');
-                } else if (val.startsWith('preset_')) {
-                  const pId = val.replace('preset_', '');
-                  setSelectedPresetId(pId);
-                  setSelectedDbVersionId('');
-                }
-              }}
-              className="w-full bg-white border border-slate-300 rounded-xl p-3 text-slate-900 font-bold text-xs focus:ring-2 focus:ring-amber-500 focus:border-amber-600 shadow-2xs"
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+          {/* Searchable Dropdown for Perfume Formulas & Presets */}
+          <div className="md:col-span-2 relative" ref={dropdownRef}>
+            <label className="block text-slate-700 font-semibold mb-1.5">Perfume Formulation Version *</label>
+            
+            {/* Dropdown Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-left text-slate-900 font-bold focus:outline-none focus:border-emerald-600 flex justify-between items-center shadow-xs"
             >
-              {dbFormulas.length > 0 && (
-                <optgroup label="📂 Your Master Perfume Formulations (Database)">
-                  {dbFormulas.flatMap(f =>
-                    (f.versions || []).map(v => (
-                      <option key={`db_${v.id}`} value={`db_${v.id}`}>
-                        {f.code} — {f.name} (V{v.major_version}.{v.minor_version} • {v.version_status})
-                      </option>
+              <div className="truncate pr-2">
+                {selectedOption ? (
+                  <span className="text-slate-900 font-extrabold flex items-center gap-1.5 truncate">
+                    <span className="truncate">{selectedOption.formulaName}</span>
+                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded shrink-0 ${
+                      selectedOption.isPreset
+                        ? 'bg-purple-100 text-purple-800'
+                        : selectedOption.status === 'APPROVED'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {selectedOption.isPreset ? 'PRESET' : `${selectedOption.versionStr} ${selectedOption.status}`}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-medium">-- Select Perfume Formulation Version --</span>
+                )}
+              </div>
+              <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Interactive Searchable Dropdown Panel */}
+            {dropdownOpen && (
+              <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-300 rounded-xl shadow-xl overflow-hidden p-2 space-y-2">
+                {/* Search Box */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="🔍 Search formula code, name, or version..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filtered Options List */}
+                <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100">
+                  {filteredOptions.length === 0 ? (
+                    <div className="p-3.5 text-center text-xs text-slate-400 font-medium">
+                      No matching perfume formulations found
+                    </div>
+                  ) : (
+                    filteredOptions.map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVersionId(opt.id);
+                          setDropdownOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className={`w-full text-left p-2.5 text-xs flex justify-between items-center transition ${
+                          String(selectedVersionId) === String(opt.id)
+                            ? 'bg-emerald-50 text-emerald-900 font-bold'
+                            : 'hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <div className="truncate pr-2">
+                          <div className="font-semibold text-slate-900 truncate">{opt.formulaName}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-mono text-[10px] text-slate-500">{opt.formulaCode}</span>
+                            <span className={`px-1.5 py-0.2 text-[9px] font-bold rounded ${
+                              opt.isPreset
+                                ? 'bg-purple-100 text-purple-800'
+                                : opt.status === 'APPROVED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {opt.isPreset ? 'STANDARD PRESET' : `${opt.versionStr} ${opt.status}`}
+                            </span>
+                            <span className="text-[10px] text-slate-400">({opt.categoryTag})</span>
+                          </div>
+                        </div>
+                        {String(selectedVersionId) === String(opt.id) && (
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />
+                        )}
+                      </button>
                     ))
                   )}
-                </optgroup>
-              )}
-              <optgroup label="📋 Standard System Presets / Templates">
-                {PERFUME_PRESETS.map(p => (
-                  <option key={`preset_${p.id}`} value={`preset_${p.id}`}>
-                    Preset: {p.name}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <p className="text-[11px] text-slate-500">
-              Piliin ang inyong saved perfume formula mula sa database (Approved o Draft) o pumili sa standard presets.
-            </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Target Batch Size & Loss */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1.5">Target Batch Weight (kg) *</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={targetBatchWeightKg}
-                  onChange={e => setTargetBatchWeightKg(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-emerald-800 font-mono font-extrabold text-sm focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+          {/* Target Batch Quantity */}
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1.5">Target Batch Quantity *</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              value={targetBatchQty}
+              onChange={e => setTargetBatchQty(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold focus:outline-none focus:border-emerald-600"
+            />
+          </div>
 
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1.5">Process Loss Allowance (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="10"
-                  value={processLossPct}
-                  onChange={e => setProcessLossPct(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-amber-800 font-mono font-bold text-sm focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
-
-            {/* Quick Weight Preset Buttons */}
-            <div>
-              <span className="text-[11px] text-slate-500 font-semibold block mb-1.5">Quick Target Weight Presets:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {[1, 5, 10, 25, 50, 100, 250, 500, 1000].map(kg => (
-                  <button
-                    key={kg}
-                    type="button"
-                    onClick={() => handlePresetWeightClick(kg)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold border transition ${
-                      parseFloat(targetBatchWeightKg) === kg
-                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
-                        : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                    }`}
-                  >
-                    {kg} kg
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Target UOM */}
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1.5">Target UOM *</label>
+            <select
+              value={targetUom}
+              onChange={e => setTargetUom(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:outline-none focus:border-emerald-600"
+            >
+              <option value="kg">kg (Kilograms)</option>
+              <option value="g">g (Grams)</option>
+            </select>
           </div>
         </div>
-      </div>
 
-      {/* Live Scaled Results & Financial Summary */}
-      {scaledResult && (
-        <div className="space-y-6">
-          {/* Summary KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-              <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
-                <Scale className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Target Batch Weight</span>
-                <span className="font-mono text-base font-extrabold text-slate-900">
-                  {scaledResult.targetKg.toLocaleString('en-US', { minimumFractionDigits: 2 })} kg
-                </span>
-                <span className="text-[10px] text-slate-500 block font-mono">({scaledResult.targetGrams.toLocaleString('en-US')} grams)</span>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-              <div className="p-3 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Estimated Batch Cost</span>
-                <span className="font-mono text-base font-extrabold text-blue-900">
-                  PHP {scaledResult.totalBatchCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="text-[10px] text-blue-600 block font-mono">Total Material Line Costs</span>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-              <div className="p-3 bg-amber-50 text-amber-700 rounded-xl border border-amber-100">
-                <FlaskConical className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Unit Cost / Kilogram</span>
-                <span className="font-mono text-base font-extrabold text-amber-900">
-                  PHP {scaledResult.costPerKg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / kg
-                </span>
-                <span className="text-[10px] text-amber-700 block font-mono">Compounding Unit Rate</span>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-              <div className="p-3 bg-purple-50 text-purple-700 rounded-xl border border-purple-100">
-                <Droplet className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Est. Cost / 100ml Bottle</span>
-                <span className="font-mono text-base font-extrabold text-purple-900">
-                  PHP {scaledResult.costPer100ml.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="text-[10px] text-purple-600 block font-mono">Raw Liquid Cost / Unit</span>
-              </div>
+        {/* Process Loss Allowance & Quick Presets Row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-medium">Quick Target Batch Presets:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {[1, 5, 10, 25, 50, 100, 250, 500].map(kg => (
+                <button
+                  key={kg}
+                  type="button"
+                  onClick={() => handlePresetWeightClick(kg, 'kg')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition ${
+                    parseFloat(targetBatchQty) === kg && targetUom === 'kg'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {kg} kg
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Scaled Material Addition Table */}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-600 font-semibold whitespace-nowrap">Process Loss Allowance (%):</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="10"
+              value={processLossPct}
+              onChange={e => setProcessLossPct(e.target.value)}
+              className="w-20 bg-white border border-slate-300 rounded-lg p-1.5 text-center font-mono font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition"
+        >
+          <Calculator className="w-4 h-4" /> {loading ? 'Scaling Perfume Batch...' : 'Generate Batch Sheet'}
+        </button>
+      </form>
+
+      {/* Scaled Batch Costing Breakdown & Document Preview */}
+      {batchResult && (
+        <div className="space-y-6">
+          {/* Scaled Batch Financial & Costing Breakdown Card */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-emerald-600" /> Scaled Raw Material Additions & Compounding Ratios
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-600" /> Scaled Batch Financial & Costing Summary
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Compounding Batch Code: <span className="font-mono font-bold text-emerald-800">{scaledResult.compoundingCode}</span> | Formula: <span className="font-bold text-slate-800">{scaledResult.formulaName}</span>
+                  Costing calculation for <span className="font-bold text-emerald-700">{Number(batchResult.target_batch_qty).toLocaleString('en-US')} {batchResult.target_uom}</span> target batch
                 </p>
               </div>
-
-              <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold font-mono">
-                Process Loss: {scaledResult.lossPct.toFixed(2)}%
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl text-right">
+                  <span className="text-[10px] text-emerald-800 uppercase font-bold block">Total Batch Cost</span>
+                  <span className="font-mono text-base font-extrabold text-emerald-900">
+                    PHP {totalCostNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-left text-xs text-slate-800">
-                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase">
+            {/* Financial KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Batch Weight</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {Number(batchResult.target_batch_qty).toLocaleString('en-US')} {batchResult.target_uom}
+                </span>
+                <span className="text-[10px] text-slate-500 block font-mono">
+                  ({totalWeightGrams.toLocaleString('en-US')} g)
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Unit Cost (PHP / Gram)</span>
+                <span className="font-mono font-bold text-emerald-700 text-sm">
+                  PHP {costPerGram.toFixed(4)} / g
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Unit Cost (PHP / Kilogram)</span>
+                <span className="font-mono font-bold text-indigo-700 text-sm">
+                  PHP {costPerKg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / kg
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block font-medium">Est. Cost / 100ml Bottle</span>
+                <span className="font-mono font-bold text-purple-700 text-sm">
+                  PHP {costPer100mlBottle.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span className="text-[10px] text-purple-600 block font-mono">
+                  (~85g liquid / unit)
+                </span>
+              </div>
+            </div>
+
+            {/* Material Line Costing Table */}
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase">
                   <tr>
-                    <th className="p-3">Phase / Addition Step</th>
-                    <th className="p-3">Material Code</th>
-                    <th className="p-3">Raw Material Name</th>
-                    <th className="p-3 w-28 text-right">Formula %</th>
-                    <th className="p-3 text-right">Addition Weight (kg)</th>
-                    <th className="p-3 text-right">Addition Weight (g)</th>
-                    <th className="p-3 text-right">Unit Cost (PHP/g)</th>
-                    <th className="p-3 text-right">Scaled Cost (PHP)</th>
+                    <th className="p-2.5">Phase</th>
+                    <th className="p-2.5">Raw Material</th>
+                    <th className="p-2.5 text-right">Unit Cost (PHP/g)</th>
+                    <th className="p-2.5">Percentage (%)</th>
+                    <th className="p-2.5 text-right">Scaled Weight ({batchResult.target_uom})</th>
+                    <th className="p-2.5 text-right">Scaled Line Cost (PHP)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {scaledResult.items.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition">
-                      <td className="p-3 font-semibold text-slate-800">{item.phase}</td>
-                      <td className="p-3 font-mono font-bold text-amber-700">{item.code}</td>
-                      <td className="p-3 font-bold text-slate-900">{item.name}</td>
-                      <td className="p-3 text-right font-mono font-bold text-indigo-700">{item.percentage.toFixed(2)}%</td>
-                      <td className="p-3 text-right font-mono font-extrabold text-emerald-800 bg-emerald-50/40">
-                        {item.scaledKg.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {(batchResult.items || []).map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50">
+                      <td className="p-2.5 font-semibold text-slate-800">{item.phase_name || 'Phase A - Solvents & Base'}</td>
+                      <td className="p-2.5 font-medium text-slate-900">{item.material_name_snapshot}</td>
+                      <td className="p-2.5 text-right font-mono text-slate-600">PHP {Number(item.unit_cost_g || 0).toFixed(2)}</td>
+                      <td className="p-2.5 font-mono font-bold text-indigo-700">{Number(item.percentage || 0).toFixed(2)}%</td>
+                      <td className="p-2.5 text-right font-mono text-emerald-800 font-bold">
+                        {Number(item.scaled_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom}
                       </td>
-                      <td className="p-3 text-right font-mono font-bold text-slate-900">
-                        {item.scaledGrams.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
-                      </td>
-                      <td className="p-3 text-right font-mono text-slate-600">
-                        PHP {item.unitCostG.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-right font-mono font-extrabold text-blue-900">
-                        PHP {item.lineCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <td className="p-2.5 text-right font-mono text-blue-800 font-bold">
+                        PHP {Number(item.line_cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
-                </tbody>
-                <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300 text-xs text-slate-900">
-                  <tr>
-                    <td colSpan="3" className="p-3 uppercase tracking-wider text-slate-800 font-black">
-                      Total Compounding Batch Requirement:
+                  {/* Total Costing Summary Row */}
+                  <tr className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+                    <td colSpan="3" className="p-2.5 uppercase tracking-wider font-extrabold text-slate-800">
+                      Total Scaled Batch Costing Summary:
                     </td>
-                    <td className="p-3 text-right font-mono font-extrabold text-indigo-900 text-sm">
-                      {scaledResult.totalPct.toFixed(2)}%
+                    <td className="p-2.5 font-mono text-indigo-700 font-black">
+                      {(Math.round(((batchResult.items || []).reduce((acc, i) => acc + (parseFloat(i.percentage) || 0), 0) + Number.EPSILON) * 100) / 100).toFixed(2)}%
                     </td>
-                    <td className="p-3 text-right font-mono font-black text-emerald-900 text-sm bg-emerald-100/50">
-                      {scaledResult.totalScaledKg.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
+                    <td className="p-2.5 text-right font-mono text-emerald-900 font-extrabold text-sm">
+                      {Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom}
                     </td>
-                    <td className="p-3 text-right font-mono font-extrabold text-slate-900 text-sm">
-                      {scaledResult.totalScaledGrams.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} g
-                    </td>
-                    <td className="p-3 text-right font-mono text-slate-600">---</td>
-                    <td className="p-3 text-right font-mono font-black text-blue-950 text-sm">
-                      PHP {scaledResult.totalBatchCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <td className="p-2.5 text-right font-mono text-blue-900 font-black text-sm">
+                      PHP {totalCostNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
-                </tfoot>
+                </tbody>
               </table>
             </div>
+          </div>
 
-            {/* Perfume Compounding Instructions Protocol Card */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
-              <h4 className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                <Droplet className="w-4 h-4 text-blue-600" /> Standard Operating Procedure (Perfume Compounding Protocol)
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="bg-white p-3 rounded-lg border border-slate-200">
-                  <span className="font-bold text-amber-800 block text-[11px] mb-1">Step 1: Solvents & Base (Phase A)</span>
-                  <p className="text-slate-600 text-[11px]">Charge Ethyl Alcohol and Procol into mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</p>
+          {/* Production Sheet Document Preview Box (ExcelProductionSheetTable Standard) */}
+          <div className="bg-white p-8 rounded-2xl border border-slate-300 shadow-md space-y-6 text-slate-900">
+            {/* Header Controls Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+              <div>
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 uppercase">
+                  Official Production Sheet Standard
+                </span>
+                <h2 className="text-base font-extrabold text-slate-900 mt-1">
+                  {batchResult.formula_code} — {batchResult.formula_name}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {batchResult.production_batch_id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof setSelectedBatchId === 'function') {
+                        setSelectedBatchId(batchResult.production_batch_id);
+                      }
+                      if (typeof setCurrentPage === 'function') {
+                        setCurrentPage('operator-compounding-screen');
+                      }
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+                    title="Open batch directly in Operator Compounding Station"
+                  >
+                    <Play className="w-4 h-4" /> Start Compounding Execution
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handlePrintPdf}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+                >
+                  <Printer className="w-4 h-4" /> Save / Export PDF
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Document Box */}
+            <div className="border border-slate-300 p-8 rounded-xl bg-white space-y-6 font-sans">
+              {/* Document Header */}
+              <div className="text-center space-y-1">
+                <h1 className="text-xl font-extrabold tracking-tight text-slate-900">NKB Manufacturing Corporation</h1>
+                <h2 className="text-sm font-extrabold tracking-widest text-slate-900 uppercase">PERFUME PRODUCTION SHEET</h2>
+              </div>
+
+              {/* Meta Section */}
+              <div className="flex justify-between items-start text-xs border-b border-slate-200 pb-4">
+                <div className="space-y-1">
+                  <div>
+                    <span className="font-bold text-slate-900">Compounding Number:</span>{' '}
+                    <span className="font-mono font-extrabold text-emerald-700">
+                      {batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-0001')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Target Quantity:</span>{' '}
+                    <span className="font-mono font-bold text-emerald-700">
+                      {Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom?.toUpperCase() || 'KG'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Formulation:</span> {batchResult.formula_name?.toUpperCase()}
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Version:</span> V{batchResult.version || '1.0'}
+                  </div>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-slate-200">
-                  <span className="font-bold text-purple-800 block text-[11px] mb-1">Step 2: Fragrance Premix (Phase B)</span>
-                  <p className="text-slate-600 text-[11px]">Premix Parfum oil with Peg-40 solubilizer in premix tank until clear. Slowly incorporate into Phase A.</p>
+                <div className="space-y-1 text-right">
+                  <div>
+                    <span className="font-bold text-slate-900">Date:</span>{' '}
+                    {new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Prepared By:</span>{' '}
+                    {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.username || 'Norvin Bella')}
+                  </div>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-slate-200">
-                  <span className="font-bold text-emerald-800 block text-[11px] mb-1">Step 3: Fixative & Chilling (Phase C)</span>
-                  <p className="text-slate-600 text-[11px]">Add Fixative. Mix for 15 minutes. Chill at 4°C for 24-48h prior to fine filtration & maceration.</p>
+              </div>
+
+              {/* Production Sheet Table (Excel-style Editable with Col/Row Resizing & Auto-Save) */}
+              <ExcelProductionSheetTable
+                compoundingCode={batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-0001')}
+                batchResult={batchResult}
+                phaseKeys={phaseKeys}
+                phaseMap={phaseMap}
+                onLayoutChange={setCurrentSheetLayout}
+              />
+
+              {/* Quality Parameters & Specifications Table */}
+              <div className="space-y-1.5 pt-1">
+                <div className="font-extrabold text-slate-900 text-xs tracking-wider uppercase">QUALITY PARAMETERS & SPECIFICATIONS:</div>
+                <div className="overflow-x-auto border border-slate-300 rounded">
+                  <table className="w-full text-left text-xs">
+                    <tbody className="divide-y divide-slate-200">
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target pH Range:</td>
+                        <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.target_ph || '5.8 - 6.2'}</td>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Actual pH:</td>
+                        <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.actual_ph || '[ ________ ]'}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Chilling Temp & Time:</td>
+                        <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.chilling_temp_c || '4°C (24-48 Hours)'}</td>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Appearance & Clarity:</td>
+                        <td className="p-2 text-slate-900 w-1/4">{batchResult.categoryDetails?.appearance || 'Clear, transparent liquid'}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Maceration / Aging Remarks:</td>
+                        <td className="p-2 text-slate-900" colSpan="3">
+                          {batchResult.categoryDetails?.remarks || 'Macerate for minimum 14-30 days in sealed stainless steel drum at ambient room temperature.'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Notes / Instructions Section */}
+              <div className="text-xs space-y-1 pt-2">
+                <div className="font-extrabold text-slate-900 uppercase">NOTES / INSTRUCTIONS:</div>
+                <div className="text-slate-700 flex items-center gap-1.5">
+                  <span className="text-[10px]">◆</span> Follow step order strictly: Phase A (Solvents & Humectants) → Phase B (Fragrance Premix) → Phase C (Fixative & Aging).
+                </div>
+                <div className="text-slate-700 flex items-center gap-1.5">
+                  <span className="text-[10px]">◆</span> Verify all raw material tare and net weights before addition.
+                </div>
+                <div className="text-slate-700 flex items-center gap-1.5">
+                  <span className="text-[10px]">◆</span> Record lot numbers and transfer batch to chilling chamber (4°C) for stabilization prior to final filtration.
+                </div>
+              </div>
+
+              {/* Signatures Section */}
+              <div className="grid grid-cols-3 gap-6 pt-8 text-xs text-center">
+                <div>
+                  <div className="text-left text-slate-600 mb-6">Prepared by:</div>
+                  <div className="font-bold text-slate-900 text-xs mb-1">
+                    {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.username || 'Norvin Bella')}
+                  </div>
+                  <div className="border-b-2 border-slate-900 w-full mb-1"></div>
+                  <div className="text-[11px] text-slate-500">Formulator Signature</div>
+                </div>
+                <div>
+                  <div className="text-left text-slate-600 mb-6">Checked by:</div>
+                  <div className="font-bold text-slate-900 text-xs mb-1">&nbsp;</div>
+                  <div className="border-b-2 border-slate-900 w-full mb-1"></div>
+                  <div className="text-[11px] text-slate-500">QC Chemist Signature</div>
+                </div>
+                <div>
+                  <div className="text-left text-slate-600 mb-6">Completed by:</div>
+                  <div className="font-bold text-slate-900 text-xs mb-1">&nbsp;</div>
+                  <div className="border-b-2 border-slate-900 w-full mb-1"></div>
+                  <div className="text-[11px] text-slate-500">Production Operator & Date</div>
                 </div>
               </div>
             </div>
@@ -651,3 +997,5 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
     </div>
   );
 }
+
+export default PerfumeBatchCalculator;
