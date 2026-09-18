@@ -515,6 +515,32 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
     }
   };
 
+  const handleDeleteFormulaFromList = async (item, e) => {
+    if (e) e.stopPropagation();
+    if (!item?.formulaId) return;
+    const confirmed = window.confirm(`Are you sure you want to delete Perfume Formula ${item.formulaCode} (${item.formulaName})?\n\nThis will permanently delete the formula and all its versions.`);
+    if (!confirmed) return;
+
+    try {
+      const res = await apiFetch(`/api/v1/formulas/${item.formulaId}`, {
+        method: 'DELETE',
+      });
+      const d = await res.json();
+      if (d.success) {
+        alert(`Perfume formula ${item.formulaCode} deleted successfully.`);
+        if (activeVersion && activeVersion.formula_id === item.formulaId) {
+          setActiveVersion(null);
+          setSelectedVersionId(null);
+        }
+        await fetchFormulas();
+      } else {
+        alert(`Delete Error: ${d.message}`);
+      }
+    } catch (err) {
+      alert(`Delete Error: ${err.message}`);
+    }
+  };
+
   const handleOpenRenameModal = () => {
     if (!activeVersion) return;
     setEditName(activeVersion.formula_name || '');
@@ -830,16 +856,27 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="p-3.5 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectFormula(item.versionId);
-                          }}
-                          className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold text-xs transition inline-flex items-center gap-1.5 shadow-xs"
-                        >
-                          <span>Open Formulation</span>
-                          <span>→</span>
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectFormula(item.versionId);
+                            }}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold text-xs transition inline-flex items-center gap-1.5 shadow-xs"
+                            title="Edit Formulation"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteFormulaFromList(item, e)}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold text-xs transition inline-flex items-center gap-1.5 border border-rose-200 shadow-xs hover:border-rose-300"
+                            title="Delete Formula"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
