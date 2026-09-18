@@ -456,28 +456,6 @@ export function Sidebar({ currentPage, setCurrentPage }) {
                       <span>Perfume Workspace</span>
                     </button>
                     <button
-                      onClick={() => setCurrentPage('formulation-perfume-no-brand')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
-                        isCurrent('formulation-perfume-no-brand')
-                          ? 'bg-slate-800 text-blue-400 font-semibold'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Perfume – No Brand</span>
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage('formulation-perfume-brand')}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
-                        isCurrent('formulation-perfume-brand')
-                          ? 'bg-slate-800 text-blue-400 font-semibold'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <FlaskConical className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Perfume – Brand</span>
-                    </button>
-                    <button
                       onClick={() => setCurrentPage('create-formula')}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors text-xs ${
                         isCurrent('create-formula')
@@ -796,9 +774,9 @@ export function Sidebar({ currentPage, setCurrentPage }) {
 
             {/* Tab 3: Formulations Workspace / Compounding Screen */}
             <button
-              onClick={() => handleMobileNav(isOperator ? 'operator-compounding-screen' : (isPerfumeUser ? 'formulation-perfume-no-brand' : 'formulation-cosmetic'))}
+              onClick={() => handleMobileNav(isOperator ? 'operator-compounding-screen' : (isPerfumeUser ? 'formulation-perfume-workspace' : 'formulation-cosmetic'))}
               className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl transition ${
-                isCurrent('formulation-cosmetic') || isCurrent('formulation-perfume-no-brand') || isCurrent('operator-compounding-screen') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                isCurrent('formulation-cosmetic') || isCurrent('formulation-perfume-workspace') || isCurrent('operator-compounding-screen') ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               {isOperator ? <Play className="w-5 h-5" /> : <FlaskConical className="w-5 h-5" />}

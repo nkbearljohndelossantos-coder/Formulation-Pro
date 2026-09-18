@@ -66,7 +66,7 @@ export function App() {
       } else if (isPurchasing) {
         setCurrentPage('purchasing-tickets');
       } else if (isPerfumeUser) {
-        setCurrentPage('formulation-perfume-no-brand');
+        setCurrentPage('formulation-perfume-workspace');
       } else if (user.role === 'Formulation Chemist') {
         setCurrentPage('create-formula');
       } else {
