@@ -92,7 +92,8 @@ export async function printProductionSheet({
   user,
   copies: requestedCopies,
   layoutConfig,
-  isPerfume: explicitIsPerfume
+  isPerfume: explicitIsPerfume,
+  brandName: explicitBrandName
 }) {
   if (!version) {
     alert('Invalid formula version selected.');
@@ -110,7 +111,8 @@ export async function printProductionSheet({
         user,
         copies: selectedCopies,
         layoutConfig,
-        isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume
+        isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume,
+        brandName: explicitBrandName || version?.brandName || formula?.brandName
       });
     });
     return;
@@ -135,11 +137,12 @@ export async function printProductionSheet({
 
   const formulaCode = formula?.code || version?.formula_code || '';
   const formulaName = (formula?.name || version?.formula_name || 'Cosmetic Formulation').toUpperCase();
+  const brandName = (explicitBrandName || version?.brandName || formula?.brandName || '').trim();
   let versionNum = version?.version || `${version?.major_version || 1}.${version?.minor_version || 0}`;
   if (!String(versionNum).toLowerCase().startsWith('v')) {
     versionNum = `V${versionNum}`;
   }
-  const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
+  const defaultPdfFilename = `${brandName ? `${brandName} - ` : ''}${formulaName} ${versionNum}`.trim();
 
   const isPerfume = Boolean(
     explicitIsPerfume ||
@@ -442,6 +445,7 @@ export async function printProductionSheet({
         <div class="doc-header">
           <h1>NKB Manufacturing Corporation</h1>
           <h2>${isPerfume ? 'PERFUME PRODUCTION SHEET' : 'PRODUCTION SHEET'} ${copyBadgeLabel}</h2>
+          ${isPerfume && brandName ? `<div style="font-size: 13px; font-weight: 800; color: #047857; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px;">BRAND: ${brandName}</div>` : ''}
         </div>
 
         <!-- Meta Info -->
@@ -453,6 +457,7 @@ export async function printProductionSheet({
             <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
           </div>
           <div class="meta-col-right">
+            ${isPerfume && brandName ? `<div class="meta-line"><span class="meta-bold">Brand Name:</span> <span style="font-weight: 800; color: #047857; text-transform: uppercase;">${brandName}</span></div>` : ''}
             <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
             <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>
             <div class="meta-line"><span class="meta-bold">Prepared By:</span> ${preparedByName}</div>
