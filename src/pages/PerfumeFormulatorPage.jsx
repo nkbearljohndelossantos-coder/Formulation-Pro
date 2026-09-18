@@ -130,12 +130,11 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
   // Create Formula Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newFormulaData, setNewFormulaData] = useState({
-    name: 'Perfume Brand Formula (Without Water)',
+    name: '',
     category: 'Perfume Brand',
     product_subcategory: 'Eau de Parfum (Concentrated)',
     targetBatchSize: '100.00',
     targetBatchUom: 'kg',
-    presetId: 'brand-without-water',
   });
 
   // Perfume Quality & Aging Details State (Matches Cosmetic Details Card)
@@ -628,7 +627,8 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
       }
 
       const versionId = data1.versionId || data1.data?.version_id;
-      const preset = PERFUME_PRESETS.find(p => p.id === newFormulaData.presetId) || PERFUME_PRESETS[0];
+      const isNoBrand = (newFormulaData.category || '').toLowerCase().includes('no-brand');
+      const preset = PERFUME_PRESETS.find(p => p.id === (isNoBrand ? 'nobrand-without-water' : 'brand-without-water')) || PERFUME_PRESETS[0];
 
       const initialMaterials = preset.items.map((it, idx) => ({
         material_id: idx + 1,
@@ -1408,29 +1408,6 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                     <option value="Body Mist / Cologne">Body Mist / Cologne</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Select Base Ratio Template *</label>
-                <select
-                  value={newFormulaData.presetId}
-                  onChange={e => {
-                    const pid = e.target.value;
-                    const preset = PERFUME_PRESETS.find(p => p.id === pid);
-                    setNewFormulaData({
-                      ...newFormulaData,
-                      presetId: pid,
-                      name: preset ? preset.name : newFormulaData.name,
-                      category: preset ? preset.category : newFormulaData.category,
-                    });
-                  }}
-                  className="w-full bg-amber-50 border border-amber-300 rounded-lg p-2.5 text-amber-950 font-bold"
-                >
-                  <option value="brand-without-water">🌸 Perfume Brand — Without Water (80% Ethyl, 14% Parfum)</option>
-                  <option value="brand-with-water">🌸 Perfume Brand — With Water (68% Ethyl, 14% Parfum, 12% Water)</option>
-                  <option value="nobrand-without-water">🧪 Perfume No-Brand — Without Water (85% Ethyl, 9% Parfum)</option>
-                  <option value="nobrand-with-water">🧪 Perfume No-Brand — With Water (68% Ethyl, 14% Parfum, 12% Water)</option>
-                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
