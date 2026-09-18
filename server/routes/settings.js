@@ -1,5 +1,6 @@
 import { express } from '../cjsRequire.js';
 import db from '../db.js';
+import crypto from 'crypto';
 import { authenticateToken, requireRoles } from '../middleware/auth.js';
 import { logAudit } from '../middleware/audit.js';
 
@@ -145,6 +146,108 @@ router.put('/sheet-layout/:code', authenticateToken, async (req, res) => {
     return res.json({ success: true, message: 'Sheet layout updated successfully.', layout });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to update sheet layout.', error: err.message });
+  }
+});
+
+// GET /api/v1/settings/inventory-api-key - Retrieve or initialize Inventory Formulation API Key
+router.get('/inventory-api-key', authenticateToken, async (req, res) => {
+  try {
+    let keySetting = await db('system_settings').where({ key: 'inventory_api_key' }).first();
+    let enabledSetting = await db('system_settings').where({ key: 'inventory_api_enabled' }).first();
+
+    if (!keySetting || !keySetting.value) {
+      // Auto-generate default API Key
+      const newKey = `nkb_inv_live_${crypto.randomBytes(16).toString('hex')}`;
+      if (keySetting) {
+        await db('system_settings').where({ key: 'inventory_api_key' }).update({ value: newKey, updated_at: db.fn.now() });
+      } else {
+        await db('system_settings').insert({
+          key: 'inventory_api_key',
+          value: newKey,
+          description: 'API Key for External Inventory Formulation Raw Materials Access'
+        });
+      }
+      keySetting = { value: newKey, updated_at: new Date() };
+    }
+
+    if (!enabledSetting) {
+      await db('system_settings').insert({
+        key: 'inventory_api_enabled',
+        value: 'true',
+        description: 'Toggle for External Inventory Formulation API access'
+      });
+      enabledSetting = { value: 'true' };
+    }
+
+    return res.json({
+      success: true,
+      apiKey: keySetting.value,
+      isEnabled: enabledSetting.value === 'true' || enabledSetting.value === '1',
+      lastUpdated: keySetting.updated_at
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch inventory API key.', error: err.message });
+  }
+});
+
+// POST /api/v1/settings/generate-inventory-api-key - Regenerate a fresh secure Inventory API Key
+router.post('/generate-inventory-api-key', authenticateToken, async (req, res) => {
+  try {
+    const newKey = `nkb_inv_live_${crypto.randomBytes(16).toString('hex')}`;
+    const existing = await db('system_settings').where({ key: 'inventory_api_key' }).first();
+
+    if (existing) {
+      await db('system_settings').where({ key: 'inventory_api_key' }).update({
+        value: newKey,
+        updated_at: db.fn.now()
+      });
+    } else {
+      await db('system_settings').insert({
+        key: 'inventory_api_key',
+        value: newKey,
+        description: 'API Key for External Inventory Formulation Raw Materials Access'
+      });
+    }
+
+    await logAudit(req, 'REGENERATE_INVENTORY_API_KEY', 'SystemSettings', null, null, { action: 'regenerate_api_key' });
+
+    return res.json({
+      success: true,
+      message: 'New Inventory API Key generated successfully.',
+      apiKey: newKey
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to generate inventory API key.', error: err.message });
+  }
+});
+
+// PUT /api/v1/settings/inventory-api-status - Toggle Inventory API Enabled/Disabled
+router.put('/inventory-api-status', authenticateToken, async (req, res) => {
+  try {
+    const { isEnabled } = req.body;
+    const strVal = isEnabled ? 'true' : 'false';
+    const existing = await db('system_settings').where({ key: 'inventory_api_enabled' }).first();
+
+    if (existing) {
+      await db('system_settings').where({ key: 'inventory_api_enabled' }).update({
+        value: strVal,
+        updated_at: db.fn.now()
+      });
+    } else {
+      await db('system_settings').insert({
+        key: 'inventory_api_enabled',
+        value: strVal,
+        description: 'Toggle for External Inventory Formulation API access'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `Inventory API is now ${isEnabled ? 'ENABLED' : 'DISABLED'}.`,
+      isEnabled: Boolean(isEnabled)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to update inventory API status.', error: err.message });
   }
 });
 
