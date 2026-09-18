@@ -12,6 +12,12 @@ import {
 
 export function PerfumeWorkspacePage({ setCurrentPage, setSelectedBatchId }) {
   const [activeTab, setActiveTab] = useState('formulator'); // 'formulator', 'batch-calculator', 'maceration'
+  const [selectedVersionId, setSelectedVersionId] = useState(null);
+
+  const handleNavigateToBatch = (vId) => {
+    if (vId) setSelectedVersionId(vId);
+    setActiveTab('batch-calculator');
+  };
 
   // Maceration & Aging Tracker State
   const [macerationLogs, setMacerationLogs] = useState([
@@ -97,14 +103,24 @@ export function PerfumeWorkspacePage({ setCurrentPage, setSelectedBatchId }) {
       {/* TAB 1: PERFUME FORMULATOR (COSMETICS-STYLE PHASE WORKSPACE) */}
       {activeTab === 'formulator' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <PerfumeFormulatorPage setCurrentPage={setCurrentPage} defaultBrandFilter="ALL" />
+          <PerfumeFormulatorPage
+            setCurrentPage={setCurrentPage}
+            defaultBrandFilter="ALL"
+            onNavigateToBatch={handleNavigateToBatch}
+            onSelectVersion={setSelectedVersionId}
+            initialVersionId={selectedVersionId}
+          />
         </div>
       )}
 
       {/* TAB 2: PERFUME BATCH CALCULATOR */}
       {activeTab === 'batch-calculator' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <PerfumeBatchCalculator setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />
+          <PerfumeBatchCalculator
+            setCurrentPage={setCurrentPage}
+            setSelectedBatchId={setSelectedBatchId}
+            initialVersionId={selectedVersionId}
+          />
         </div>
       )}
 

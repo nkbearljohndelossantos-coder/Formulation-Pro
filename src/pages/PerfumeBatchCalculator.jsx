@@ -78,11 +78,13 @@ const PERFUME_PRESETS = [
   }
 ];
 
-export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
+export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, initialVersionId }) {
   const { user } = useAuth();
   const [selectedPresetId, setSelectedPresetId] = useState('brand-without-water');
   const [dbFormulas, setDbFormulas] = useState([]);
-  const [selectedDbVersionId, setSelectedDbVersionId] = useState('');
+  const [selectedDbVersionId, setSelectedDbVersionId] = useState(initialVersionId ? String(initialVersionId) : '');
+  const [loadedDbVersionData, setLoadedDbVersionData] = useState(null);
+  const [loadingFormula, setLoadingFormula] = useState(false);
   
   // Scaling Parameters
   const [targetBatchWeightKg, setTargetBatchWeightKg] = useState('50.00');
@@ -91,27 +93,71 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
   const [scaledResult, setScaledResult] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // Load backend database approved perfume formulas
+  // Sync initialVersionId if passed from parent
+  useEffect(() => {
+    if (initialVersionId) {
+      setSelectedDbVersionId(String(initialVersionId));
+      setSelectedPresetId('');
+    }
+  }, [initialVersionId]);
+
+  // Load backend database perfume formulas
   useEffect(() => {
     apiFetch('/api/v1/formulas')
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.data)) {
-          const perf = d.data.filter(f =>
-            (f.product_category || '').toLowerCase().includes('perfume') ||
-            (f.formula_type || '').toLowerCase().includes('perfume') ||
-            (f.category || '').toLowerCase().includes('perfume')
-          );
+          const perf = d.data.filter(f => {
+            const cat = (f.product_category || '').toLowerCase();
+            const type = (f.formula_type || '').toLowerCase();
+            const name = (f.name || '').toLowerCase();
+            const cat2 = (f.category || '').toLowerCase();
+            return cat.includes('perfume') || type.includes('perfume') || name.includes('perfume') || cat2.includes('perfume');
+          });
           setDbFormulas(perf);
+
+          // If no version is selected yet and we have custom formulas in the DB, select the first one!
+          if (!selectedDbVersionId && !initialVersionId && perf.length > 0) {
+            const firstVer = perf[0].versions?.[0];
+            if (firstVer) {
+              setSelectedDbVersionId(String(firstVer.id));
+              setSelectedPresetId('');
+            }
+          }
         }
       })
       .catch(() => {});
-  }, []);
+  }, [initialVersionId]);
 
-  // Compute live scaling whenever preset, db formula, weight, or process loss changes
+  // Fetch full formula version details (including materials and phase items) whenever selectedDbVersionId changes
+  useEffect(() => {
+    if (!selectedDbVersionId) {
+      setLoadedDbVersionData(null);
+      return;
+    }
+    setLoadingFormula(true);
+    apiFetch(`/api/v1/formulas/versions/${selectedDbVersionId}`)
+      .then(r => r.json())
+      .then(d => {
+        setLoadingFormula(false);
+        if (d.success && d.data) {
+          setLoadedDbVersionData(d.data);
+          if (d.data.version?.target_batch_size) {
+            const sz = parseFloat(d.data.version.target_batch_size);
+            const uom = (d.data.version.target_batch_uom || 'kg').toLowerCase();
+            if (sz > 0) {
+              setTargetBatchWeightKg((uom === 'g') ? (sz / 1000).toFixed(2) : sz.toFixed(2));
+            }
+          }
+        }
+      })
+      .catch(() => setLoadingFormula(false));
+  }, [selectedDbVersionId]);
+
+  // Compute live scaling whenever formula, loaded materials, target batch size, or process loss changes
   useEffect(() => {
     calculateScaling();
-  }, [selectedPresetId, selectedDbVersionId, targetBatchWeightKg, processLossPct, dbFormulas]);
+  }, [selectedPresetId, selectedDbVersionId, loadedDbVersionData, targetBatchWeightKg, processLossPct]);
 
   const calculateScaling = () => {
     const targetKg = parseFloat(targetBatchWeightKg) || 0;
@@ -122,38 +168,35 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
     let formulaCode = '';
     let items = [];
 
-    if (selectedDbVersionId) {
-      // Find selected DB formula version
-      let foundVersion = null;
-      let foundFormula = null;
-      for (const f of dbFormulas) {
-        for (const v of f.versions || []) {
-          if (String(v.id) === String(selectedDbVersionId)) {
-            foundVersion = v;
-            foundFormula = f;
-            break;
-          }
-        }
-        if (foundVersion) break;
-      }
+    // 1. If a Database Formula Version is selected and loaded, use its REAL materials and specs
+    if (selectedDbVersionId && loadedDbVersionData) {
+      const f = loadedDbVersionData.formula || {};
+      const v = loadedDbVersionData.version || {};
+      const mats = loadedDbVersionData.materials || [];
 
-      if (foundVersion && foundFormula) {
-        formulaName = foundFormula.name;
-        formulaCode = foundFormula.code;
-        items = (foundVersion.materials || []).map(m => ({
-          name: m.material_name_snapshot || m.mat_name || m.name || 'Raw Material',
-          code: m.material_code_snapshot || m.mat_code || m.code || 'MAT-000',
+      formulaName = `${f.name || 'Perfume Formula'} (V${v.major_version ?? 1}.${v.minor_version ?? 0})`;
+      formulaCode = f.code || v.compounding_code || 'PRF-001';
+
+      items = mats.map(m => {
+        const rawCost = parseFloat(m.cost || m.current_cost || m.unit_cost_g || 0);
+        const uom = String(m.material_uom || m.uom || m.raw_uom || m.uom_snapshot || 'g').trim().toLowerCase();
+        const cost_g = (uom === 'kg') ? rawCost / 1000 : rawCost;
+
+        return {
+          name: m.material_name_snapshot || m.material_name || m.name || 'Raw Material',
+          code: m.material_code_snapshot || m.material_code || m.code || 'MAT-000',
           percentage: parseFloat(m.percentage) || 0,
           phase: m.phase_name || 'Phase A - Solvents & Base',
-          role: m.role || 'Ingredient',
-          cost_g: parseFloat(m.unit_cost_g || m.current_cost || 0)
-        }));
-      }
+          role: m.role || m.function_name || 'Ingredient',
+          cost_g: cost_g
+        };
+      });
     }
 
+    // 2. Fallback to standard preset if no DB version or items empty
     if (items.length === 0) {
-      // Fallback to selected preset formula
-      const preset = PERFUME_PRESETS.find(p => p.id === selectedPresetId) || PERFUME_PRESETS[0];
+      const presetId = selectedPresetId || 'brand-without-water';
+      const preset = PERFUME_PRESETS.find(p => p.id === presetId) || PERFUME_PRESETS[0];
       formulaName = preset.name;
       formulaCode = `PRF-${preset.id.toUpperCase()}`;
       items = preset.items;
@@ -206,7 +249,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
       };
     });
 
-    const cpCode = `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
+    const cpCode = loadedDbVersionData?.version?.compounding_code || `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
     const costPerKg = targetKg > 0 ? totalBatchCost / targetKg : 0;
     const costPer100ml = (costPerKg / 1000) * 85; // 85g approx weight per 100ml perfume bottle
 
@@ -238,12 +281,12 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
         compounding_code: scaledResult.compoundingCode,
         formula_code: scaledResult.formulaCode,
         formula_name: scaledResult.formulaName,
-        major_version: 1,
-        minor_version: 0,
+        major_version: loadedDbVersionData?.version?.major_version || 1,
+        minor_version: loadedDbVersionData?.version?.minor_version || 0,
         target_batch_size: scaledResult.targetKg,
         overrideBatchSize: scaledResult.targetKg,
         target_batch_uom: 'kg',
-        version_status: 'APPROVED',
+        version_status: loadedDbVersionData?.version?.version_status || 'APPROVED',
       },
       formula: {
         code: scaledResult.formulaCode,
@@ -256,6 +299,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
         percentage: i.percentage,
         supplier: 'NKB Approved Supplier'
       })),
+      categoryDetails: loadedDbVersionData?.categoryDetails,
       user
     });
   };
@@ -336,46 +380,62 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-          {/* Preset Standard Formula Dropdown */}
-          <div>
-            <label className="block text-slate-700 font-semibold mb-1.5">Standard Perfume Preset Formula *</label>
-            <select
-              value={selectedDbVersionId ? '' : selectedPresetId}
-              onChange={e => {
-                setSelectedPresetId(e.target.value);
-                setSelectedDbVersionId('');
-              }}
-              className="w-full bg-white border border-slate-300 rounded-xl p-3 text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 shadow-2xs"
-            >
-              {PERFUME_PRESETS.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <span className="text-[10px] text-slate-400 mt-1 block">Includes standard Ethyl, Parfum, Peg-40, Procol, Fixative & Water ratios.</span>
-          </div>
-
-          {/* DB Approved Formulas (If any) */}
-          <div>
-            <label className="block text-slate-700 font-semibold mb-1.5">Or Select Approved DB Perfume Formula</label>
-            <select
-              value={selectedDbVersionId}
-              onChange={e => setSelectedDbVersionId(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-xl p-3 text-emerald-800 font-bold focus:ring-2 focus:ring-emerald-500 shadow-2xs"
-            >
-              <option value="">-- Use Standard Preset Above --</option>
-              {dbFormulas.map(f =>
-                (f.versions || [])
-                  .filter(v => (v.version_status || '').toUpperCase() === 'APPROVED')
-                  .map(v => (
-                    <option key={v.id} value={v.id}>
-                      {f.code} — {f.name} (V{v.major_version}.{v.minor_version} APPROVED)
-                    </option>
-                  ))
+          {/* Unified Formula Selection Dropdown */}
+          <div className="md:col-span-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-slate-700 font-bold">
+                Select Perfume Formulation *
+              </label>
+              {loadingFormula && (
+                <span className="text-[11px] text-amber-700 font-semibold flex items-center gap-1 animate-pulse">
+                  <RefreshCw className="w-3 h-3 animate-spin" /> Loading formula materials...
+                </span>
               )}
+              {selectedDbVersionId && !loadingFormula && (
+                <span className="text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  ✓ Database Formula Active
+                </span>
+              )}
+            </div>
+
+            <select
+              value={selectedDbVersionId ? `db_${selectedDbVersionId}` : `preset_${selectedPresetId}`}
+              onChange={e => {
+                const val = e.target.value;
+                if (val.startsWith('db_')) {
+                  const vId = val.replace('db_', '');
+                  setSelectedDbVersionId(vId);
+                  setSelectedPresetId('');
+                } else if (val.startsWith('preset_')) {
+                  const pId = val.replace('preset_', '');
+                  setSelectedPresetId(pId);
+                  setSelectedDbVersionId('');
+                }
+              }}
+              className="w-full bg-white border border-slate-300 rounded-xl p-3 text-slate-900 font-bold text-xs focus:ring-2 focus:ring-amber-500 focus:border-amber-600 shadow-2xs"
+            >
+              {dbFormulas.length > 0 && (
+                <optgroup label="📂 Your Master Perfume Formulations (Database)">
+                  {dbFormulas.flatMap(f =>
+                    (f.versions || []).map(v => (
+                      <option key={`db_${v.id}`} value={`db_${v.id}`}>
+                        {f.code} — {f.name} (V{v.major_version}.{v.minor_version} • {v.version_status})
+                      </option>
+                    ))
+                  )}
+                </optgroup>
+              )}
+              <optgroup label="📋 Standard System Presets / Templates">
+                {PERFUME_PRESETS.map(p => (
+                  <option key={`preset_${p.id}`} value={`preset_${p.id}`}>
+                    Preset: {p.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
-            <span className="text-[10px] text-slate-400 mt-1 block">Lists custom saved and approved perfume formulas in system DB.</span>
+            <p className="text-[11px] text-slate-500">
+              Piliin ang inyong saved perfume formula mula sa database (Approved o Draft) o pumili sa standard presets.
+            </p>
           </div>
 
           {/* Target Batch Size & Loss */}

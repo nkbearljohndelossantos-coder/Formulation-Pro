@@ -31,6 +31,7 @@ import {
   Thermometer,
   Layers,
   X,
+  Calculator,
 } from 'lucide-react';
 
 function StatusBadge({ status }) {
@@ -109,7 +110,7 @@ const PERFUME_PRESETS = [
   },
 ];
 
-export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaultBrandFilter = 'ALL' }) {
+export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaultBrandFilter = 'ALL', onNavigateToBatch, onSelectVersion }) {
   const { user } = useAuth();
   const [formulas, setFormulas] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState(null);
@@ -248,6 +249,9 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
 
   const loadVersion = (versionId) => {
     setSelectedVersionId(versionId);
+    if (typeof onSelectVersion === 'function') {
+      onSelectVersion(versionId);
+    }
     apiFetch(`/api/v1/formulas/versions/${versionId}`)
       .then(res => res.json())
       .then(d => {
@@ -1085,6 +1089,20 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                     </select>
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof onNavigateToBatch === 'function') {
+                        onNavigateToBatch(activeVersion.id);
+                      } else if (typeof setCurrentPage === 'function') {
+                        setCurrentPage('batch-calculator');
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                    title="Scale this formula in Batch Calculator"
+                  >
+                    <Calculator className="w-3.5 h-3.5" /> Batch Calc
+                  </button>
                   <button onClick={async () => { const ok = await saveDraft(); if (ok) alert('Perfume draft saved successfully!'); }} disabled={saving} className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-slate-300">
                     <Save className="w-3.5 h-3.5 text-slate-600" /> {saving ? 'Saving...' : 'Save Draft'}
                   </button>
@@ -1105,6 +1123,20 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
               )}
               {isReadOnly && (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof onNavigateToBatch === 'function') {
+                        onNavigateToBatch(activeVersion.id);
+                      } else if (typeof setCurrentPage === 'function') {
+                        setCurrentPage('batch-calculator');
+                      }
+                    }}
+                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition"
+                    title="Scale batch weight for this formula in Batch Calculator"
+                  >
+                    <Calculator className="w-4 h-4" /> Scale in Batch Calculator
+                  </button>
                   <button
                     onClick={() => printProductionSheet({ version: activeVersion, formula: { code: activeVersion.formula_code, name: activeVersion.formula_name }, materials, categoryDetails: perfumeDetails, user })}
                     className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
