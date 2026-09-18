@@ -982,6 +982,27 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                 </div>
               </div>
 
+              {/* Standard Operating Procedure (Perfume Compounding Protocol) */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-2 text-xs">
+                <div className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                  <Droplet className="w-4 h-4 text-emerald-600" /> Standard Operating Procedure (Perfume Compounding Protocol)
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-bold text-amber-800 block text-[11px] mb-1">Step 1: Solvents & Base (Phase A)</span>
+                    <p className="text-slate-600 text-[11px]">Charge Ethyl Alcohol and Procol into mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-bold text-purple-800 block text-[11px] mb-1">Step 2: Fragrance Premix (Phase B)</span>
+                    <p className="text-slate-600 text-[11px]">Premix Parfum oil with Peg-40 solubilizer in premix tank until clear. Slowly incorporate into Phase A.</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-bold text-emerald-800 block text-[11px] mb-1">Step 3: Fixative & Chilling (Phase C)</span>
+                    <p className="text-slate-600 text-[11px]">Add Fixative. Mix for 15 minutes. Chill at 4°C for 24-48h prior to fine filtration & maceration.</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Notes / Instructions Section */}
               <div className="text-xs space-y-1 pt-2">
                 <div className="font-extrabold text-slate-900 uppercase">NOTES / INSTRUCTIONS:</div>

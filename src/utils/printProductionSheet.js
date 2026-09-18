@@ -554,6 +554,29 @@ export async function printProductionSheet({
           `}
         </div>
 
+        ${isPerfume ? `
+        <!-- Standard Operating Procedure (Perfume Compounding Protocol) -->
+        <div style="margin-top: 12px; margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 10px; background-color: #f8fafc;">
+          <div style="font-weight: 800; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.3px; color: #0f172a; text-transform: uppercase;">
+            STANDARD OPERATING PROCEDURE (PERFUME COMPOUNDING PROTOCOL):
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 10px; line-height: 1.35;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
+              <strong style="color: #92400e; display: block; margin-bottom: 3px; font-size: 10.5px;">Step 1: Solvents & Base (Phase A)</strong>
+              <div style="color: #334155;">Charge Ethyl Alcohol and Procol into mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</div>
+            </div>
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
+              <strong style="color: #6b21a8; display: block; margin-bottom: 3px; font-size: 10.5px;">Step 2: Fragrance Premix (Phase B)</strong>
+              <div style="color: #334155;">Premix Parfum oil with Peg-40 solubilizer in premix tank until clear. Slowly incorporate into Phase A.</div>
+            </div>
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
+              <strong style="color: #065f46; display: block; margin-bottom: 3px; font-size: 10.5px;">Step 3: Fixative & Chilling (Phase C)</strong>
+              <div style="color: #334155;">Add Fixative. Mix for 15 minutes. Chill at 4°C for 24–48h prior to fine filtration & maceration.</div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
         <!-- Notes / Instructions -->
         <div class="notes-container">
           <div class="notes-heading">NOTES / INSTRUCTIONS:</div>
