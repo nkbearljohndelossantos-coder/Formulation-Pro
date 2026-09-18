@@ -1093,42 +1093,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                           </div>
                         </td>
                       </tr>
-                      <tr>
-                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Chilling (4°C)</td>
-                        <td className="p-2.5 text-slate-600">4°C for 24–48 hours</td>
-                        <td className="p-2.5">
-                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                              <span>24 Hours</span>
-                            </label>
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                              <span>48 Hours</span>
-                            </label>
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                              <span>Not Done</span>
-                            </label>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Chilling Observation</td>
-                        <td className="p-2.5 text-slate-600">No visible precipitation, sediment, haze, or phase separation</td>
-                        <td className="p-2.5">
-                          <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                              <span>Clear / No Precipitation</span>
-                            </label>
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                              <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                              <span>With Sediments / Haze</span>
-                            </label>
-                          </div>
-                        </td>
-                      </tr>
+
                       <tr>
                         <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Maceration / Aging</td>
                         <td className="p-2.5 text-slate-600">Minimum 14–30 days in sealed stainless-steel drum</td>

@@ -587,38 +587,7 @@ export async function printProductionSheet({
                   <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: _____ % ]</span>
                 </td>
               </tr>
-              <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Chilling (4°C)</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">4°C for 24–48 hours</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
-                    24 Hours
-                  </span>
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
-                    48 Hours
-                  </span>
-                  <span style="display: inline-block;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
-                    Not Done
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Chilling Observation</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">No visible precipitation, sediment, haze</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
-                    Clear / No Precipitation
-                  </span>
-                  <span style="display: inline-block;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
-                    With Sediments / Haze
-                  </span>
-                </td>
-              </tr>
+
               <tr>
                 <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Maceration / Aging</td>
                 <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Minimum 14–30 days in sealed drum</td>
