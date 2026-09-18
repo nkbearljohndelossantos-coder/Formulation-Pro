@@ -123,6 +123,19 @@ export async function printProductionSheet({ version, formula, materials, catego
   }
   const defaultPdfFilename = `${formulaName} ${versionNum}`.trim();
 
+  const isPerfume = Boolean(
+    (formula?.product_category || '').toLowerCase().includes('perfume') ||
+    (formula?.formula_type || '').toLowerCase().includes('perfume') ||
+    (formula?.category || '').toLowerCase().includes('perfume') ||
+    (formula?.name || '').toLowerCase().includes('perfume') ||
+    (formulaCode || '').toLowerCase().includes('prf') ||
+    (version?.formula_name || '').toLowerCase().includes('perfume') ||
+    (version?.compounding_code || '').toLowerCase().includes('prf') ||
+    (categoryDetails?.odor_profile || categoryDetails?.chilling_temp_c || categoryDetails?.maceration_days) ||
+    version?.isPerfume ||
+    formula?.isPerfume
+  );
+
   // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
   const formatBaseCompoundingNo = () => {
     let raw = version?.compounding_code || version?.compounding_number || version?.compoundingNo;
@@ -408,7 +421,7 @@ export async function printProductionSheet({ version, formula, materials, catego
         <!-- Header -->
         <div class="doc-header">
           <h1>NKB Manufacturing Corporation</h1>
-          <h2>PRODUCTION SHEET ${copyBadgeLabel}</h2>
+          <h2>${isPerfume ? 'PERFUME PRODUCTION SHEET' : 'PRODUCTION SHEET'} ${copyBadgeLabel}</h2>
         </div>
 
         <!-- Meta Info -->
@@ -459,6 +472,45 @@ export async function printProductionSheet({ version, formula, materials, catego
           <div style="font-weight: 800; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.3px; color: #000;">
             QUALITY PARAMETERS & SPECIFICATIONS:
           </div>
+          ${isPerfume ? `
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 11px;">
+            <tbody>
+              <tr>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 22%;">Appearance & Clarity:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; width: 28%;">Clear, transparent, homogeneous liquid</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 20%;">Color:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; width: 30%;">Conforms to approved standard</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Odor:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db;">Characteristic fragrance; conforms to approved standard</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Specific Gravity:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db;">Per approved specification</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Alcohol Content:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db;">Per approved specification</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Chilling:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; font-weight: 700;">4°C for 24–48 hours</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Chilling Observation:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db;" colspan="3">No visible precipitation, sediment, haze, or phase separation</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Maceration / Aging:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db;" colspan="3">Minimum 14–30 days in sealed stainless-steel drum at ambient room temperature</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Final QC Status:</td>
+                <td style="padding: 5px 8px; border: 1px solid #d1d5db; font-weight: 700;" colspan="3">
+                  <span style="display: inline-block; margin-right: 30px;">☐ PASS</span>
+                  <span style="display: inline-block;">☐ FAIL</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          ` : `
           <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 12px;">
             <tbody>
               <tr>
@@ -479,6 +531,7 @@ export async function printProductionSheet({ version, formula, materials, catego
               </tr>
             </tbody>
           </table>
+          `}
         </div>
 
         <!-- Notes / Instructions -->

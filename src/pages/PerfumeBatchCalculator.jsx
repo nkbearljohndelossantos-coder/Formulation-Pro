@@ -924,28 +924,53 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                 onLayoutChange={setCurrentSheetLayout}
               />
 
-              {/* Quality Parameters & Specifications Table */}
+              {/* Quality Parameters & Specifications Table (Perfume Standard) */}
               <div className="space-y-1.5 pt-1">
                 <div className="font-extrabold text-slate-900 text-xs tracking-wider uppercase">QUALITY PARAMETERS & SPECIFICATIONS:</div>
                 <div className="overflow-x-auto border border-slate-300 rounded">
                   <table className="w-full text-left text-xs">
                     <tbody className="divide-y divide-slate-200">
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Target pH Range:</td>
-                        <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.target_ph || '5.8 - 6.2'}</td>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Actual pH:</td>
-                        <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.actual_ph || '[ ________ ]'}</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Chilling Temp & Time:</td>
-                        <td className="p-2 font-mono font-semibold text-slate-900 w-1/4">{batchResult.categoryDetails?.chilling_temp_c || '4°C (24-48 Hours)'}</td>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Appearance & Clarity:</td>
-                        <td className="p-2 text-slate-900 w-1/4">{batchResult.categoryDetails?.appearance || 'Clear, transparent liquid'}</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">Clear, transparent, homogeneous liquid</td>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Color:</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">Conforms to approved standard</td>
                       </tr>
                       <tr>
-                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Maceration / Aging Remarks:</td>
-                        <td className="p-2 text-slate-900" colSpan="3">
-                          {batchResult.categoryDetails?.remarks || 'Macerate for minimum 14-30 days in sealed stainless steel drum at ambient room temperature.'}
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Odor:</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">Characteristic fragrance; conforms to approved standard</td>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Specific Gravity:</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">Per approved specification</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Alcohol Content:</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">Per approved specification</td>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Chilling:</td>
+                        <td className="p-2 font-mono font-bold text-slate-900 w-1/4">4°C for 24–48 hours</td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Chilling Observation:</td>
+                        <td className="p-2 text-slate-900 font-medium" colSpan="3">
+                          No visible precipitation, sediment, haze, or phase separation
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Maceration / Aging:</td>
+                        <td className="p-2 text-slate-900 font-medium" colSpan="3">
+                          Minimum 14–30 days in sealed stainless-steel drum at ambient room temperature
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 bg-slate-50 font-bold text-slate-900">Final QC Status:</td>
+                        <td className="p-2 text-slate-900 font-bold" colSpan="3">
+                          <div className="flex items-center gap-6">
+                            <span className="inline-flex items-center gap-1.5 text-slate-900">
+                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block"></span> PASS
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-slate-900">
+                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block"></span> FAIL
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     </tbody>
