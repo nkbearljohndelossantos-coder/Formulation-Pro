@@ -1022,7 +1022,7 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                 <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase">
                   <tr>
                     <th className="p-3">Phase</th>
-                    <th className="p-3">Material</th>
+                    <th className="p-3 min-w-[300px]">Material / Ingredient</th>
                     <th className="p-3 text-right">Unit Cost (PHP/g)</th>
                     <th className="p-3 text-right">Line Cost (PHP)</th>
                     <th className="p-3">Percentage (%)</th>
@@ -1073,10 +1073,9 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                               }
                               getOptionValue={(mat) => mat.id}
                               getOptionLabel={(mat) => mat.name}
-                              getOptionSublabel={(mat) => mat.code}
-                              placeholder="-- Select Material --"
-                              searchPlaceholder="Search perfume raw material..."
-                              widthClass="w-64"
+                              placeholder="-- Select Material / Ingredient --"
+                              searchPlaceholder="Type to search perfume raw material..."
+                              widthClass="w-full min-w-[280px]"
                             />
                           )}
                         </td>

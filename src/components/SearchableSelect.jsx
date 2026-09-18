@@ -19,17 +19,18 @@ export function SearchableSelect({
   getOptionValue = (opt) => opt?.id ?? opt?.value,
   getOptionLabel = (opt) => opt?.name ?? opt?.label ?? String(opt ?? ''),
   getOptionSublabel = (opt) => opt?.code ?? opt?.sublabel ?? '',
+  showSublabel = false, // Set to false to remove ID code
   placeholder = '-- Select --',
-  searchPlaceholder = 'Search material or code...',
+  searchPlaceholder = 'Search material or ingredient...',
   className = '',
   disabled = false,
   emptyMessage = 'No matching items found',
-  widthClass = 'w-64',
+  widthClass = 'w-full min-w-[260px]',
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 280 });
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 380 });
 
   const triggerRef = useRef(null);
   const inputRef = useRef(null);
@@ -55,11 +56,11 @@ export function SearchableSelect({
       const updatePosition = () => {
         if (!triggerRef.current) return;
         const rect = triggerRef.current.getBoundingClientRect();
-        const popoverHeight = 280;
+        const popoverHeight = 300;
         const spaceBelow = window.innerHeight - rect.bottom;
         const openUpwards = spaceBelow < popoverHeight && rect.top > popoverHeight;
 
-        const popWidth = Math.max(rect.width, 280);
+        const popWidth = Math.max(rect.width, 380);
         let leftPos = rect.left;
         if (leftPos + popWidth > window.innerWidth - 10) {
           leftPos = window.innerWidth - popWidth - 10;
@@ -165,20 +166,13 @@ export function SearchableSelect({
           }`
         }
       >
-        <div className="truncate flex items-center gap-1.5 min-w-0">
+        <div className="flex-1 min-w-0 text-left whitespace-normal break-words leading-tight">
           {selectedOption ? (
-            <>
-              {getOptionSublabel(selectedOption) && (
-                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold shrink-0">
-                  {getOptionSublabel(selectedOption)}
-                </span>
-              )}
-              <span className="truncate font-semibold text-slate-900">
-                {getOptionLabel(selectedOption)}
-              </span>
-            </>
+            <span className="font-semibold text-slate-900">
+              {getOptionLabel(selectedOption)}
+            </span>
           ) : (
-            <span className="text-slate-400 italic truncate">{placeholder}</span>
+            <span className="text-slate-400 italic">{placeholder}</span>
           )}
         </div>
         <ChevronDown
@@ -199,11 +193,11 @@ export function SearchableSelect({
             width: `${coords.width}px`,
             zIndex: 9999,
           }}
-          className="bg-white border border-slate-300 rounded-xl shadow-2xl p-2 space-y-2 text-xs font-sans text-slate-900 animate-in fade-in zoom-in-95 duration-100"
+          className="bg-white border border-slate-300 rounded-xl shadow-2xl p-2.5 space-y-2 text-xs font-sans text-slate-900 animate-in fade-in zoom-in-95 duration-100"
         >
           {/* Search Box */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
             <input
               ref={inputRef}
               type="text"
@@ -214,7 +208,7 @@ export function SearchableSelect({
               }}
               onKeyDown={handleKeyDown}
               placeholder={searchPlaceholder}
-              className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition"
+              className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition"
             />
             {search && (
               <button
@@ -225,22 +219,21 @@ export function SearchableSelect({
                 }}
                 className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
           {/* Filtered Options List */}
-          <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white">
+          <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white">
             {filteredOptions.length === 0 ? (
-              <div className="p-3 text-center text-slate-400 text-xs italic">
+              <div className="p-3.5 text-center text-slate-400 text-xs italic">
                 {emptyMessage}
               </div>
             ) : (
               filteredOptions.map((opt, idx) => {
                 const optVal = getOptionValue(opt);
                 const optLabel = getOptionLabel(opt);
-                const optSub = getOptionSublabel(opt);
                 const isSelected = String(optVal) === String(value);
                 const isHighlighted = idx === highlightIndex;
 
@@ -250,7 +243,7 @@ export function SearchableSelect({
                     type="button"
                     onClick={() => selectOption(opt)}
                     onMouseEnter={() => setHighlightIndex(idx)}
-                    className={`w-full text-left px-2.5 py-2 text-xs flex items-center justify-between gap-2 transition ${
+                    className={`w-full text-left px-3 py-2.5 text-xs flex items-start justify-between gap-2.5 transition ${
                       isSelected
                         ? 'bg-blue-50 text-blue-900 font-bold'
                         : isHighlighted
@@ -258,18 +251,13 @@ export function SearchableSelect({
                         : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="truncate min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        {optSub && (
-                          <span className="font-mono text-[10px] px-1 py-0.2 rounded bg-slate-200 text-slate-700 font-semibold shrink-0">
-                            {optSub}
-                          </span>
-                        )}
-                        <span className="truncate">{optLabel}</span>
-                      </div>
+                    <div className="flex-1 min-w-0 text-left whitespace-normal break-words leading-snug">
+                      <span className={isSelected ? 'font-bold text-blue-900' : 'font-semibold text-slate-800'}>
+                        {optLabel}
+                      </span>
                     </div>
                     {isSelected && (
-                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0 ml-1" />
+                      <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     )}
                   </button>
                 );
@@ -278,8 +266,8 @@ export function SearchableSelect({
           </div>
 
           {/* Quick Counter */}
-          <div className="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-0.5 border-t border-slate-100 font-medium">
-            <span>{filteredOptions.length} available</span>
+          <div className="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-1 border-t border-slate-100 font-medium">
+            <span>{filteredOptions.length} materials available</span>
             <span>Esc to close</span>
           </div>
         </div>
