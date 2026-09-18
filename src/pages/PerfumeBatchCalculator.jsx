@@ -163,43 +163,62 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Helper to check if formula is perfume
+  // Helper to check if formula is strictly perfume (excludes cosmetics and supplements)
   const isPerfume = (f) => {
+    if (!f) return false;
     const cat = (f.product_category || '').toLowerCase();
     const type = (f.formula_type || '').toLowerCase();
     const name = (f.name || '').toLowerCase();
     const cat2 = (f.category || '').toLowerCase();
-    return cat.includes('perfume') || type.includes('perfume') || name.includes('perfume') || cat2.includes('perfume');
+    const code = (f.code || '').toLowerCase();
+
+    // Explicit exclusions if category or type is cosmetic or supplement
+    const isCosmetic = cat.includes('cosmetic') || type.includes('cosmetic') || cat2.includes('cosmetic');
+    if (isCosmetic) return false;
+
+    const isSupplement = cat.includes('supplement') || type.includes('supplement') || cat2.includes('supplement');
+    if (isSupplement) return false;
+
+    return (
+      cat.includes('perfume') ||
+      type.includes('perfume') ||
+      cat2.includes('perfume') ||
+      code.startsWith('prf') ||
+      code.includes('-prf-') ||
+      name.includes('perfume') ||
+      name.includes('eau de parfum') ||
+      name.includes('edp') ||
+      name.includes('cologne')
+    );
   };
 
-  // Build formula options for searchable selection dropdown
+  // Build formula options for searchable selection dropdown (STRICTLY Perfumes & APPROVED only)
   const formulaOptions = [];
 
-  // 1. Database Perfume Formulas (both Approved and Draft)
+  // 1. Database Perfume Formulas (STRICTLY APPROVED ONLY)
   const perfumeDbFormulas = formulas.filter(isPerfume);
-  const otherDbFormulas = formulas.filter(f => !isPerfume(f));
 
-  // If there are perfume formulas in DB, list them first
-  const targetFormulas = perfumeDbFormulas.length > 0 ? [...perfumeDbFormulas, ...otherDbFormulas] : formulas;
-
-  targetFormulas.forEach(f => {
+  perfumeDbFormulas.forEach(f => {
     (f.versions || []).forEach(v => {
-      const isPerf = isPerfume(f);
+      const status = (v.version_status || 'DRAFT').toUpperCase();
+      // Strictly APPROVED only!
+      if (status !== 'APPROVED') return;
+
       formulaOptions.push({
         id: String(v.id),
         isPreset: false,
         formulaCode: f.code,
         formulaName: f.name,
         versionStr: `V${v.major_version}.${v.minor_version}`,
-        status: (v.version_status || 'DRAFT').toUpperCase(),
-        displayText: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version} ${v.version_status || 'DRAFT'})`,
-        categoryTag: isPerf ? (f.product_category || 'Perfume') : 'Cosmetic',
-        isPerfume: isPerf,
+        status: 'APPROVED',
+        displayText: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version} APPROVED)`,
+        categoryTag: f.product_category || 'Perfume',
+        isPerfume: true,
       });
     });
   });
 
-  // 2. Standard Perfume Presets
+  // 2. Standard Perfume Presets (Standard Approved Formulations)
   PERFUME_PRESETS.forEach(p => {
     formulaOptions.push({
       id: p.id,
@@ -207,7 +226,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       formulaCode: p.code,
       formulaName: p.name,
       versionStr: 'V1.0',
-      status: 'PRESET',
+      status: 'APPROVED',
       displayText: `Standard Preset: ${p.name}`,
       categoryTag: p.category,
       isPerfume: true,
@@ -217,8 +236,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   // Set default selection if none selected yet
   useEffect(() => {
     if (!selectedVersionId && formulaOptions.length > 0) {
-      const firstPerfumeVer = formulaOptions.find(o => !o.isPreset && o.isPerfume && o.status === 'APPROVED')
-        || formulaOptions.find(o => !o.isPreset && o.isPerfume)
+      const firstPerfumeVer = formulaOptions.find(o => !o.isPreset && o.status === 'APPROVED')
         || formulaOptions.find(o => !o.isPreset)
         || formulaOptions[0];
       if (firstPerfumeVer) {

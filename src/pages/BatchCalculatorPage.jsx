@@ -74,9 +74,30 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter approved options for searchable selection dropdown
+  // Helper to identify perfume formulas and keep them separate
+  const isPerfume = (f) => {
+    if (!f) return false;
+    const cat = (f.product_category || '').toLowerCase();
+    const type = (f.formula_type || '').toLowerCase();
+    const name = (f.name || '').toLowerCase();
+    const cat2 = (f.category || '').toLowerCase();
+    const code = (f.code || '').toLowerCase();
+    return (
+      cat.includes('perfume') ||
+      type.includes('perfume') ||
+      cat2.includes('perfume') ||
+      code.startsWith('prf') ||
+      code.includes('-prf-') ||
+      name.includes('perfume') ||
+      name.includes('eau de parfum') ||
+      name.includes('edp') ||
+      name.includes('cologne')
+    );
+  };
+
+  // Filter approved cosmetic-only options for searchable selection dropdown
   const approvedOptions = [];
-  formulas.forEach(f => {
+  formulas.filter(f => !isPerfume(f)).forEach(f => {
     (f.versions || []).forEach(v => {
       if ((v.version_status || '').toUpperCase() === 'APPROVED') {
         approvedOptions.push({
