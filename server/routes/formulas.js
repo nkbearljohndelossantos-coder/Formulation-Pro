@@ -240,7 +240,7 @@ router.get('/versions/:versionId', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const formulaId = req.params.id;
-    const { name, code, product_subcategory, brand_type } = req.body;
+    const { name, code, product_category, product_subcategory, brand_type } = req.body;
 
     const formula = await db('formulas').where({ id: formulaId }).first();
     if (!formula) {
@@ -250,6 +250,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const updatePayload = { updated_at: db.fn.now() };
     if (name && String(name).trim()) updatePayload.name = String(name).trim();
     if (code && String(code).trim()) updatePayload.code = String(code).trim();
+    if (product_category !== undefined) updatePayload.product_category = product_category;
     if (product_subcategory !== undefined) updatePayload.product_subcategory = product_subcategory;
     if (brand_type !== undefined) updatePayload.brand_type = brand_type;
 

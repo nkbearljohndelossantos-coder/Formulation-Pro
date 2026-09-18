@@ -121,12 +121,22 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
   const [viewMode, setViewMode] = useState(initialVersionId ? 'editor' : 'list'); // 'list' | 'editor'
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Rename Modal State
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editMajorVer, setEditMajorVer] = useState(1);
-  const [editMinorVer, setEditMinorVer] = useState(0);
-  const [editReason, setEditReason] = useState('');
+  // Edit Formula Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormulaData, setEditFormulaData] = useState({
+    formulaId: null,
+    versionId: null,
+    code: '',
+    name: '',
+    category: 'Perfume Brand',
+    product_subcategory: 'Eau de Parfum (Concentrated)',
+    targetBatchSize: '100.00',
+    targetBatchUom: 'kg',
+    majorVersion: 1,
+    minorVersion: 0,
+    revisionReason: '',
+    status: 'DRAFT',
+  });
 
   // Create Formula Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -210,9 +220,14 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
             formulaId: f.id,
             formulaCode: f.code,
             formulaName: f.name,
-            product_category: f.product_category || 'Perfume',
-            product_subcategory: f.product_subcategory || 'Eau de Parfum',
+            product_category: f.product_category || 'Perfume Brand',
+            product_subcategory: f.product_subcategory || 'Eau de Parfum (Concentrated)',
             versionStr: `V${v.major_version}.${v.minor_version}`,
+            major_version: v.major_version,
+            minor_version: v.minor_version,
+            revision_reason: v.revision_reason || '',
+            target_batch_size: v.target_batch_size || f.reference_batch_size || '100.00',
+            target_batch_uom: v.target_batch_uom || f.reference_batch_uom || 'kg',
             status: v.version_status,
           });
         }
@@ -541,45 +556,98 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
     }
   };
 
-  const handleOpenRenameModal = () => {
-    if (!activeVersion) return;
-    setEditName(activeVersion.formula_name || '');
-    setEditMajorVer(activeVersion.major_version ?? 1);
-    setEditMinorVer(activeVersion.minor_version ?? 0);
-    setEditReason(activeVersion.revision_reason || '');
-    setIsRenameModalOpen(true);
+  const handleOpenEditModalFromList = (item, e) => {
+    if (e) e.stopPropagation();
+    setEditFormulaData({
+      formulaId: item.formulaId,
+      versionId: item.versionId,
+      code: item.formulaCode || '',
+      name: item.formulaName || '',
+      category: item.product_category || 'Perfume Brand',
+      product_subcategory: item.product_subcategory || 'Eau de Parfum (Concentrated)',
+      targetBatchSize: item.target_batch_size || '100.00',
+      targetBatchUom: item.target_batch_uom || 'kg',
+      majorVersion: item.major_version ?? 1,
+      minorVersion: item.minor_version ?? 0,
+      revisionReason: item.revision_reason || '',
+      status: item.status,
+    });
+    setIsEditModalOpen(true);
   };
 
-  const handleSaveRename = async () => {
-    if (!activeVersion || saving) return;
+  const handleOpenEditModalFromWorkspace = () => {
+    if (!activeVersion) return;
+    setEditFormulaData({
+      formulaId: activeVersion.formula_id,
+      versionId: activeVersion.id,
+      code: activeVersion.formula_code || '',
+      name: activeVersion.formula_name || '',
+      category: activeVersion.product_category || 'Perfume Brand',
+      product_subcategory: activeVersion.product_subcategory || 'Eau de Parfum (Concentrated)',
+      targetBatchSize: activeVersion.target_batch_size || '100.00',
+      targetBatchUom: activeVersion.target_batch_uom || 'kg',
+      majorVersion: activeVersion.major_version ?? 1,
+      minorVersion: activeVersion.minor_version ?? 0,
+      revisionReason: activeVersion.revision_reason || '',
+      status: activeVersion.version_status,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditFormula = async (openWorkspaceAfter = false) => {
+    if (!editFormulaData.formulaId || saving) return;
     setSaving(true);
     try {
-      if (editName && editName.trim() !== activeVersion.formula_name) {
-        const res1 = await apiFetch(`/api/v1/formulas/${activeVersion.formula_id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ name: editName.trim() }),
-        });
-        const d1 = await res1.json();
-        if (!d1.success) throw new Error(d1.message);
-      }
-
-      const res2 = await apiFetch(`/api/v1/formulas/versions/${activeVersion.id}/rename`, {
+      // 1. Update Formula Master
+      const res1 = await apiFetch(`/api/v1/formulas/${editFormulaData.formulaId}`, {
         method: 'PUT',
         body: JSON.stringify({
-          majorVersion: editMajorVer,
-          minorVersion: editMinorVer,
-          revisionReason: editReason,
+          name: editFormulaData.name.trim(),
+          code: editFormulaData.code.trim(),
+          product_category: editFormulaData.category,
+          product_subcategory: editFormulaData.product_subcategory,
+          brand_type: (editFormulaData.category || '').includes('No-Brand') ? 'No Brand' : 'Perfume Brand',
         }),
       });
-      const d2 = await res2.json();
-      if (!d2.success) throw new Error(d2.message);
+      const d1 = await res1.json();
+      if (!res1.ok || !d1.success) throw new Error(d1.message || 'Failed to update formula master.');
 
-      alert('Perfume formula name and version updated successfully!');
-      setIsRenameModalOpen(false);
+      // 2. Update Formula Version numbers & reason
+      if (editFormulaData.versionId) {
+        const res2 = await apiFetch(`/api/v1/formulas/versions/${editFormulaData.versionId}/rename`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            majorVersion: editFormulaData.majorVersion,
+            minorVersion: editFormulaData.minorVersion,
+            revisionReason: editFormulaData.revisionReason,
+          }),
+        });
+        const d2 = await res2.json();
+        if (!res2.ok || !d2.success) throw new Error(d2.message || 'Failed to update version number.');
+
+        // 3. Update target batch size if draft
+        if (editFormulaData.status === 'DRAFT' && editFormulaData.targetBatchSize) {
+          await apiFetch(`/api/v1/formulas/versions/${editFormulaData.versionId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              targetBatchSize: editFormulaData.targetBatchSize,
+              targetBatchUom: editFormulaData.targetBatchUom,
+            }),
+          }).catch(() => {});
+        }
+      }
+
+      alert('Perfume formula updated successfully!');
+      setIsEditModalOpen(false);
       await fetchFormulas();
-      await loadVersion(activeVersion.id);
+
+      if (openWorkspaceAfter && editFormulaData.versionId) {
+        handleSelectFormula(editFormulaData.versionId);
+      } else if (selectedVersionId && selectedVersionId === editFormulaData.versionId) {
+        await loadVersion(editFormulaData.versionId);
+      }
     } catch (err) {
-      alert(`Rename Error: ${err.message}`);
+      alert(`Update Error: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -856,21 +924,29 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="p-3.5 text-right">
-                        <div className="inline-flex items-center justify-end gap-2">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectFormula(item.versionId);
-                            }}
-                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold text-xs transition inline-flex items-center gap-1.5 shadow-xs"
-                            title="Edit Formulation"
+                            onClick={(e) => handleOpenEditModalFromList(item, e)}
+                            className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold text-xs transition inline-flex items-center gap-1 shadow-xs"
+                            title="Edit Formula Details"
                           >
                             <Edit3 className="w-3.5 h-3.5 text-slate-950" />
                             <span>Edit</span>
                           </button>
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectFormula(item.versionId);
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-bold text-xs transition inline-flex items-center gap-1 border border-slate-300 shadow-xs"
+                            title="Open Formula in Workspace"
+                          >
+                            <span>Open</span>
+                            <span>→</span>
+                          </button>
+                          <button
                             onClick={(e) => handleDeleteFormulaFromList(item, e)}
-                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold text-xs transition inline-flex items-center gap-1.5 border border-rose-200 shadow-xs hover:border-rose-300"
+                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold text-xs transition inline-flex items-center gap-1 border border-rose-200 shadow-xs hover:border-rose-300"
                             title="Delete Formula"
                           >
                             <Trash2 className="w-3.5 h-3.5 text-rose-600" />
@@ -911,9 +987,9 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                 </span>
                 <StatusBadge status={activeVersion.version_status} />
                 <button
-                  onClick={handleOpenRenameModal}
+                  onClick={handleOpenEditModalFromWorkspace}
                   className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-md text-xs font-bold flex items-center gap-1 border border-amber-200 transition shadow-xs"
-                  title="Rename Formula & Version"
+                  title="Rename / Edit Formula Details"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-amber-700" />
                   <span>Rename / Edit</span>
@@ -1048,11 +1124,22 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
 
           {/* Read Only Warning Banner for Approved Versions */}
           {isReadOnly && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2 font-medium">
-              <Lock className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>
-                This perfume formulation is <strong>{activeVersion.version_status}</strong> (read-only immutable). To edit or adjust percentages, click <strong>Create New Revision (Draft)</strong> above.
-              </span>
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-medium shadow-xs">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>
+                  This perfume formulation is <strong>{activeVersion.version_status}</strong> (read-only). To edit materials or adjust percentages:
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreateRevision}
+                disabled={saving}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-xs shrink-0 self-start sm:self-auto transition"
+              >
+                <GitBranch className="w-3.5 h-3.5" />
+                <span>Unlock & Create Editable Draft</span>
+              </button>
             </div>
           )}
 
@@ -1288,28 +1375,73 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
         </>
       )}
 
-      {/* Rename Formula Modal */}
-      {isRenameModalOpen && (
+      {/* Edit Perfume Formula Details Modal */}
+      {isEditModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200 text-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200 text-xs">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-amber-600" /> Rename Perfume Formula
+                <Edit3 className="w-4 h-4 text-amber-500" />
+                Edit Perfume Formula ({editFormulaData.code || 'PRF'})
               </h3>
-              <button onClick={() => setIsRenameModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Formula Name *</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:bg-white focus:border-amber-600"
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-1">
+                  <label className="block text-slate-700 font-bold mb-1">Formula Code</label>
+                  <input
+                    type="text"
+                    value={editFormulaData.code}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, code: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono font-bold text-slate-900 focus:bg-white focus:border-amber-600"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-slate-700 font-bold mb-1">Formula Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormulaData.name}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-bold text-slate-900 focus:bg-white focus:border-amber-600"
+                    placeholder="e.g. Perfume Brand - Santal 33"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Category / Brand Type</label>
+                  <select
+                    value={editFormulaData.category}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, category: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold"
+                  >
+                    <option value="Perfume Brand">Perfume Brand</option>
+                    <option value="Perfume No-Brand">Perfume No-Brand</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Subcategory</label>
+                  <select
+                    value={editFormulaData.product_subcategory}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, product_subcategory: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold"
+                  >
+                    <option value="Eau de Parfum (Concentrated)">Eau de Parfum (Concentrated)</option>
+                    <option value="Eau de Parfum (Hydrated)">Eau de Parfum (Hydrated)</option>
+                    <option value="Eau de Toilette">Eau de Toilette</option>
+                    <option value="Body Mist / Cologne">Body Mist / Cologne</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1318,9 +1450,9 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                   <input
                     type="number"
                     min="1"
-                    value={editMajorVer}
-                    onChange={e => setEditMajorVer(parseInt(e.target.value, 10) || 1)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold"
+                    value={editFormulaData.majorVersion}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, majorVersion: parseInt(e.target.value, 10) || 1 })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold font-mono"
                   />
                 </div>
                 <div>
@@ -1328,9 +1460,9 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                   <input
                     type="number"
                     min="0"
-                    value={editMinorVer}
-                    onChange={e => setEditMinorVer(parseInt(e.target.value, 10) || 0)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold"
+                    value={editFormulaData.minorVersion}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, minorVersion: parseInt(e.target.value, 10) || 0 })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold font-mono"
                   />
                 </div>
               </div>
@@ -1339,30 +1471,69 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                 <label className="block text-slate-700 font-bold mb-1">Revision Reason</label>
                 <input
                   type="text"
-                  value={editReason}
-                  onChange={e => setEditReason(e.target.value)}
+                  value={editFormulaData.revisionReason}
+                  onChange={e => setEditFormulaData({ ...editFormulaData, revisionReason: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900"
-                  placeholder="e.g. Formula ratio adjustment"
+                  placeholder="e.g. Formula ratio adjustment or rename"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Ref. Batch Size</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={editFormulaData.targetBatchSize}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, targetBatchSize: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-slate-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Batch Unit (UOM)</label>
+                  <select
+                    value={editFormulaData.targetBatchUom}
+                    onChange={e => setEditFormulaData({ ...editFormulaData, targetBatchUom: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-semibold font-mono"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setIsRenameModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveRename}
+                onClick={() => handleSaveEditFormula(true)}
                 disabled={saving}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg font-bold shadow-xs"
+                className="w-full sm:w-auto px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-bold transition flex items-center justify-center gap-1.5 border border-amber-300"
+                title="Save updates and enter full formulation workspace"
               >
-                {saving ? 'Saving...' : 'Save Changes'}
+                <span>Save & Formulate in Workspace</span>
+                <span>→</span>
               </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveEditFormula(false)}
+                  disabled={saving}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-bold transition shadow-xs disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
