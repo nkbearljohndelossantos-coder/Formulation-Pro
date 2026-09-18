@@ -29,9 +29,9 @@ const PERFUME_PRESETS = [
     waterType: 'Without Water',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 80.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 14.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
       { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
       { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
     ]
   },
@@ -42,11 +42,11 @@ const PERFUME_PRESETS = [
     waterType: 'With Water',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 68.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: 12.00, phase: 'Phase A - Solvents & Base', role: 'Diluent', cost_g: 0.01 },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 14.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
       { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
       { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: 12.00, phase: 'Phase A - Solvents & Base', role: 'Diluent', cost_g: 0.01 },
     ]
   },
   {
@@ -56,9 +56,9 @@ const PERFUME_PRESETS = [
     waterType: 'Without Water',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 85.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 9.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
       { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
       { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
     ]
   },
@@ -69,11 +69,11 @@ const PERFUME_PRESETS = [
     waterType: 'With Water',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: 68.00, phase: 'Phase A - Solvents & Base', role: 'Solvent / Base', cost_g: 0.12 },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: 12.00, phase: 'Phase A - Solvents & Base', role: 'Diluent', cost_g: 0.01 },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: 14.00, phase: 'Phase B - Fragrance Premix', role: 'Fragrance Concentrate', cost_g: 1.85 },
       { name: 'Peg-40 Hydrogenated Castor Oil', code: 'MAT-PEG40', percentage: 1.00, phase: 'Phase B - Fragrance Premix', role: 'Solubilizer', cost_g: 0.45 },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: 3.00, phase: 'Phase A - Solvents & Base', role: 'Humectant / Fixative', cost_g: 0.25 },
       { name: 'Fixative (Glucam P-20 / Musk)', code: 'MAT-FIXATIVE', percentage: 2.00, phase: 'Phase C - Fixative & Aging', role: 'Odor Fixative', cost_g: 0.95 },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: 12.00, phase: 'Phase A - Solvents & Base', role: 'Diluent', cost_g: 0.01 },
     ]
   }
 ];
@@ -159,12 +159,33 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId }) {
       items = preset.items;
     }
 
+    // Helper to rank phases (Phase A = 65, Phase B = 66, Phase C = 67, etc.)
+    const getPhaseRank = (phaseStr) => {
+      if (!phaseStr) return 99;
+      const s = String(phaseStr).trim().toLowerCase();
+      const match = s.match(/phase\s+([a-z0-9]+)/i);
+      if (match) {
+        return match[1].toUpperCase().charCodeAt(0);
+      }
+      if (s.includes('phase a') || s.includes('solvent') || s.includes('water')) return 65;
+      if (s.includes('phase b') || s.includes('fragrance') || s.includes('oil')) return 66;
+      if (s.includes('phase c') || s.includes('fixative') || s.includes('aging')) return 67;
+      return 99;
+    };
+
+    // Sort items so all Phase A items are grouped together, followed by Phase B, Phase C, etc.
+    const sortedItems = [...items].sort((a, b) => {
+      const rankA = getPhaseRank(a.phase || a.phase_name);
+      const rankB = getPhaseRank(b.phase || b.phase_name);
+      return rankA - rankB;
+    });
+
     // Scale line items
     let totalPct = 0;
     let totalScaledGrams = 0;
     let totalBatchCost = 0;
 
-    const scaledItems = items.map(item => {
+    const scaledItems = sortedItems.map(item => {
       const pct = parseFloat(item.percentage) || 0;
       totalPct += pct;
       

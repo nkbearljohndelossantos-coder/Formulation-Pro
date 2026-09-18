@@ -216,7 +216,18 @@ export async function printProductionSheet({ version, formula, materials, catego
 
   let tableRowsHtml = '';
 
-  const phaseKeys = Object.keys(phaseMap);
+  const getPhaseRank = (phaseStr) => {
+    if (!phaseStr) return 99;
+    const s = String(phaseStr).trim().toLowerCase();
+    const match = s.match(/phase\s+([a-z0-9]+)/i);
+    if (match) return match[1].toUpperCase().charCodeAt(0);
+    if (s.includes('phase a') || s.includes('solvent') || s.includes('water')) return 65;
+    if (s.includes('phase b') || s.includes('fragrance') || s.includes('oil')) return 66;
+    if (s.includes('phase c') || s.includes('fixative') || s.includes('aging')) return 67;
+    return 99;
+  };
+
+  const phaseKeys = Object.keys(phaseMap).sort((a, b) => getPhaseRank(a) - getPhaseRank(b));
   if (phaseKeys.length === 0) {
     tableRowsHtml = `
       <tr class="phase-header-row" ${getRowHeightStyle('phase-0')}><td colspan="4">Phase A</td></tr>

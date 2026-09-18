@@ -60,9 +60,9 @@ const PERFUME_PRESETS = [
     brandType: 'Brand Core',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '80.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
       { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
       { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost: '0.95' },
     ],
   },
@@ -73,11 +73,11 @@ const PERFUME_PRESETS = [
     brandType: 'Brand Core',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A', role: 'Diluent / Solvent', cost: '0.01' },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
       { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
       { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost: '0.95' },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A', role: 'Diluent / Solvent', cost: '0.01' },
     ],
   },
   {
@@ -87,9 +87,9 @@ const PERFUME_PRESETS = [
     brandType: 'No Brand',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '85.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '9.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
       { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
       { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost_g: 0.95 },
     ],
   },
@@ -100,11 +100,11 @@ const PERFUME_PRESETS = [
     brandType: 'No Brand',
     items: [
       { name: 'Ethyl Alcohol', code: 'MAT-ETHYL', percentage: '68.00', phase_name: 'Phase A', role: 'Solvent / Base', cost: '0.12' },
+      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
+      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A', role: 'Diluent / Solvent', cost: '0.01' },
       { name: 'Parfum / Fragrance Oil', code: 'MAT-PARFUM', percentage: '14.00', phase_name: 'Phase B', role: 'Fragrance Concentrate', cost: '1.85' },
       { name: 'Peg-40', code: 'MAT-PEG40', percentage: '1.00', phase_name: 'Phase B', role: 'Solubilizer', cost: '0.45' },
-      { name: 'Procol (Propylene Glycol)', code: 'MAT-PROCOL', percentage: '3.00', phase_name: 'Phase A', role: 'Humectant', cost: '0.25' },
       { name: 'Fixative (Glucam P-20)', code: 'MAT-FIXATIVE', percentage: '2.00', phase_name: 'Phase C', role: 'Odor Fixative', cost: '0.95' },
-      { name: 'Deionized Water', code: 'MAT-WATER', percentage: '12.00', phase_name: 'Phase A', role: 'Diluent / Solvent', cost: '0.01' },
     ],
   },
 ];
@@ -288,6 +288,19 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
               addition_order: loadedMats.length + 1,
             });
           });
+
+          // Sort materials so Phase A items are always grouped together, then Phase B, Phase C, etc.
+          const getPhaseRank = (phaseStr) => {
+            if (!phaseStr) return 99;
+            const s = String(phaseStr).trim().toLowerCase();
+            const match = s.match(/phase\s+([a-z0-9]+)/i);
+            if (match) return match[1].toUpperCase().charCodeAt(0);
+            if (s.includes('phase a') || s.includes('solvent') || s.includes('water')) return 65;
+            if (s.includes('phase b') || s.includes('fragrance') || s.includes('oil')) return 66;
+            if (s.includes('phase c') || s.includes('fixative') || s.includes('aging')) return 67;
+            return 99;
+          };
+          loadedMats.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
 
           // Fallback to standard preset if empty
           if (loadedMats.length === 0) {
