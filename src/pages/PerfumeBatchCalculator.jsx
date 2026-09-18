@@ -936,32 +936,68 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                     <tbody className="divide-y divide-slate-200">
                       <tr>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Appearance & Clarity:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">Clear, transparent, homogeneous liquid</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>Clear, transparent, homogeneous liquid</span>
+                          </span>
+                        </td>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Color:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">Conforms to approved standard</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>Conforms to approved standard</span>
+                          </span>
+                        </td>
                       </tr>
                       <tr>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Odor:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">Characteristic fragrance; conforms to approved standard</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>Characteristic fragrance; conforms to approved standard</span>
+                          </span>
+                        </td>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Specific Gravity:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">Per approved specification</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>Per approved specification</span>
+                          </span>
+                        </td>
                       </tr>
                       <tr>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Alcohol Content:</td>
-                        <td className="p-2 text-slate-900 w-1/4 font-medium">Per approved specification</td>
+                        <td className="p-2 text-slate-900 w-1/4 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>Per approved specification</span>
+                          </span>
+                        </td>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900 w-1/4">Chilling:</td>
-                        <td className="p-2 font-mono font-bold text-slate-900 w-1/4">4°C for 24–48 hours</td>
+                        <td className="p-2 font-mono font-bold text-slate-900 w-1/4">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>4°C for 24–48 hours</span>
+                          </span>
+                        </td>
                       </tr>
                       <tr>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900">Chilling Observation:</td>
                         <td className="p-2 text-slate-900 font-medium" colSpan="3">
-                          No visible precipitation, sediment, haze, or phase separation
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>No visible precipitation, sediment, haze, or phase separation</span>
+                          </span>
                         </td>
                       </tr>
                       <tr>
                         <td className="p-2 bg-slate-50 font-bold text-slate-900">Maceration / Aging:</td>
                         <td className="p-2 text-slate-900 font-medium" colSpan="3">
-                          Minimum 14–30 days in sealed stainless-steel drum at ambient room temperature
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
+                            <span>Minimum 14–30 days in sealed stainless-steel drum at ambient room temperature</span>
+                          </span>
                         </td>
                       </tr>
                       <tr>
@@ -969,10 +1005,10 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                         <td className="p-2 text-slate-900 font-bold" colSpan="3">
                           <div className="flex items-center gap-6">
                             <span className="inline-flex items-center gap-1.5 text-slate-900">
-                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block"></span> PASS
+                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span> PASS
                             </span>
                             <span className="inline-flex items-center gap-1.5 text-slate-900">
-                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block"></span> FAIL
+                              <span className="w-4 h-4 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span> FAIL
                             </span>
                           </div>
                         </td>
