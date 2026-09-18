@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
+import { SearchableSelect } from '../components/SearchableSelect';
 import {
   FlaskConical,
   Save,
@@ -1062,18 +1063,21 @@ export function PerfumeFormulatorPage({ setCurrentPage, initialVersionId, defaul
                           {isReadOnly ? (
                             <span className="font-medium text-slate-900">{m.material_name_snapshot}</span>
                           ) : (
-                            <select
+                            <SearchableSelect
                               value={m.material_id}
-                              onChange={e => handleMaterialChange(idx, 'material_id', e.target.value)}
-                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 font-medium w-64"
-                            >
-                              {!availableMaterials.some(mat => mat.id === m.material_id) && m.material_name_snapshot && (
-                                <option value={m.material_id}>{m.material_name_snapshot}</option>
-                              )}
-                              {availableMaterials.map(mat => (
-                                <option key={mat.id} value={mat.id}>{mat.name}</option>
-                              ))}
-                            </select>
+                              onChange={(val) => handleMaterialChange(idx, 'material_id', val)}
+                              options={
+                                !availableMaterials.some(mat => mat.id === m.material_id) && m.material_name_snapshot
+                                  ? [{ id: m.material_id, name: m.material_name_snapshot, code: m.material_code_snapshot }, ...availableMaterials]
+                                  : availableMaterials
+                              }
+                              getOptionValue={(mat) => mat.id}
+                              getOptionLabel={(mat) => mat.name}
+                              getOptionSublabel={(mat) => mat.code}
+                              placeholder="-- Select Material --"
+                              searchPlaceholder="Search perfume raw material..."
+                              widthClass="w-64"
+                            />
                           )}
                         </td>
                         <td className="p-3 text-right font-mono text-slate-600 font-semibold">

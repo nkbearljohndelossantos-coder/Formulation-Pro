@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Decimal from 'decimal.js';
 import { GitCompare, PlusCircle, MinusCircle } from 'lucide-react';
 import { apiFetch } from '../services/api';
+import { SearchableSelect } from '../components/SearchableSelect';
 
 export function FormulaComparisonPage() {
   const [formulas, setFormulas] = useState([]);
@@ -81,16 +82,25 @@ export function FormulaComparisonPage() {
     });
   };
 
+  const versionOptions = formulas.flatMap(f =>
+    (f.versions || []).map(v => ({
+      id: v.id,
+      name: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version})`,
+      code: v.version_status,
+    }))
+  );
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto font-sans text-slate-900">
       {/* Header */}
-      <div className="border-b border-slate-200 pb-4">
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          <GitCompare className="w-5 h-5 text-slate-700" /> Formula Version Comparison Tool
-        </h1>
-        <p className="text-xs text-slate-500">
-          Side-by-side version comparison showing added, removed, and percentage deltas between any two formula versions.
-        </p>
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+        <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
+          <GitCompare className="w-5 h-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Formula Version Comparison</h1>
+          <p className="text-xs text-slate-500">Analyze composition drift and delta between any two revisions</p>
+        </div>
       </div>
 
       {/* Selectors Card */}
@@ -99,38 +109,32 @@ export function FormulaComparisonPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
           <div>
             <label className="block text-slate-700 font-semibold mb-1.5">Baseline Version (Formula A)</label>
-            <select
+            <SearchableSelect
               value={versionAId}
-              onChange={e => setVersionAId(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:outline-none focus:border-blue-600"
-            >
-              <option value="">-- Select Version A --</option>
-              {formulas.map(f =>
-                f.versions.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
-                  </option>
-                ))
-              )}
-            </select>
+              onChange={(val) => setVersionAId(val)}
+              options={versionOptions}
+              getOptionValue={(opt) => opt.id}
+              getOptionLabel={(opt) => opt.name}
+              getOptionSublabel={(opt) => opt.code}
+              placeholder="-- Select Version A --"
+              searchPlaceholder="Search formula code, name, or version..."
+              widthClass="w-full"
+            />
           </div>
 
           <div>
             <label className="block text-slate-700 font-semibold mb-1.5">Comparison Version (Formula B)</label>
-            <select
+            <SearchableSelect
               value={versionBId}
-              onChange={e => setVersionBId(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:outline-none focus:border-blue-600"
-            >
-              <option value="">-- Select Version B --</option>
-              {formulas.map(f =>
-                f.versions.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {f.code} — {f.name} (V{v.major_version}.{v.minor_version} {v.version_status})
-                  </option>
-                ))
-              )}
-            </select>
+              onChange={(val) => setVersionBId(val)}
+              options={versionOptions}
+              getOptionValue={(opt) => opt.id}
+              getOptionLabel={(opt) => opt.name}
+              getOptionSublabel={(opt) => opt.code}
+              placeholder="-- Select Version B --"
+              searchPlaceholder="Search formula code, name, or version..."
+              widthClass="w-full"
+            />
           </div>
         </div>
 
