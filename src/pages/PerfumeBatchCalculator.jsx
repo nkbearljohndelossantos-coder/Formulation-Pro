@@ -12,7 +12,8 @@ import {
   FlaskConical,
   Droplet,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
