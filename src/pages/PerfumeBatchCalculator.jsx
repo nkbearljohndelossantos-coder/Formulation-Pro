@@ -24,7 +24,8 @@ const PERFUME_PRESETS = [
   {
     id: 'preset_brand-without-water',
     code: 'PRF-BRAND-NOWATER',
-    name: 'Perfume Brand — Without Water (Concentrated 80% Base)',
+    name: 'Perfume Brand',
+    description: 'Without Water - Concentrated 80% Base',
     category: 'Perfume Brand',
     waterType: 'Without Water',
     items: [
@@ -38,7 +39,8 @@ const PERFUME_PRESETS = [
   {
     id: 'preset_brand-with-water',
     code: 'PRF-BRAND-WATER',
-    name: 'Perfume Brand — With Water (Hydrated 68% Base)',
+    name: 'Perfume Brand',
+    description: 'With Water - Hydrated 68% Base',
     category: 'Perfume Brand',
     waterType: 'With Water',
     items: [
@@ -53,7 +55,8 @@ const PERFUME_PRESETS = [
   {
     id: 'preset_nobrand-without-water',
     code: 'PRF-NOBRAND-NOWATER',
-    name: 'Perfume No-Brand — Without Water (Concentrated 85% Base)',
+    name: 'Perfume No-Brand',
+    description: 'Without Water - Concentrated 85% Base',
     category: 'Perfume No-Brand',
     waterType: 'Without Water',
     items: [
@@ -67,7 +70,8 @@ const PERFUME_PRESETS = [
   {
     id: 'preset_nobrand-with-water',
     code: 'PRF-NOBRAND-WATER',
-    name: 'Perfume No-Brand — With Water (Hydrated 68% Base)',
+    name: 'Perfume No-Brand',
+    description: 'With Water - Hydrated 68% Base',
     category: 'Perfume No-Brand',
     waterType: 'With Water',
     items: [
@@ -285,11 +289,25 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       formulaName: p.name,
       versionStr: 'V1.0',
       status: 'APPROVED',
-      displayText: `Standard Preset: ${p.name}`,
+      displayText: `Standard Preset: ${p.name}${p.description ? ` (${p.description})` : ''}`,
       categoryTag: p.category,
       isPerfume: true,
     });
   });
+
+  // Helper to remove technical base notes like "— WITHOUT WATER (CONCENTRATED 80% BASE)" from production sheet printout and preview
+  const cleanPerfumeFormulaName = (name) => {
+    if (!name) return '';
+    return String(name)
+      .replace(/\s*[-—–]\s*without\s+water(\s*\([^)]*\))?/gi, '')
+      .replace(/\s*[-—–]\s*with\s+water(\s*\([^)]*\))?/gi, '')
+      .replace(/\s*\(without\s+water[^)]*\)/gi, '')
+      .replace(/\s*\(with\s+water[^)]*\)/gi, '')
+      .replace(/\s*[-—–]\s*concentrated\s+\d+%\s+base/gi, '')
+      .replace(/\s*\(concentrated\s+\d+%\s+base\)/gi, '')
+      .replace(/\s*\(hydrated\s+\d+%\s+base\)/gi, '')
+      .trim();
+  };
 
   // Set default selection if none selected yet
   useEffect(() => {
@@ -534,7 +552,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       version: {
         compounding_code: batchResult.compounding_code,
         formula_code: batchResult.formula_code,
-        formula_name: batchResult.formula_name,
+        formula_name: cleanPerfumeFormulaName(batchResult.formula_name),
         brandName: currentBrand,
         bottle_size: activeBottleSize,
         bottle_qty: activeBottleQty,
@@ -551,7 +569,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       },
       formula: {
         code: batchResult.formula_code,
-        name: batchResult.formula_name,
+        name: cleanPerfumeFormulaName(batchResult.formula_name),
         brandName: currentBrand,
         bottle_size: activeBottleSize,
         bottle_qty: activeBottleQty,
@@ -1106,7 +1124,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                     </span>
                   </div>
                   <div>
-                    <span className="font-bold text-slate-900">Formulation:</span> {batchResult.formula_name?.toUpperCase()}
+                    <span className="font-bold text-slate-900">Formulation:</span> {cleanPerfumeFormulaName(batchResult.formula_name)?.toUpperCase()}
                   </div>
                   {(brandName || batchResult.brand_name) && (
                     <div>

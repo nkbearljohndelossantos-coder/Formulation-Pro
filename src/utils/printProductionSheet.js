@@ -159,13 +159,11 @@ export async function printProductionSheet({
   const remarks = details.remarks || '';
 
   const formulaCode = formula?.code || version?.formula_code || '';
-  const formulaName = (formula?.name || version?.formula_name || 'Cosmetic Formulation').toUpperCase();
   const brandName = (explicitBrandName || version?.brandName || formula?.brandName || '').trim();
   let versionNum = version?.version || `${version?.major_version || 1}.${version?.minor_version || 0}`;
   if (!String(versionNum).toLowerCase().startsWith('v')) {
     versionNum = `V${versionNum}`;
   }
-  const defaultPdfFilename = `${brandName ? `${brandName} - ` : ''}${formulaName} ${versionNum}`.trim();
 
   const isPerfume = Boolean(
     explicitIsPerfume ||
@@ -181,6 +179,24 @@ export async function printProductionSheet({
     (version?.compounding_code || '').toLowerCase().includes('prf') ||
     (categoryDetails?.odor_profile || categoryDetails?.chilling_temp_c || categoryDetails?.maceration_days)
   );
+
+  // Helper to remove technical base notes like "— WITHOUT WATER (CONCENTRATED 80% BASE)" from production sheet printout
+  const cleanPerfumeFormulaName = (name) => {
+    if (!name) return '';
+    return String(name)
+      .replace(/\s*[-—–]\s*without\s+water(\s*\([^)]*\))?/gi, '')
+      .replace(/\s*[-—–]\s*with\s+water(\s*\([^)]*\))?/gi, '')
+      .replace(/\s*\(without\s+water[^)]*\)/gi, '')
+      .replace(/\s*\(with\s+water[^)]*\)/gi, '')
+      .replace(/\s*[-—–]\s*concentrated\s+\d+%\s+base/gi, '')
+      .replace(/\s*\(concentrated\s+\d+%\s+base\)/gi, '')
+      .replace(/\s*\(hydrated\s+\d+%\s+base\)/gi, '')
+      .trim();
+  };
+
+  const rawFormulaName = formula?.name || version?.formula_name || 'Cosmetic Formulation';
+  const formulaName = (isPerfume ? cleanPerfumeFormulaName(rawFormulaName) : rawFormulaName).toUpperCase();
+  const defaultPdfFilename = `${brandName ? `${brandName} - ` : ''}${formulaName} ${versionNum}`.trim();
 
   // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
   const formatBaseCompoundingNo = () => {
