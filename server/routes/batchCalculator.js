@@ -12,11 +12,16 @@ const router = express.Router();
 // POST /api/v1/batch-calculations - Run Batch Calculator Session (Isolated scaling)
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { versionId, targetBatchQty, targetUom, processLossPct } = req.body;
+    const { versionId, targetBatchQty, targetUom, processLossPct, sopTimestamps, sop_timestamps } = req.body;
 
     if (!versionId || !targetBatchQty || !targetUom) {
       return res.status(400).json({ success: false, message: 'Version ID, Target Batch Quantity, and Target UOM are required.' });
     }
+
+    const activeSopTimestamps = sopTimestamps || sop_timestamps || null;
+    const sopTimestampsJson = activeSopTimestamps
+      ? (typeof activeSopTimestamps === 'object' ? JSON.stringify(activeSopTimestamps) : String(activeSopTimestamps))
+      : null;
 
     const version = await db('formula_versions')
       .join('formulas', 'formula_versions.formula_id', 'formulas.id')
@@ -111,13 +116,19 @@ router.post('/', authenticateToken, async (req, res) => {
     const batchCalcId = await db.transaction(async trx => {
       generatedCpCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
 
-      const insertRes = await trx('batch_calculations').insert({
+      const hasSopCol = await trx.schema.hasColumn('batch_calculations', 'sop_timestamps').catch(() => false);
+      const insertData = {
         version_id: versionId,
         target_batch_qty: targetQtyDec.toFixed(2),
         target_uom: targetUom,
         process_loss_pct: lossPctDec.toFixed(2),
         created_by: req.user.id,
-      });
+      };
+      if (hasSopCol && sopTimestampsJson) {
+        insertData.sop_timestamps = sopTimestampsJson;
+      }
+
+      const insertRes = await trx('batch_calculations').insert(insertData);
       const id = Array.isArray(insertRes) ? insertRes[0] : (typeof insertRes === 'object' ? insertRes.id : insertRes);
 
       for (const item of items) {
@@ -133,7 +144,8 @@ router.post('/', authenticateToken, async (req, res) => {
         });
       }
 
-      await trx('compounding_code_logs').insert({
+      const hasCpLogSopCol = await trx.schema.hasColumn('compounding_code_logs', 'sop_timestamps').catch(() => false);
+      const cpLogData = {
         compounding_code: generatedCpCode,
         batch_number: generatedCpCode.replace('CP-', 'BAT-'),
         formula_code: version.formula_code,
@@ -144,7 +156,12 @@ router.post('/', authenticateToken, async (req, res) => {
         printed_by_id: req.user.id,
         printed_by_name: req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.username : 'Formulator',
         created_at: trx.fn.now(),
-      }).catch(() => {});
+      };
+      if (hasCpLogSopCol && sopTimestampsJson) {
+        cpLogData.sop_timestamps = sopTimestampsJson;
+      }
+
+      await trx('compounding_code_logs').insert(cpLogData).catch(() => {});
 
       // Check Admin toggle setting (auto_send_to_operator_mes). Default OFF: Print mode only
       try {
@@ -180,7 +197,9 @@ router.post('/', authenticateToken, async (req, res) => {
       data: {
         compounding_code: generatedCpCode,
         batch_number: generatedCpCode.replace('CP-', 'BAT-'),
+        batch_calculation_id: batchCalcId,
         production_batch_id: mesBatchId,
+        sop_timestamps: activeSopTimestamps,
         formula_code: version.formula_code,
         formula_name: version.formula_name,
         version: `${version.major_version}.${version.minor_version}`,
@@ -196,6 +215,33 @@ router.post('/', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Batch Calculator Error:', err);
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/v1/batch-calculations/:id/sop-timestamps - Update SOP timestamps for existing batch record
+router.put('/:id/sop-timestamps', authenticateToken, async (req, res) => {
+  try {
+    const { sopTimestamps } = req.body;
+    const timestampsStr = typeof sopTimestamps === 'object' ? JSON.stringify(sopTimestamps) : (sopTimestamps || null);
+
+    const calc = await db('batch_calculations').where({ id: req.params.id }).first();
+    if (!calc) {
+      return res.status(404).json({ success: false, message: 'Batch calculation record not found.' });
+    }
+
+    const hasSopCol = await db.schema.hasColumn('batch_calculations', 'sop_timestamps').catch(() => false);
+    if (hasSopCol) {
+      await db('batch_calculations')
+        .where({ id: req.params.id })
+        .update({
+          sop_timestamps: timestampsStr,
+          updated_at: db.fn.now(),
+        });
+    }
+
+    return res.json({ success: true, message: 'SOP timestamps saved successfully.', data: { sop_timestamps: sopTimestamps } });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to update SOP timestamps.', error: err.message });
   }
 });
 

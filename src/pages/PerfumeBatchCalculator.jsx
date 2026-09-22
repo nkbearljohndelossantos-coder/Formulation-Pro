@@ -100,6 +100,54 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   const [togglingSetting, setTogglingSetting] = useState(false);
   const [currentSheetLayout, setCurrentSheetLayout] = useState(null);
 
+  // SOP Process Step Timestamps
+  const [sopTimestamps, setSopTimestamps] = useState({
+    step1_start: '',
+    step1_end: '',
+    step2_start: '',
+    step2_end: '',
+    step3_start: '',
+    step3_end: '',
+    step4_start: '',
+    step4_end: '',
+  });
+  const [savingSop, setSavingSop] = useState(false);
+  const [sopSaveStatus, setSopSaveStatus] = useState('');
+
+  const handleSopTimestampChange = (field, val) => {
+    setSopTimestamps(prev => ({
+      ...prev,
+      [field]: val,
+    }));
+  };
+
+  const handleSaveSopTimestamps = async (timestampsToSave = sopTimestamps) => {
+    if (!batchResult?.batch_calculation_id) {
+      setSopSaveStatus('Saved locally in session.');
+      setTimeout(() => setSopSaveStatus(''), 3000);
+      return;
+    }
+    setSavingSop(true);
+    try {
+      const res = await apiFetch(`/api/v1/batch-calculations/${batchResult.batch_calculation_id}/sop-timestamps`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sopTimestamps: timestampsToSave }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setSopSaveStatus('SOP timestamps saved to database.');
+      } else {
+        setSopSaveStatus(d.message || 'Error saving timestamps.');
+      }
+    } catch {
+      setSopSaveStatus('Error saving timestamps.');
+    } finally {
+      setSavingSop(false);
+      setTimeout(() => setSopSaveStatus(''), 3500);
+    }
+  };
+
   // Sync initialVersionId if provided
   useEffect(() => {
     if (initialVersionId) {
@@ -337,8 +385,9 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           actual_ph: '[ ________ ]',
           viscosity_cp: 'Liquid (1.2 cP)',
           appearance: 'Clear, transparent liquid',
-          remarks: 'Macerate for 14 days at room temperature after 24h chilling at 4°C.'
-        }
+          remarks: 'Allow to undergo maceration/aging for 24 hours in Drum/Tub.'
+        },
+        sop_timestamps: sopTimestamps
       });
       setLoading(false);
       return;
@@ -354,6 +403,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           targetBatchQty,
           targetUom,
           processLossPct,
+          sopTimestamps,
         }),
       });
       const d = await res.json();
@@ -365,7 +415,8 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         }
         setBatchResult({
           ...d.data,
-          brand_name: brandName.trim()
+          brand_name: brandName.trim(),
+          sop_timestamps: d.data.sop_timestamps || sopTimestamps
         });
       } else {
         console.warn('Batch scaling server response:', d.message);
@@ -460,6 +511,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
     printProductionSheet({
       isPerfume: true,
       brandName: currentBrand,
+      sopTimestamps,
       version: {
         compounding_code: batchResult.compounding_code,
         formula_code: batchResult.formula_code,
@@ -472,6 +524,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         target_batch_uom: batchResult.target_uom || 'kg',
         version_status: 'APPROVED',
         isPerfume: true,
+        sop_timestamps: sopTimestamps,
       },
       formula: {
         code: batchResult.formula_code,
@@ -1077,7 +1130,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                         </td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Alcohol Content</td>
+                        <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Viscosity</td>
                         <td className="p-2.5 text-slate-600">Per approved specification</td>
                         <td className="p-2.5">
                           <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
@@ -1089,25 +1142,25 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                               <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
                               <span>Out of Spec</span>
                             </label>
-                            <span className="text-[11px] text-slate-500 font-mono">[ Actual: _______ % ]</span>
+                            <span className="text-[11px] text-slate-500 font-mono">[ Actual: ____ cP ]</span>
                           </div>
                         </td>
                       </tr>
 
                       <tr>
                         <td className="p-2.5 bg-slate-50 font-bold text-slate-900">Maceration / Aging</td>
-                        <td className="p-2.5 text-slate-600">Minimum 14–30 days in sealed stainless-steel drum</td>
+                        <td className="p-2.5 text-slate-600">24 hours in Drum/Tub</td>
                         <td className="p-2.5">
                           <div className="flex flex-wrap items-center gap-4 text-slate-800 font-medium">
                             <label className="inline-flex items-center gap-1.5 cursor-pointer">
                               <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
-                              <span>Completed (≥14 Days)</span>
+                              <span>Completed (24 Hours)</span>
                             </label>
                             <label className="inline-flex items-center gap-1.5 cursor-pointer">
                               <span className="w-3.5 h-3.5 border-2 border-slate-700 rounded-xs inline-block shrink-0"></span>
                               <span>Ongoing Aging</span>
                             </label>
-                            <span className="text-[11px] text-slate-500 font-mono">[ Day: ___ / 30 ]</span>
+                            <span className="text-[11px] text-slate-500 font-mono">[ Hour: ____ / 24 ]</span>
                           </div>
                         </td>
                       </tr>
@@ -1137,22 +1190,152 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
               </div>
 
               {/* Standard Operating Procedure (Perfume Compounding Protocol) */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-2 text-xs">
-                <div className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                  <Droplet className="w-4 h-4 text-emerald-600" /> Standard Operating Procedure (Perfume Compounding Protocol)
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3 text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                    <Droplet className="w-4 h-4 text-emerald-600" /> Standard Operating Procedure (Perfume Compounding Protocol)
+                  </div>
+                  {batchResult?.batch_calculation_id && (
+                    <div className="flex items-center gap-2">
+                      {sopSaveStatus && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          {sopSaveStatus}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSopTimestamps()}
+                        disabled={savingSop}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1"
+                      >
+                        <Clock className="w-3 h-3" /> {savingSop ? 'Saving...' : 'Save Timestamps'}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="bg-white p-3 rounded-lg border border-slate-200">
-                    <span className="font-bold text-amber-800 block text-[11px] mb-1">Step 1: Solvents & Base (Phase A)</span>
-                    <p className="text-slate-600 text-[11px]">Charge Ethyl Alcohol and Procol into mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Step 1 */}
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
+                    <div>
+                      <span className="font-bold text-amber-800 block text-[11px] mb-1">Step 1: Solvents & Base (Phase A)</span>
+                      <p className="text-slate-600 text-[11px] mb-2 leading-relaxed">
+                        Charge Ethyl Alcohol and Procol into the mixing vessel. Agitate slowly at 120 RPM for 5 minutes.
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[10px]">
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">Start: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step1_start}
+                          onChange={e => handleSopTimestampChange('step1_start', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">End: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step1_end}
+                          onChange={e => handleSopTimestampChange('step1_end', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200">
-                    <span className="font-bold text-purple-800 block text-[11px] mb-1">Step 2: Fragrance Premix (Phase B)</span>
-                    <p className="text-slate-600 text-[11px]">Premix Parfum oil with Peg-40 solubilizer in premix tank until clear. Slowly incorporate into Phase A.</p>
+
+                  {/* Step 2 */}
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
+                    <div>
+                      <span className="font-bold text-purple-800 block text-[11px] mb-1">Step 2: Fragrance Premix (Phase B)</span>
+                      <p className="text-slate-600 text-[11px] mb-2 leading-relaxed">
+                        Premix Parfum Oil with PEG-40 Solubilizer in the premix tank until clear. Slowly incorporate the fragrance premix into Phase A.
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[10px]">
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">Start: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step2_start}
+                          onChange={e => handleSopTimestampChange('step2_start', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">End: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step2_end}
+                          onChange={e => handleSopTimestampChange('step2_end', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200">
-                    <span className="font-bold text-emerald-800 block text-[11px] mb-1">Step 3: Fixative & Chilling (Phase C)</span>
-                    <p className="text-slate-600 text-[11px]">Add Fixative. Mix for 15 minutes. Chill at 4°C for 24-48h prior to fine filtration & maceration.</p>
+
+                  {/* Step 3 */}
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
+                    <div>
+                      <span className="font-bold text-emerald-800 block text-[11px] mb-1">Step 3: Fixative & Final Mixing (Phase C)</span>
+                      <p className="text-slate-600 text-[11px] mb-2 leading-relaxed">
+                        Add Fixative to the mixture. Mix for 15 minutes until homogeneous.
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[10px]">
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">Start: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step3_start}
+                          onChange={e => handleSopTimestampChange('step3_start', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">End: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step3_end}
+                          onChange={e => handleSopTimestampChange('step3_end', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
+                    <div>
+                      <span className="font-bold text-blue-800 block text-[11px] mb-1">Step 4: Maceration / Aging</span>
+                      <p className="text-slate-600 text-[11px] mb-2 leading-relaxed">
+                        Transfer the compounded perfume into a Drum/Tub. Allow the product to undergo maceration/aging for 24 hours.
+                      </p>
+                      <div className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded inline-block mb-1">
+                        Required duration: 24 Hours
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[10px]">
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">Start: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step4_start}
+                          onChange={e => handleSopTimestampChange('step4_start', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-600 block mb-0.5">End: [ Date / Time ]</label>
+                        <input
+                          type="datetime-local"
+                          value={sopTimestamps.step4_end}
+                          onChange={e => handleSopTimestampChange('step4_end', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-[10px] font-mono text-slate-800 focus:outline-none focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1161,13 +1344,13 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
               <div className="text-xs space-y-1 pt-2">
                 <div className="font-extrabold text-slate-900 uppercase">NOTES / INSTRUCTIONS:</div>
                 <div className="text-slate-700 flex items-center gap-1.5">
-                  <span className="text-[10px]">◆</span> Follow step order strictly: Phase A (Solvents & Humectants) → Phase B (Fragrance Premix) → Phase C (Fixative & Aging).
+                  <span className="text-[10px]">◆</span> Follow step order strictly: Phase A (Solvents & Humectants) → Phase B (Fragrance Premix) → Phase C (Fixative & Aging) → Maceration/Aging.
                 </div>
                 <div className="text-slate-700 flex items-center gap-1.5">
                   <span className="text-[10px]">◆</span> Verify all raw material tare and net weights before addition.
                 </div>
                 <div className="text-slate-700 flex items-center gap-1.5">
-                  <span className="text-[10px]">◆</span> Record lot numbers and transfer batch to chilling chamber (4°C) for stabilization prior to final filtration.
+                  <span className="text-[10px]">◆</span> Record lot numbers and transfer batch to Drum/Tub for 24-hour maceration/aging prior to final filtration.
                 </div>
               </div>
 

@@ -93,7 +93,8 @@ export async function printProductionSheet({
   copies: requestedCopies,
   layoutConfig,
   isPerfume: explicitIsPerfume,
-  brandName: explicitBrandName
+  brandName: explicitBrandName,
+  sopTimestamps: explicitSopTimestamps = null,
 }) {
   if (!version) {
     alert('Invalid formula version selected.');
@@ -112,13 +113,31 @@ export async function printProductionSheet({
         copies: selectedCopies,
         layoutConfig,
         isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume,
-        brandName: explicitBrandName || version?.brandName || formula?.brandName
+        brandName: explicitBrandName || version?.brandName || formula?.brandName,
+        sopTimestamps: explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps,
       });
     });
     return;
   }
 
   const copiesCount = requestedCopies;
+  const sopTimestamps = explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps || null;
+
+  const formatSopDt = (dtVal) => {
+    if (!dtVal) return '[ Date / Time ]';
+    try {
+      const d = new Date(dtVal);
+      if (isNaN(d.getTime())) return dtVal;
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+    } catch {
+      return dtVal;
+    }
+  };
 
   // Attempt to open new window for print preview
   let printWindow = null;
@@ -573,7 +592,7 @@ export async function printProductionSheet({
                 </td>
               </tr>
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Alcohol Content</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Viscosity</td>
                 <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
                 <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
                   <span style="display: inline-block; margin-right: 12px;">
@@ -584,23 +603,23 @@ export async function printProductionSheet({
                     <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
                     Out of Spec
                   </span>
-                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: _____ % ]</span>
+                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: ____ cP ]</span>
                 </td>
               </tr>
 
               <tr>
                 <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Maceration / Aging</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Minimum 14–30 days in sealed drum</td>
+                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">24 hours in Drum/Tub</td>
                 <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
                   <span style="display: inline-block; margin-right: 12px;">
                     <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
-                    Completed (&ge;14 Days)
+                    Completed (24 Hours)
                   </span>
                   <span style="display: inline-block; margin-right: 12px;">
                     <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
                     Ongoing Aging
                   </span>
-                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Day: ___ / 30 ]</span>
+                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Hour: ____ / 24 ]</span>
                 </td>
               </tr>
               <tr style="background-color: #fffbeb;">
@@ -649,22 +668,50 @@ export async function printProductionSheet({
 
         ${isPerfume ? `
         <!-- Standard Operating Procedure (Perfume Compounding Protocol) -->
-        <div style="margin-top: 12px; margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px 10px; background-color: #f8fafc;">
-          <div style="font-weight: 800; font-size: 11px; margin-bottom: 6px; letter-spacing: 0.3px; color: #0f172a; text-transform: uppercase;">
+        <div style="margin-top: 10px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px 9px; background-color: #f8fafc;">
+          <div style="font-weight: 800; font-size: 10.5px; margin-bottom: 5px; letter-spacing: 0.3px; color: #0f172a; text-transform: uppercase;">
             STANDARD OPERATING PROCEDURE (PERFUME COMPOUNDING PROTOCOL):
           </div>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 10px; line-height: 1.35;">
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
-              <strong style="color: #92400e; display: block; margin-bottom: 3px; font-size: 10.5px;">Step 1: Solvents & Base (Phase A)</strong>
-              <div style="color: #334155;">Charge Ethyl Alcohol and Procol into mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 9.5px; line-height: 1.35;">
+            <!-- Step 1 -->
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <strong style="color: #92400e; display: block; margin-bottom: 3px; font-size: 10px;">Step 1: Solvents & Base (Phase A)</strong>
+                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step1_start)}</div>
+                <div style="color: #334155; margin-bottom: 4px;">Charge Ethyl Alcohol and Procol into the mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</div>
+              </div>
+              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step1_end)}</div>
             </div>
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
-              <strong style="color: #6b21a8; display: block; margin-bottom: 3px; font-size: 10.5px;">Step 2: Fragrance Premix (Phase B)</strong>
-              <div style="color: #334155;">Premix Parfum oil with Peg-40 solubilizer in premix tank until clear. Slowly incorporate into Phase A.</div>
+
+            <!-- Step 2 -->
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <strong style="color: #6b21a8; display: block; margin-bottom: 3px; font-size: 10px;">Step 2: Fragrance Premix (Phase B)</strong>
+                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step2_start)}</div>
+                <div style="color: #334155; margin-bottom: 4px;">Premix Parfum Oil with PEG-40 Solubilizer in the premix tank until clear. Slowly incorporate the fragrance premix into Phase A.</div>
+              </div>
+              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step2_end)}</div>
             </div>
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
-              <strong style="color: #065f46; display: block; margin-bottom: 3px; font-size: 10.5px;">Step 3: Fixative & Chilling (Phase C)</strong>
-              <div style="color: #334155;">Add Fixative. Mix for 15 minutes. Chill at 4°C for 24–48h prior to fine filtration & maceration.</div>
+
+            <!-- Step 3 -->
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <strong style="color: #065f46; display: block; margin-bottom: 3px; font-size: 10px;">Step 3: Fixative & Final Mixing (Phase C)</strong>
+                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step3_start)}</div>
+                <div style="color: #334155; margin-bottom: 4px;">Add Fixative to the mixture. Mix for 15 minutes until homogeneous.</div>
+              </div>
+              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step3_end)}</div>
+            </div>
+
+            <!-- Step 4 -->
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <strong style="color: #1e40af; display: block; margin-bottom: 3px; font-size: 10px;">Step 4: Maceration / Aging</strong>
+                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step4_start)}</div>
+                <div style="color: #334155; margin-bottom: 3px;">Transfer the compounded perfume into a Drum/Tub. Allow the product to undergo maceration/aging for 24 hours.</div>
+                <div style="font-size: 8.5px; color: #1e40af; font-weight: 700; margin-bottom: 3px;">Required duration: 24 Hours</div>
+              </div>
+              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step4_end)}</div>
             </div>
           </div>
         </div>
@@ -674,9 +721,9 @@ export async function printProductionSheet({
         <div class="notes-container">
           <div class="notes-heading">NOTES / INSTRUCTIONS:</div>
           ${isPerfume ? `
-          <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow step order strictly: Phase A (Solvents & Humectants) → Phase B (Fragrance Premix) → Phase C (Fixative & Aging).</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow step order strictly: Phase A (Solvents & Humectants) → Phase B (Fragrance Premix) → Phase C (Fixative & Aging) → Maceration/Aging.</div>
           <div class="notes-bullet"><span class="bullet-icon">◆</span> Verify all raw material tare and net weights before addition.</div>
-          <div class="notes-bullet"><span class="bullet-icon">◆</span> Record lot numbers and transfer batch to chilling chamber (4°C) for stabilization prior to final filtration.</div>
+          <div class="notes-bullet"><span class="bullet-icon">◆</span> Record lot numbers and transfer batch to Drum/Tub for 24-hour maceration/aging prior to final filtration.</div>
           ` : `
           <div class="notes-bullet"><span class="bullet-icon">◆</span> Follow the step order as indicated</div>
           <div class="notes-bullet"><span class="bullet-icon">◆</span> Verify all quantities before processing</div>
