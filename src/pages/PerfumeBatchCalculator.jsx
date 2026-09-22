@@ -87,8 +87,17 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   const [selectedVersionId, setSelectedVersionId] = useState(initialVersionId ? String(initialVersionId) : '');
   const [targetBatchQty, setTargetBatchQty] = useState('50.00');
   const [targetUom, setTargetUom] = useState('kg');
+  const [bottleSize, setBottleSize] = useState('75');
   const [processLossPct, setProcessLossPct] = useState('0.50');
   const [brandName, setBrandName] = useState('');
+
+  // Bottle quantity calculation (e.g. 108,000 ÷ 75 ml = 1,440 bottles)
+  const rawBatchQty = parseFloat(String(targetBatchQty).replace(/,/g, '')) || 0;
+  const bSize = parseFloat(String(bottleSize).replace(/,/g, '')) || 75;
+  const effectiveBatchVolumeMl = (targetUom === 'kg' && rawBatchQty < 1000)
+    ? rawBatchQty * 1000
+    : rawBatchQty;
+  const computedBottleQty = bSize > 0 ? Math.floor(effectiveBatchVolumeMl / bSize) : 0;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -374,6 +383,8 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         formula_code: preset.code,
         formula_name: preset.name,
         brand_name: brandName.trim(),
+        bottle_size: bSize,
+        bottle_qty: computedBottleQty,
         version: '1.0',
         target_batch_qty: targetQty.toFixed(2),
         target_uom: targetUom,
@@ -416,6 +427,8 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         setBatchResult({
           ...d.data,
           brand_name: brandName.trim(),
+          bottle_size: bSize,
+          bottle_qty: computedBottleQty,
           sop_timestamps: d.data.sop_timestamps || sopTimestamps
         });
       } else {
@@ -483,6 +496,8 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           formula_code: formula.code || 'PRF-FORM',
           formula_name: formula.name || 'Perfume Formulation',
           brand_name: brandName.trim(),
+          bottle_size: bSize,
+          bottle_qty: computedBottleQty,
           version: `${version.major_version ?? 1}.${version.minor_version ?? 0}`,
           target_batch_qty: targetQty.toFixed(2),
           target_uom: targetUom,
@@ -508,15 +523,23 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   const handlePrintPdf = () => {
     if (!batchResult) return;
     const currentBrand = (brandName || batchResult.brand_name || '').trim();
+    const activeBottleSize = batchResult.bottle_size || bSize;
+    const activeBottleQty = batchResult.bottle_qty || computedBottleQty;
     printProductionSheet({
       isPerfume: true,
       brandName: currentBrand,
+      bottleSize: activeBottleSize,
+      bottleQty: activeBottleQty,
       sopTimestamps,
       version: {
         compounding_code: batchResult.compounding_code,
         formula_code: batchResult.formula_code,
         formula_name: batchResult.formula_name,
         brandName: currentBrand,
+        bottle_size: activeBottleSize,
+        bottle_qty: activeBottleQty,
+        bottleSize: activeBottleSize,
+        bottleQty: activeBottleQty,
         major_version: batchResult.version?.split('.')[0] || 1,
         minor_version: batchResult.version?.split('.')[1] || 0,
         target_batch_size: batchResult.target_batch_qty,
@@ -530,6 +553,10 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         code: batchResult.formula_code,
         name: batchResult.formula_name,
         brandName: currentBrand,
+        bottle_size: activeBottleSize,
+        bottle_qty: activeBottleQty,
+        bottleSize: activeBottleSize,
+        bottleQty: activeBottleQty,
         product_category: 'Perfume Brand',
         isPerfume: true,
       },
@@ -758,7 +785,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           </div>
 
           {/* Target Batch Quantity */}
-          <div className="lg:col-span-2 md:col-span-2">
+          <div className="lg:col-span-1 md:col-span-1">
             <label className="block text-slate-700 font-semibold mb-1.5">Target Batch Quantity *</label>
             <input
               type="number"
@@ -772,7 +799,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           </div>
 
           {/* Target UOM */}
-          <div className="lg:col-span-2 md:col-span-2">
+          <div className="lg:col-span-1 md:col-span-1">
             <label className="block text-slate-700 font-semibold mb-1.5">Target UOM *</label>
             <select
               value={targetUom}
@@ -782,6 +809,65 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
               <option value="kg">kg (Kilograms)</option>
               <option value="g">g (Grams)</option>
             </select>
+          </div>
+
+          {/* Bottle Size (ml) */}
+          <div className="lg:col-span-1 md:col-span-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-slate-700 font-semibold">Bottle Size *</label>
+              <span className="text-[10px] text-slate-500 font-mono">ml / bottle</span>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                step="1"
+                min="1"
+                required
+                value={bottleSize}
+                onChange={e => setBottleSize(e.target.value)}
+                placeholder="e.g. 75"
+                className="w-full bg-white border border-slate-300 rounded-lg p-2.5 pr-10 text-slate-900 font-mono font-bold focus:outline-none focus:border-emerald-600 shadow-xs"
+              />
+              <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 pointer-events-none">ml</span>
+            </div>
+            {/* Quick Bottle Size Presets */}
+            <div className="flex items-center gap-1 mt-1.5">
+              {[30, 50, 75, 100].map(size => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setBottleSize(String(size))}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition border ${
+                    parseInt(bottleSize, 10) === size
+                      ? 'bg-emerald-600 text-white border-emerald-700'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {size}ml
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottle Qty (Output Calculation) */}
+          <div className="lg:col-span-1 md:col-span-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-slate-700 font-semibold">Bottle Qty *</label>
+              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                Auto-Computed
+              </span>
+            </div>
+            <div className="w-full bg-emerald-50 border border-emerald-300 rounded-lg p-2 text-emerald-900 font-mono font-extrabold flex items-center justify-between shadow-xs">
+              <span className="text-base font-black text-emerald-800">
+                {computedBottleQty.toLocaleString('en-US')}
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider bg-white px-2 py-0.5 rounded border border-emerald-200">
+                Bottles
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1 font-mono truncate" title={`${Number(rawBatchQty).toLocaleString()} ${targetUom} ÷ ${bSize}ml = ${computedBottleQty.toLocaleString()} Bottles`}>
+              {Number(rawBatchQty).toLocaleString()} {targetUom} ÷ {bSize}ml = <strong className="text-emerald-700">{computedBottleQty.toLocaleString()} pcs</strong>
+            </div>
           </div>
         </div>
 
@@ -878,12 +964,12 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                 </span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500 block font-medium">Est. Cost / 100ml Bottle</span>
-                <span className="font-mono font-bold text-purple-700 text-sm">
-                  PHP {costPer100mlBottle.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className="text-slate-500 block font-medium">Target Bottle Output ({batchResult.bottle_size || bottleSize}ml)</span>
+                <span className="font-mono font-bold text-emerald-700 text-sm">
+                  {Number(batchResult.bottle_qty || computedBottleQty).toLocaleString('en-US')} Bottles
                 </span>
-                <span className="text-[10px] text-purple-600 block font-mono">
-                  (~85g liquid / unit)
+                <span className="text-[10px] text-slate-500 block font-mono">
+                  (Cost: ~PHP {((parseFloat(batchResult.total_batch_cost) || totalCostNum) / (Number(batchResult.bottle_qty || computedBottleQty) || 1)).toFixed(2)} / unit)
                 </span>
               </div>
             </div>
@@ -1007,6 +1093,16 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                     <span className="font-bold text-slate-900">Target Quantity:</span>{' '}
                     <span className="font-mono font-bold text-emerald-700">
                       {Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom?.toUpperCase() || 'KG'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Bottle Size:</span>{' '}
+                    <span className="font-mono font-bold text-slate-800">{batchResult.bottle_size || bottleSize} ml</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Target Bottle Output:</span>{' '}
+                    <span className="font-mono font-extrabold text-emerald-700">
+                      {Number(batchResult.bottle_qty || computedBottleQty).toLocaleString('en-US')} Bottles (pcs)
                     </span>
                   </div>
                   <div>

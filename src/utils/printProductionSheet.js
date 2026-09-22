@@ -94,6 +94,8 @@ export async function printProductionSheet({
   layoutConfig,
   isPerfume: explicitIsPerfume,
   brandName: explicitBrandName,
+  bottleSize: explicitBottleSize,
+  bottleQty: explicitBottleQty,
   sopTimestamps: explicitSopTimestamps = null,
 }) {
   if (!version) {
@@ -114,6 +116,8 @@ export async function printProductionSheet({
         layoutConfig,
         isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume,
         brandName: explicitBrandName || version?.brandName || formula?.brandName,
+        bottleSize: explicitBottleSize || version?.bottleSize || version?.bottle_size,
+        bottleQty: explicitBottleQty || version?.bottleQty || version?.bottle_qty,
         sopTimestamps: explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps,
       });
     });
@@ -208,9 +212,18 @@ export async function printProductionSheet({
 
   const baseNum = formatBaseCompoundingNo();
 
-  const targetBatchSizeNum = parseFloat(version?.overrideBatchSize || version?.target_batch_size || 100);
+  const targetBatchSizeNum = parseFloat(String(version?.overrideBatchSize || version?.target_batch_size || 100).replace(/,/g, ''));
   const formattedTargetQty = targetBatchSizeNum.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const batchUom = (version?.target_batch_uom || 'G').toUpperCase();
+
+  // Bottle size & bottle qty calculation (e.g. 108,000 ÷ 75 ml = 1,440 bottles)
+  const bSize = parseFloat(String(explicitBottleSize || version?.bottleSize || version?.bottle_size || 75).replace(/,/g, '')) || 75;
+  const effectiveBatchVolumeMl = (batchUom.toLowerCase() === 'kg' && targetBatchSizeNum < 1000)
+    ? targetBatchSizeNum * 1000
+    : targetBatchSizeNum;
+  const computedBottleQty = bSize > 0 ? Math.floor(effectiveBatchVolumeMl / bSize) : 0;
+  const bottleQty = explicitBottleQty || version?.bottleQty || version?.bottle_qty || computedBottleQty;
+  const formattedBottleQty = Number(bottleQty).toLocaleString('en-US');
 
   const preparedByName = user?.first_name || user?.firstName
     ? `${user.first_name || user.firstName} ${user.last_name || user.lastName || ''}`.trim()
@@ -347,7 +360,19 @@ export async function printProductionSheet({
   let notesMarginBottom = '10px';
   let sigMarginTop = '12px';
 
-  if (totalItemCount > 30) {
+  if (isPerfume) {
+    pageMargin = totalItemCount > 12 ? '3mm 5mm' : '3.5mm 6mm';
+    bodyPadding = '0px';
+    headerMarginBottom = '3px';
+    metaMarginBottom = '4px';
+    tableMarginBottom = '4px';
+    rowPadding = totalItemCount > 10 ? '1.5px 4px' : '2px 5px';
+    rowFontSize = totalItemCount > 10 ? '8.5px' : '9.5px';
+    phasePadding = '1.5px 4px';
+    notesMarginTop = '3px';
+    notesMarginBottom = '3px';
+    sigMarginTop = '5px';
+  } else if (totalItemCount > 30) {
     pageMargin = '3mm 5mm';
     bodyPadding = '2px';
     headerMarginBottom = '3px';
@@ -472,11 +497,12 @@ export async function printProductionSheet({
           <div class="meta-col-left">
             <div class="meta-line"><span class="meta-bold">Compounding Code:</span> <span class="num-font" style="color: #0369a1; font-weight: 800;">${copyCompoundingNo}</span></div>
             <div class="meta-line"><span class="meta-bold">Batch Number:</span> <span class="num-font" style="color: #0f172a;">${copyBatchNo}</span></div>
-            <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}</div>
+            <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}${isPerfume ? ` <span style="color: #047857; font-weight: 800;">(${formattedBottleQty} Bottles)</span>` : ''}</div>
             <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
           </div>
           <div class="meta-col-right">
             ${isPerfume && brandName ? `<div class="meta-line"><span class="meta-bold">Brand Name:</span> <span style="font-weight: 800; color: #047857; text-transform: uppercase;">${brandName}</span></div>` : ''}
+            ${isPerfume ? `<div class="meta-line"><span class="meta-bold">Bottle Size:</span> <strong>${bSize} ml</strong> &nbsp;|&nbsp; <span class="meta-bold">Bottle Qty:</span> <strong style="color: #047857;">${formattedBottleQty} pcs</strong></div>` : ''}
             <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
             <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>
             <div class="meta-line"><span class="meta-bold">Prepared By:</span> ${preparedByName}</div>
@@ -506,136 +532,141 @@ export async function printProductionSheet({
                 <span class="checkbox-box" style="visibility: hidden;">☐</span>
                 <span>${formattedTargetQty} ${batchUom}</span>
               </td>
-              <td colspan="3"><strong>TOTAL BATCH QUANTITY</strong></td>
+              <td colspan="3">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                  <strong>TOTAL BATCH QUANTITY</strong>
+                  ${isPerfume ? `<span style="font-size: ${isPerfume ? '9.5px' : '11px'}; font-weight: 800; color: #065f46;">Target Output: ${formattedBottleQty} Bottles (${bSize} ml)</span>` : ''}
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
 
         <!-- Quality Parameters & Specifications Table -->
-        <div style="margin-top: 15px; margin-bottom: 20px;">
-          <div style="font-weight: 800; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.3px; color: #000;">
+        <div style="margin-top: ${isPerfume ? '4px' : '15px'}; margin-bottom: ${isPerfume ? '4px' : '20px'};">
+          <div style="font-weight: 800; font-size: ${isPerfume ? '10px' : '12px'}; margin-bottom: ${isPerfume ? '3px' : '6px'}; letter-spacing: 0.3px; color: #000;">
             ${isPerfume ? 'QUALITY PARAMETERS & QC EVALUATION REVIEW:' : 'QUALITY PARAMETERS & SPECIFICATIONS:'}
           </div>
           ${isPerfume ? `
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #94a3b8; font-size: 10px;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #94a3b8; font-size: 8.5px;">
             <thead>
-              <tr style="background-color: #f1f5f9; border-bottom: 1.5px solid #94a3b8; text-transform: uppercase; font-size: 9.5px; font-weight: 800; letter-spacing: 0.3px; color: #334155;">
-                <th style="padding: 4px 6px; border: 1px solid #cbd5e1; width: 23%; text-align: left;">Quality Parameter</th>
-                <th style="padding: 4px 6px; border: 1px solid #cbd5e1; width: 33%; text-align: left;">Approved Specification</th>
-                <th style="padding: 4px 6px; border: 1px solid #cbd5e1; width: 44%; text-align: left;">Actual QC Review / Finding (Chechekan)</th>
+              <tr style="background-color: #f1f5f9; border-bottom: 1.5px solid #94a3b8; text-transform: uppercase; font-size: 8.5px; font-weight: 800; letter-spacing: 0.3px; color: #334155;">
+                <th style="padding: 2.5px 5px; border: 1px solid #cbd5e1; width: 23%; text-align: left;">Quality Parameter</th>
+                <th style="padding: 2.5px 5px; border: 1px solid #cbd5e1; width: 33%; text-align: left;">Approved Specification</th>
+                <th style="padding: 2.5px 5px; border: 1px solid #cbd5e1; width: 44%; text-align: left;">Actual QC Review / Finding (Chechekan)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Appearance & Clarity</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Clear, transparent, homogeneous liquid</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 10px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Appearance & Clarity</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; color: #334155;">Clear, transparent, homogeneous liquid</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 8px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Clear &amp; Transparent
                   </span>
-                  <span style="display: inline-block; margin-right: 10px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                  <span style="display: inline-block; margin-right: 8px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Slightly Hazy
                   </span>
                   <span style="display: inline-block;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Turbid / Precipitate
                   </span>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Color</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Conforms to approved standard</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 14px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Color</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; color: #334155;">Conforms to approved standard</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Conforms to Standard
                   </span>
                   <span style="display: inline-block;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Off-Color / Discolored
                   </span>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Odor / Fragrance</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Characteristic fragrance; conforms to standard</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 10px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Odor / Fragrance</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; color: #334155;">Characteristic fragrance; conforms to standard</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 8px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Characteristic / Conforms
                   </span>
-                  <span style="display: inline-block; margin-right: 10px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                  <span style="display: inline-block; margin-right: 8px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Off-Odor
                   </span>
                   <span style="display: inline-block;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Weak Scent
                   </span>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Specific Gravity</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Specific Gravity</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Within Spec
                   </span>
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Out of Spec
                   </span>
-                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: ________ ]</span>
+                  <span style="font-family: monospace; font-size: 8.5px; color: #64748b;">[ Actual: ________ ]</span>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Viscosity</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Viscosity</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; color: #334155;">Per approved specification</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Within Spec
                   </span>
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Out of Spec
                   </span>
-                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Actual: ____ cP ]</span>
+                  <span style="font-family: monospace; font-size: 8.5px; color: #64748b;">[ Actual: ____ cP ]</span>
                 </td>
               </tr>
 
               <tr>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Maceration / Aging</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1; color: #334155;">24 hours in Drum/Tub</td>
-                <td style="padding: 3.5px 6px; border: 1px solid #cbd5e1;">
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-weight: 700;">Maceration / Aging</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1; color: #334155;">24 hours in Drum/Tub</td>
+                <td style="padding: 2px 5px; border: 1px solid #cbd5e1;">
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Completed (24 Hours)
                   </span>
-                  <span style="display: inline-block; margin-right: 12px;">
-                    <span style="display: inline-block; width: 11px; height: 11px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
+                  <span style="display: inline-block; margin-right: 10px;">
+                    <span style="display: inline-block; width: 9px; height: 9px; border: 1.5px solid #1e293b; border-radius: 2px; margin-right: 3px; vertical-align: middle;"></span>
                     Ongoing Aging
                   </span>
-                  <span style="font-family: monospace; font-size: 9.5px; color: #64748b;">[ Hour: ____ / 24 ]</span>
+                  <span style="font-family: monospace; font-size: 8.5px; color: #64748b;">[ Hour: ____ / 24 ]</span>
                 </td>
               </tr>
               <tr style="background-color: #fffbeb;">
-                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; background-color: #fef3c7; font-weight: 800; color: #78350f;">Final QC Status</td>
-                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 600; color: #78350f;">Quality Disposition for Release / Filling</td>
-                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 700;">
-                  <span style="display: inline-block; margin-right: 20px; color: #065f46;">
-                    <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #065f46; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
+                <td style="padding: 2.5px 5px; border: 1px solid #cbd5e1; background-color: #fef3c7; font-weight: 800; color: #78350f;">Final QC Status</td>
+                <td style="padding: 2.5px 5px; border: 1px solid #cbd5e1; font-weight: 600; color: #78350f;">Quality Disposition for Release / Filling</td>
+                <td style="padding: 2.5px 5px; border: 1px solid #cbd5e1; font-weight: 700;">
+                  <span style="display: inline-block; margin-right: 16px; color: #065f46;">
+                    <span style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #065f46; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
                     PASS (Approved)
                   </span>
-                  <span style="display: inline-block; margin-right: 20px; color: #9f1239;">
-                    <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #9f1239; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
+                  <span style="display: inline-block; margin-right: 16px; color: #9f1239;">
+                    <span style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #9f1239; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
                     FAIL (Rejected)
                   </span>
                   <span style="display: inline-block; color: #92400e;">
-                    <span style="display: inline-block; width: 12px; height: 12px; border: 2px solid #92400e; border-radius: 2px; margin-right: 5px; vertical-align: middle;"></span>
+                    <span style="display: inline-block; width: 10px; height: 10px; border: 1.5px solid #92400e; border-radius: 2px; margin-right: 4px; vertical-align: middle;"></span>
                     ON HOLD
                   </span>
                 </td>
@@ -668,50 +699,50 @@ export async function printProductionSheet({
 
         ${isPerfume ? `
         <!-- Standard Operating Procedure (Perfume Compounding Protocol) -->
-        <div style="margin-top: 10px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px 9px; background-color: #f8fafc;">
-          <div style="font-weight: 800; font-size: 10.5px; margin-bottom: 5px; letter-spacing: 0.3px; color: #0f172a; text-transform: uppercase;">
+        <div style="margin-top: 4px; margin-bottom: 4px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 6px; background-color: #f8fafc;">
+          <div style="font-weight: 800; font-size: 9.5px; margin-bottom: 3px; letter-spacing: 0.3px; color: #0f172a; text-transform: uppercase;">
             STANDARD OPERATING PROCEDURE (PERFUME COMPOUNDING PROTOCOL):
           </div>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 9.5px; line-height: 1.35;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 8px; line-height: 1.25;">
             <!-- Step 1 -->
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px 4px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
-                <strong style="color: #92400e; display: block; margin-bottom: 3px; font-size: 10px;">Step 1: Solvents & Base (Phase A)</strong>
-                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step1_start)}</div>
-                <div style="color: #334155; margin-bottom: 4px;">Charge Ethyl Alcohol and Procol into the mixing vessel. Agitate slowly at 120 RPM for 5 minutes.</div>
+                <strong style="color: #92400e; display: block; margin-bottom: 2px; font-size: 8.5px;">Step 1: Solvents & Base (Phase A)</strong>
+                <div style="color: #475569; font-size: 7.5px; margin-bottom: 2px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step1_start)}</div>
+                <div style="color: #334155; margin-bottom: 2px;">Charge Ethyl Alcohol and Procol into mixing vessel. Agitate slowly at 120 RPM for 5 mins.</div>
               </div>
-              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step1_end)}</div>
+              <div style="color: #475569; font-size: 7.5px; border-top: 1px dashed #e2e8f0; padding-top: 2px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step1_end)}</div>
             </div>
 
             <!-- Step 2 -->
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px 4px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
-                <strong style="color: #6b21a8; display: block; margin-bottom: 3px; font-size: 10px;">Step 2: Fragrance Premix (Phase B)</strong>
-                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step2_start)}</div>
-                <div style="color: #334155; margin-bottom: 4px;">Premix Parfum Oil with PEG-40 Solubilizer in the premix tank until clear. Slowly incorporate the fragrance premix into Phase A.</div>
+                <strong style="color: #6b21a8; display: block; margin-bottom: 2px; font-size: 8.5px;">Step 2: Fragrance Premix (Phase B)</strong>
+                <div style="color: #475569; font-size: 7.5px; margin-bottom: 2px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step2_start)}</div>
+                <div style="color: #334155; margin-bottom: 2px;">Premix Parfum Oil with PEG-40 in premix tank until clear. Slowly incorporate into Phase A.</div>
               </div>
-              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step2_end)}</div>
+              <div style="color: #475569; font-size: 7.5px; border-top: 1px dashed #e2e8f0; padding-top: 2px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step2_end)}</div>
             </div>
 
             <!-- Step 3 -->
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px 4px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
-                <strong style="color: #065f46; display: block; margin-bottom: 3px; font-size: 10px;">Step 3: Fixative & Final Mixing (Phase C)</strong>
-                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step3_start)}</div>
-                <div style="color: #334155; margin-bottom: 4px;">Add Fixative to the mixture. Mix for 15 minutes until homogeneous.</div>
+                <strong style="color: #065f46; display: block; margin-bottom: 2px; font-size: 8.5px;">Step 3: Fixative & Mixing (Phase C)</strong>
+                <div style="color: #475569; font-size: 7.5px; margin-bottom: 2px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step3_start)}</div>
+                <div style="color: #334155; margin-bottom: 2px;">Add Fixative to mixture. Mix for 15 minutes until homogeneous.</div>
               </div>
-              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step3_end)}</div>
+              <div style="color: #475569; font-size: 7.5px; border-top: 1px dashed #e2e8f0; padding-top: 2px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step3_end)}</div>
             </div>
 
             <!-- Step 4 -->
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px 4px; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
-                <strong style="color: #1e40af; display: block; margin-bottom: 3px; font-size: 10px;">Step 4: Maceration / Aging</strong>
-                <div style="color: #475569; font-size: 8.5px; margin-bottom: 3px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step4_start)}</div>
-                <div style="color: #334155; margin-bottom: 3px;">Transfer the compounded perfume into a Drum/Tub. Allow the product to undergo maceration/aging for 24 hours.</div>
-                <div style="font-size: 8.5px; color: #1e40af; font-weight: 700; margin-bottom: 3px;">Required duration: 24 Hours</div>
+                <strong style="color: #1e40af; display: block; margin-bottom: 2px; font-size: 8.5px;">Step 4: Maceration / Aging</strong>
+                <div style="color: #475569; font-size: 7.5px; margin-bottom: 2px; font-family: monospace;">Start: ${formatSopDt(sopTimestamps?.step4_start)}</div>
+                <div style="color: #334155; margin-bottom: 2px;">Transfer to Drum/Tub for maceration/aging for 24 hours.</div>
+                <div style="font-size: 7.5px; color: #1e40af; font-weight: 700;">Duration: 24 Hours</div>
               </div>
-              <div style="color: #475569; font-size: 8.5px; border-top: 1px dashed #e2e8f0; padding-top: 3px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step4_end)}</div>
+              <div style="color: #475569; font-size: 7.5px; border-top: 1px dashed #e2e8f0; padding-top: 2px; font-family: monospace;">End: ${formatSopDt(sopTimestamps?.step4_end)}</div>
             </div>
           </div>
         </div>
@@ -962,37 +993,37 @@ export async function printProductionSheet({
         }
         .sig-title {
           text-align: left;
-          font-size: 11px;
+          font-size: ${isPerfume ? '9.5px' : '11px'};
           font-weight: 500;
-          margin-bottom: ${totalItemCount > 16 ? '12px' : '18px'};
+          margin-bottom: ${isPerfume ? '8px' : totalItemCount > 16 ? '12px' : '18px'};
         }
         .sig-name {
-          font-size: 11px;
+          font-size: ${isPerfume ? '9.5px' : '11px'};
           font-weight: 700;
           color: #000000;
           margin-bottom: 2px;
-          min-height: 15px;
+          min-height: ${isPerfume ? '12px' : '15px'};
           text-align: center;
         }
         .sig-line {
           border-bottom: 1.5px solid #000000;
           width: 100%;
-          margin-bottom: 3px;
+          margin-bottom: 2px;
         }
         .sig-subtext {
-          font-size: 10px;
+          font-size: ${isPerfume ? '8.5px' : '10px'};
           color: #4b5563;
           text-align: center;
         }
 
         /* Printable Footer & Page Numbers */
         .print-page-footer {
-          margin-top: 15px;
-          padding-top: 6px;
+          margin-top: ${isPerfume ? '4px' : '15px'};
+          padding-top: ${isPerfume ? '2px' : '6px'};
           border-top: 1px dashed #cbd5e1;
           display: flex;
           justify-content: space-between;
-          font-size: 9.5px;
+          font-size: ${isPerfume ? '8.5px' : '9.5px'};
           color: #475569;
           font-family: ${fontFamilyCss};
         }
@@ -1029,9 +1060,9 @@ export async function printProductionSheet({
             margin: ${pageMargin};
           }
           html, body {
-            height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            overflow: hidden !important;
             padding: 0 !important;
             margin: 0 !important;
             background: #ffffff !important;
@@ -1052,6 +1083,9 @@ export async function printProductionSheet({
             box-sizing: border-box !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            page-break-after: ${copiesCount > 1 ? 'always' : 'avoid'} !important;
+            break-after: ${copiesCount > 1 ? 'page' : 'avoid'} !important;
+            ${isPerfume ? 'max-height: 99.5vh !important; overflow: hidden !important;' : ''}
           }
           .sheet-page:last-child {
             page-break-after: avoid !important;

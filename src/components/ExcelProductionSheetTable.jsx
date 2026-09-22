@@ -522,7 +522,14 @@ export default function ExcelProductionSheetTable({
                 </span>
               </td>
               <td colSpan="3" className="p-2.5 uppercase font-extrabold text-slate-900 align-middle relative">
-                Total Batch Quantity
+                <div className="flex items-center justify-between">
+                  <span>Total Batch Quantity</span>
+                  {(batchResult.bottle_qty || batchResult.bottle_size) && (
+                    <span className="text-emerald-800 font-bold font-mono lowercase text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Target Output: <strong className="font-extrabold">{Number(batchResult.bottle_qty).toLocaleString()}</strong> bottles ({batchResult.bottle_size} ml)
+                    </span>
+                  )}
+                </div>
                 {!isLocked && (
                   <div
                     onMouseDown={(e) => handleRowMouseDown('total', e)}
