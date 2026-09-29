@@ -35,11 +35,11 @@ function showCopySelectorModal(onConfirm) {
       </div>
 
       <p style="font-size: 12.5px; color: #475569; margin: 0 0 16px 0; line-height: 1.45;">
-        How many production sheet copies do you want to print? If printing multiple copies, each copy will be assigned a <strong>UNIQUE Compounding Code (CP-YYYY-XXXX)</strong>.
+        How many production sheet copies do you want to print? Each copy strictly fits on <strong>1 Page</strong> with a unique <strong>CP-xxxx</strong> compounding code.
       </p>
 
       <div style="margin-bottom: 20px;">
-        <label style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Number of Copies to Print *</label>
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Number of Copies to Print (Default: 1 Page) *</label>
         <input type="number" id="nkb_copy_count_input" min="1" max="50" value="1" style="width: 100%; padding: 10px 14px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 15px; font-weight: 800; color: #0f172a; box-sizing: border-box; outline: none; transition: border-color 0.2s;" />
       </div>
 
@@ -364,90 +364,198 @@ export async function printProductionSheet({
     });
   }
   const totalItemCount = (materials || []).length;
-  let pageMargin = '6mm 10mm';
-  let bodyPadding = '10px';
-  let headerMarginBottom = '10px';
-  let metaMarginBottom = '10px';
-  let tableMarginBottom = '10px';
-  let rowPadding = '4px 8px';
-  let rowFontSize = '11.5px';
-  let phasePadding = '3px 8px';
-  let notesMarginTop = '10px';
-  let notesMarginBottom = '10px';
-  let sigMarginTop = '12px';
+  let pageMargin = '4mm 7mm';
+  let bodyPadding = '0px';
+  let headerMarginBottom = '4px';
+  let metaMarginBottom = '4px';
+  let tableMarginBottom = '4px';
+  let rowPadding = '2px 5px';
+  let rowFontSize = '9.5px';
+  let phasePadding = '2px 5px';
+  let notesMarginTop = '4px';
+  let notesMarginBottom = '4px';
+  let sigMarginTop = '6px';
+
+  // Compact layout parameters for Quality Parameters table, Notes, Signatures, and Footer
+  let qpMarginTop = '4px';
+  let qpMarginBottom = '4px';
+  let qpTitleSize = '10px';
+  let qpTableFontSize = '9px';
+  let qpCellPadding = '2.5px 6px';
+  let notesHeadingSize = '9.5px';
+  let notesBulletSize = '8.5px';
+  let sigTitleSize = '9.5px';
+  let sigTitleMargin = '8px';
+  let sigNameSize = '9.5px';
+  let sigNameMinHeight = '12px';
+  let sigSubtextSize = '8.5px';
+  let footerMarginTop = '4px';
+  let footerPaddingTop = '2px';
+  let footerFontSize = '8.5px';
 
   if (isPerfume) {
     pageMargin = totalItemCount > 12 ? '3mm 5mm' : '3.5mm 6mm';
     bodyPadding = '0px';
     headerMarginBottom = '3px';
-    metaMarginBottom = '4px';
-    tableMarginBottom = '4px';
+    metaMarginBottom = '3px';
+    tableMarginBottom = '3px';
     rowPadding = totalItemCount > 10 ? '1.5px 4px' : '2px 5px';
     rowFontSize = totalItemCount > 10 ? '8.5px' : '9.5px';
     phasePadding = '1.5px 4px';
     notesMarginTop = '3px';
     notesMarginBottom = '3px';
     sigMarginTop = '5px';
-  } else if (totalItemCount > 30) {
+    qpMarginTop = '3px';
+    qpMarginBottom = '3px';
+    qpTitleSize = '9.5px';
+    qpTableFontSize = '8px';
+    qpCellPadding = '2px 4px';
+    notesHeadingSize = '9px';
+    notesBulletSize = '8px';
+    sigTitleSize = '9px';
+    sigTitleMargin = '6px';
+    sigNameSize = '9px';
+    sigNameMinHeight = '11px';
+    sigSubtextSize = '8px';
+    footerMarginTop = '3px';
+    footerPaddingTop = '2px';
+    footerFontSize = '8px';
+  } else if (totalItemCount > 25) {
+    pageMargin = '2.5mm 4mm';
+    bodyPadding = '0px';
+    headerMarginBottom = '2px';
+    metaMarginBottom = '2px';
+    tableMarginBottom = '2px';
+    rowPadding = '1px 3px';
+    rowFontSize = '7.5px';
+    phasePadding = '1px 3px';
+    notesMarginTop = '2px';
+    notesMarginBottom = '2px';
+    sigMarginTop = '3px';
+    qpMarginTop = '2px';
+    qpMarginBottom = '2px';
+    qpTitleSize = '8.5px';
+    qpTableFontSize = '7.5px';
+    qpCellPadding = '1.5px 3px';
+    notesHeadingSize = '8px';
+    notesBulletSize = '7px';
+    sigTitleSize = '8px';
+    sigTitleMargin = '4px';
+    sigNameSize = '8px';
+    sigNameMinHeight = '10px';
+    sigSubtextSize = '7px';
+    footerMarginTop = '2px';
+    footerPaddingTop = '1px';
+    footerFontSize = '7.5px';
+  } else if (totalItemCount > 18) {
     pageMargin = '3mm 5mm';
-    bodyPadding = '2px';
+    bodyPadding = '0px';
+    headerMarginBottom = '2px';
+    metaMarginBottom = '3px';
+    tableMarginBottom = '3px';
+    rowPadding = '1.5px 4px';
+    rowFontSize = '8px';
+    phasePadding = '1.5px 4px';
+    notesMarginTop = '2px';
+    notesMarginBottom = '2px';
+    sigMarginTop = '4px';
+    qpMarginTop = '2px';
+    qpMarginBottom = '3px';
+    qpTitleSize = '9px';
+    qpTableFontSize = '8px';
+    qpCellPadding = '2px 4px';
+    notesHeadingSize = '8.5px';
+    notesBulletSize = '7.5px';
+    sigTitleSize = '8.5px';
+    sigTitleMargin = '5px';
+    sigNameSize = '8.5px';
+    sigNameMinHeight = '11px';
+    sigSubtextSize = '7.5px';
+    footerMarginTop = '3px';
+    footerPaddingTop = '1px';
+    footerFontSize = '8px';
+  } else if (totalItemCount > 12) {
+    // 13-18 items (HERCHOICE PEKAS CREAM 3.0 has 17 items!)
+    pageMargin = '3mm 5mm';
+    bodyPadding = '0px';
     headerMarginBottom = '3px';
     metaMarginBottom = '3px';
     tableMarginBottom = '3px';
-    rowPadding = '1.5px 3px';
-    rowFontSize = '8px';
-    phasePadding = '1.5px 3px';
+    rowPadding = '1.5px 4px';
+    rowFontSize = '8.5px';
+    phasePadding = '1.5px 4px';
     notesMarginTop = '3px';
     notesMarginBottom = '3px';
-    sigMarginTop = '4px';
-  } else if (totalItemCount > 22) {
+    sigMarginTop = '5px';
+    qpMarginTop = '3px';
+    qpMarginBottom = '3px';
+    qpTitleSize = '9px';
+    qpTableFontSize = '8.5px';
+    qpCellPadding = '2px 5px';
+    notesHeadingSize = '9px';
+    notesBulletSize = '8px';
+    sigTitleSize = '9px';
+    sigTitleMargin = '6px';
+    sigNameSize = '9px';
+    sigNameMinHeight = '11px';
+    sigSubtextSize = '8px';
+    footerMarginTop = '3px';
+    footerPaddingTop = '2px';
+    footerFontSize = '8px';
+  } else if (totalItemCount > 7) {
     pageMargin = '4mm 6mm';
-    bodyPadding = '4px';
+    bodyPadding = '0px';
     headerMarginBottom = '4px';
     metaMarginBottom = '4px';
     tableMarginBottom = '4px';
-    rowPadding = '2px 4px';
+    rowPadding = '2px 5px';
     rowFontSize = '9px';
-    phasePadding = '2px 4px';
+    phasePadding = '2px 5px';
     notesMarginTop = '4px';
     notesMarginBottom = '4px';
     sigMarginTop = '6px';
-  } else if (totalItemCount > 16) {
-    pageMargin = '4mm 8mm';
-    bodyPadding = '5px';
+    qpMarginTop = '4px';
+    qpMarginBottom = '4px';
+    qpTitleSize = '9.5px';
+    qpTableFontSize = '9px';
+    qpCellPadding = '2.5px 6px';
+    notesHeadingSize = '9.5px';
+    notesBulletSize = '8.5px';
+    sigTitleSize = '9.5px';
+    sigTitleMargin = '8px';
+    sigNameSize = '9.5px';
+    sigNameMinHeight = '12px';
+    sigSubtextSize = '8.5px';
+    footerMarginTop = '4px';
+    footerPaddingTop = '2px';
+    footerFontSize = '8.5px';
+  } else {
+    pageMargin = '5mm 8mm';
+    bodyPadding = '0px';
     headerMarginBottom = '5px';
     metaMarginBottom = '5px';
     tableMarginBottom = '5px';
-    rowPadding = '2px 5px';
+    rowPadding = '2.5px 6px';
     rowFontSize = '9.5px';
-    phasePadding = '2px 5px';
+    phasePadding = '2px 6px';
     notesMarginTop = '5px';
     notesMarginBottom = '5px';
-    sigMarginTop = '6px';
-  } else if (totalItemCount > 12) {
-    pageMargin = '5mm 8mm';
-    bodyPadding = '6px';
-    headerMarginBottom = '6px';
-    metaMarginBottom = '6px';
-    tableMarginBottom = '6px';
-    rowPadding = '2.5px 6px';
-    rowFontSize = '10.5px';
-    phasePadding = '2px 6px';
-    notesMarginTop = '6px';
-    notesMarginBottom = '6px';
     sigMarginTop = '8px';
-  } else if (totalItemCount > 8) {
-    pageMargin = '5.5mm 10mm';
-    bodyPadding = '8px';
-    headerMarginBottom = '8px';
-    metaMarginBottom = '8px';
-    tableMarginBottom = '8px';
-    rowPadding = '3px 8px';
-    rowFontSize = '11px';
-    phasePadding = '3px 8px';
-    notesMarginTop = '8px';
-    notesMarginBottom = '8px';
-    sigMarginTop = '10px';
+    qpMarginTop = '5px';
+    qpMarginBottom = '5px';
+    qpTitleSize = '10px';
+    qpTableFontSize = '9.5px';
+    qpCellPadding = '3px 8px';
+    notesHeadingSize = '10px';
+    notesBulletSize = '9px';
+    sigTitleSize = '10px';
+    sigTitleMargin = '10px';
+    sigNameSize = '10px';
+    sigNameMinHeight = '13px';
+    sigSubtextSize = '9px';
+    footerMarginTop = '5px';
+    footerPaddingTop = '2px';
+    footerFontSize = '9px';
   }
 
   const selectedFontName = localStorage.getItem('nkb_document_font') || version?.document_font || 'Inter';
@@ -559,8 +667,8 @@ export async function printProductionSheet({
         </table>
 
         <!-- Quality Parameters & Specifications Table -->
-        <div style="margin-top: ${isPerfume ? '4px' : '15px'}; margin-bottom: ${isPerfume ? '4px' : '20px'};">
-          <div style="font-weight: 800; font-size: ${isPerfume ? '10px' : '12px'}; margin-bottom: ${isPerfume ? '3px' : '6px'}; letter-spacing: 0.3px; color: #000;">
+        <div style="margin-top: ${qpMarginTop}; margin-bottom: ${qpMarginBottom};">
+          <div style="font-weight: 800; font-size: ${qpTitleSize}; margin-bottom: 2px; letter-spacing: 0.3px; color: #000;">
             ${isPerfume ? 'QUALITY PARAMETERS & QC EVALUATION REVIEW:' : 'QUALITY PARAMETERS & SPECIFICATIONS:'}
           </div>
           ${isPerfume ? `
@@ -690,23 +798,23 @@ export async function printProductionSheet({
             </tbody>
           </table>
           ` : `
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: 12px;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; font-size: ${qpTableFontSize}; line-height: 1.25;">
             <tbody>
               <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${targetPh}</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Actual pH:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${actualPh || '[ ________ ]'}</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Target pH Range:</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${targetPh}</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Actual pH:</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${actualPh || '[ ________ ]'}</td>
               </tr>
               <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Viscosity (cP):</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${viscosity}</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Appearance:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; width: 25%;">${appearance}</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Viscosity (cP):</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; font-weight: 700; font-variant-numeric: tabular-nums; width: 25%;">${viscosity}</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700; width: 25%;">Appearance:</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; width: 25%;">${appearance}</td>
               </tr>
               <tr>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Remarks:</td>
-                <td style="padding: 6px 10px; border: 1px solid #d1d5db;" colspan="3">${remarks}</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db; background-color: #f9fafb; font-weight: 700;">Remarks:</td>
+                <td style="padding: ${qpCellPadding}; border: 1px solid #d1d5db;" colspan="3">${remarks}</td>
               </tr>
             </tbody>
           </table>
@@ -850,11 +958,15 @@ export async function printProductionSheet({
         .sheet-page {
           page-break-after: always;
           break-after: page;
-          padding-bottom: 12px;
+          padding-bottom: 0px;
+          margin-bottom: ${copiesCount > 1 ? '24px' : '0px'};
+          ${copiesCount > 1 ? 'border-bottom: 2px dashed #cbd5e1;' : ''}
         }
         .sheet-page:last-child {
           page-break-after: avoid;
           break-after: avoid;
+          margin-bottom: 0px;
+          border-bottom: none;
         }
 
         /* Top Header */
@@ -863,17 +975,17 @@ export async function printProductionSheet({
           margin-bottom: ${headerMarginBottom};
         }
         .doc-header h1 {
-          font-size: ${totalItemCount > 16 ? '17px' : '20px'};
+          font-size: ${totalItemCount > 12 ? '16px' : '18px'};
           font-weight: 800;
-          margin: 0 0 2px 0;
+          margin: 0 0 1px 0;
           letter-spacing: 0.2px;
           color: #000;
         }
         .doc-header h2 {
-          font-size: ${totalItemCount > 16 ? '13px' : '14px'};
+          font-size: ${totalItemCount > 12 ? '11.5px' : '13px'};
           font-weight: 800;
           margin: 0;
-          letter-spacing: 1px;
+          letter-spacing: 0.8px;
           color: #000;
         }
         /* Meta Grid */
@@ -881,7 +993,7 @@ export async function printProductionSheet({
           display: flex;
           justify-content: space-between;
           margin-bottom: ${metaMarginBottom};
-          font-size: ${totalItemCount > 16 ? '11px' : '12.5px'};
+          font-size: ${totalItemCount > 12 ? '9.5px' : '11px'};
         }
         .meta-col-left {
           text-align: left;
@@ -982,19 +1094,19 @@ export async function printProductionSheet({
         }
         .notes-heading {
           font-weight: 800;
-          font-size: 11px;
-          margin-bottom: 4px;
+          font-size: ${notesHeadingSize};
+          margin-bottom: 2px;
           letter-spacing: 0.3px;
         }
         .notes-bullet {
-          font-size: 10.5px;
-          margin-bottom: 2px;
-          line-height: 1.3;
+          font-size: ${notesBulletSize};
+          margin-bottom: 1.5px;
+          line-height: 1.25;
         }
         .bullet-icon {
           display: inline-block;
           margin-right: 4px;
-          font-size: 9px;
+          font-size: 8px;
         }
 
         /* Signatures Footer */
@@ -1009,16 +1121,16 @@ export async function printProductionSheet({
         }
         .sig-title {
           text-align: left;
-          font-size: ${isPerfume ? '9.5px' : '11px'};
+          font-size: ${sigTitleSize};
           font-weight: 500;
-          margin-bottom: ${isPerfume ? '8px' : totalItemCount > 16 ? '12px' : '18px'};
+          margin-bottom: ${sigTitleMargin};
         }
         .sig-name {
-          font-size: ${isPerfume ? '9.5px' : '11px'};
+          font-size: ${sigNameSize};
           font-weight: 700;
           color: #000000;
           margin-bottom: 2px;
-          min-height: ${isPerfume ? '12px' : '15px'};
+          min-height: ${sigNameMinHeight};
           text-align: center;
         }
         .sig-line {
@@ -1027,19 +1139,19 @@ export async function printProductionSheet({
           margin-bottom: 2px;
         }
         .sig-subtext {
-          font-size: ${isPerfume ? '8.5px' : '10px'};
+          font-size: ${sigSubtextSize};
           color: #4b5563;
           text-align: center;
         }
 
         /* Printable Footer & Page Numbers */
         .print-page-footer {
-          margin-top: ${isPerfume ? '4px' : '15px'};
-          padding-top: ${isPerfume ? '2px' : '6px'};
+          margin-top: ${footerMarginTop};
+          padding-top: ${footerPaddingTop};
           border-top: 1px dashed #cbd5e1;
           display: flex;
           justify-content: space-between;
-          font-size: ${isPerfume ? '8.5px' : '9.5px'};
+          font-size: ${footerFontSize};
           color: #475569;
           font-family: ${fontFamilyCss};
         }
@@ -1076,11 +1188,8 @@ export async function printProductionSheet({
             margin: ${pageMargin};
           }
           html, body {
-            height: 100% !important;
-            max-height: 100% !important;
-            overflow: hidden !important;
-            padding: 0 !important;
             margin: 0 !important;
+            padding: 0 !important;
             background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -1095,13 +1204,17 @@ export async function printProductionSheet({
             margin: 0 !important;
           }
           .sheet-page {
+            width: 100% !important;
+            max-height: 99.5vh !important;
+            overflow: hidden !important;
             padding-bottom: 0 !important;
+            margin-bottom: 0 !important;
+            border-bottom: none !important;
             box-sizing: border-box !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             page-break-after: ${copiesCount > 1 ? 'always' : 'avoid'} !important;
             break-after: ${copiesCount > 1 ? 'page' : 'avoid'} !important;
-            ${isPerfume ? 'max-height: 99.5vh !important; overflow: hidden !important;' : ''}
           }
           .sheet-page:last-child {
             page-break-after: avoid !important;
