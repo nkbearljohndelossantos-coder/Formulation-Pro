@@ -103,28 +103,10 @@ export async function printProductionSheet({
     return;
   }
 
-  // If copy count hasn't been set by user, show the in-app copy selector modal first!
-  if (typeof requestedCopies !== 'number' || requestedCopies < 1) {
-    showCopySelectorModal((selectedCopies) => {
-      printProductionSheet({
-        version,
-        formula,
-        materials,
-        categoryDetails,
-        user,
-        copies: selectedCopies,
-        layoutConfig,
-        isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume,
-        brandName: explicitBrandName || version?.brandName || formula?.brandName,
-        bottleSize: explicitBottleSize || version?.bottleSize || version?.bottle_size,
-        bottleQty: explicitBottleQty || version?.bottleQty || version?.bottle_qty,
-        sopTimestamps: explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps,
-      });
-    });
-    return;
-  }
-
-  const copiesCount = requestedCopies;
+  // Default to 1 copy directly (Strictly 1 Page)
+  const copiesCount = (typeof requestedCopies === 'number' && requestedCopies >= 1)
+    ? Math.floor(requestedCopies)
+    : 1;
   const sopTimestamps = explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps || null;
 
   const formatSopDt = (dtVal) => {
@@ -1190,6 +1172,7 @@ export async function printProductionSheet({
           html, body {
             margin: 0 !important;
             padding: 0 !important;
+            ${copiesCount === 1 ? 'height: 100% !important; max-height: 100% !important; overflow: hidden !important;' : ''}
             background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -1205,7 +1188,7 @@ export async function printProductionSheet({
           }
           .sheet-page {
             width: 100% !important;
-            max-height: 99.5vh !important;
+            max-height: 98vh !important;
             overflow: hidden !important;
             padding-bottom: 0 !important;
             margin-bottom: 0 !important;
