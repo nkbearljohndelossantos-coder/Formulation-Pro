@@ -103,10 +103,28 @@ export async function printProductionSheet({
     return;
   }
 
-  // Default to 1 copy directly (Strictly 1 Page)
-  const copiesCount = (typeof requestedCopies === 'number' && requestedCopies >= 1)
-    ? Math.floor(requestedCopies)
-    : 1;
+  // Prompt for number of copies if not explicitly provided
+  if (typeof requestedCopies !== 'number' || requestedCopies < 1) {
+    showCopySelectorModal((selectedCopies) => {
+      printProductionSheet({
+        version,
+        formula,
+        materials,
+        categoryDetails,
+        user,
+        copies: selectedCopies,
+        layoutConfig,
+        isPerfume: explicitIsPerfume || version?.isPerfume || formula?.isPerfume,
+        brandName: explicitBrandName || version?.brandName || formula?.brandName,
+        bottleSize: explicitBottleSize || version?.bottleSize || version?.bottle_size,
+        bottleQty: explicitBottleQty || version?.bottleQty || version?.bottle_qty,
+        sopTimestamps: explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps,
+      });
+    });
+    return;
+  }
+
+  const copiesCount = requestedCopies;
   const sopTimestamps = explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps || null;
 
   const formatSopDt = (dtVal) => {
