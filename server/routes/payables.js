@@ -451,8 +451,34 @@ const DEFAULT_PAYABLES = [
   }
 ];
 
+// Helper to normalize and structure payables matching exact COO approval fields
+export function formatPayableItem(p) {
+  const reqNo = p.req_cheque_no || p.cheque_number || p.payable_number || p.req_number || p.control_number || `PB-${p.id}`;
+  const dateVal = p.date || p.date_created || p.invoice_date || '09/22/2026';
+  const payeeVal = p.payee_beneficiary || p.payee || p.beneficiary || p.vendor || p.company || 'NKB Entity';
+  const categoryVal = p.category || (p.items && p.items[0]?.expense_category) || 'Accrued expenses';
+  const bankVal = p.bank_account || p.bank || (String(payeeVal).includes('BDO') ? 'BDO - 00234819234' : String(payeeVal).includes('METROBANK') ? 'Metrobank - 511-98214' : 'BDO - 0019283741');
+  const purposeVal = p.purpose_usage || p.purpose || p.usage || p.description || (p.items && p.items[0]?.description) || 'Disbursement';
+  const amountVal = parseFloat(p.amount || p.total || p.amount_due || 0);
+  const attachmentVal = p.attachment || p.attachment_url || (p.files && p.files.length ? p.files[0] : null);
+  const approvalVal = p.coo_approval || (p.status === 'Approved' ? 'CONFIRMED' : p.status === 'Rejected' ? 'REJECTED' : 'PENDING_COO_APPROVAL');
+
+  return {
+    ...p,
+    req_cheque_no: reqNo,
+    date: dateVal,
+    payee_beneficiary: payeeVal,
+    category: categoryVal,
+    bank_account: bankVal,
+    purpose_usage: purposeVal,
+    amount: amountVal,
+    attachment: attachmentVal,
+    coo_approval: approvalVal,
+  };
+}
+
 // In-memory or database tracking of approvals & check numbers
-let localPayableRecords = [...DEFAULT_PAYABLES];
+let localPayableRecords = DEFAULT_PAYABLES.map(p => formatPayableItem(p));
 
 // Helper to fetch active NKB API Key
 async function getNkbApiKey(req) {
@@ -595,11 +621,12 @@ router.get('/', authenticateToken, async (req, res) => {
         if (extRes.ok) {
           const extData = await extRes.json();
           const items = Array.isArray(extData) ? extData : (extData.data || extData.payables || []);
+          const formattedItems = items.map(it => formatPayableItem(it));
           return res.json({
             success: true,
             source: 'REMOTE_API',
-            data: items,
-            totalCount: extData.total || items.length
+            data: formattedItems,
+            totalCount: extData.total || formattedItems.length
           });
         }
       } catch (err) {
@@ -608,22 +635,28 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     // Local / fallback dataset
-    let results = [...localPayableRecords];
+    let results = localPayableRecords.map(it => formatPayableItem(it));
 
     if (status && status !== 'ALL') {
       const s = status.toUpperCase();
-      results = results.filter(p => (p.status || '').toUpperCase().includes(s));
+      results = results.filter(p =>
+        (p.coo_approval || '').toUpperCase().includes(s) ||
+        (p.status || '').toUpperCase().includes(s)
+      );
     }
 
     if (search && search.trim()) {
       const q = search.trim().toLowerCase();
       results = results.filter(p =>
+        (p.req_cheque_no || '').toLowerCase().includes(q) ||
         (p.payable_number || '').toLowerCase().includes(q) ||
+        (p.payee_beneficiary || '').toLowerCase().includes(q) ||
         (p.company || '').toLowerCase().includes(q) ||
-        (p.company_code || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q) ||
+        (p.bank_account || '').toLowerCase().includes(q) ||
+        (p.purpose_usage || '').toLowerCase().includes(q) ||
         (p.control_number || '').toLowerCase().includes(q) ||
         (p.invoice_number || '').toLowerCase().includes(q) ||
-        (p.description || '').toLowerCase().includes(q) ||
         (p.vendor || '').toLowerCase().includes(q)
       );
     }
@@ -633,6 +666,46 @@ router.get('/', authenticateToken, async (req, res) => {
       source: 'LOCAL_DATASET',
       data: results,
       totalCount: results.length
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/payables/webhook
+ * Receives incoming payable approval requests directly from my.nkbmanufacturing.com
+ */
+router.post('/webhook', async (req, res) => {
+  try {
+    const rawData = req.body;
+    if (!rawData) {
+      return res.status(400).json({ success: false, message: 'Payload is required' });
+    }
+
+    const items = Array.isArray(rawData) ? rawData : (rawData.data || [rawData]);
+    let count = 0;
+
+    for (const raw of items) {
+      const formatted = formatPayableItem(raw);
+      const idx = localPayableRecords.findIndex(p =>
+        String(p.id) === String(formatted.id) ||
+        String(p.payable_number) === String(formatted.payable_number) ||
+        String(p.req_cheque_no) === String(formatted.req_cheque_no)
+      );
+
+      if (idx !== -1) {
+        localPayableRecords[idx] = { ...localPayableRecords[idx], ...formatted };
+      } else {
+        localPayableRecords.unshift(formatted);
+        count++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Received ${count} new approval request(s) via Webhook from my.nkbmanufacturing.com.`,
+      totalActive: localPayableRecords.length
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

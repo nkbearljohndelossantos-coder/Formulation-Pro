@@ -19,7 +19,11 @@ import {
   ChevronRight,
   ShieldCheck,
   Eye,
-  Info
+  Info,
+  HelpCircle,
+  Radio,
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -30,10 +34,12 @@ export function PayableApprovalsPage() {
   const [payables, setPayables] = useState([]);
   const [selectedPayable, setSelectedPayable] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPageNum, setCurrentPageNum] = useState(1);
+  const [autoSync, setAutoSync] = useState(true);
   const itemsPerPage = 10;
 
   // Form state in detail view
@@ -42,8 +48,15 @@ export function PayableApprovalsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState(null);
 
+  // Quick Action Modal state (from table row)
+  const [quickActionItem, setQuickActionItem] = useState(null);
+  const [quickActionType, setQuickActionType] = useState(null); // 'APPROVE' | 'REJECT'
+  const [quickCheckNumber, setQuickCheckNumber] = useState('');
+  const [quickNotes, setQuickNotes] = useState('');
+
   // API Key config modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showHowToModal, setShowHowToModal] = useState(false);
   const [apiConfig, setApiConfig] = useState({
     hasKey: false,
     maskedKey: null,
@@ -55,14 +68,20 @@ export function PayableApprovalsPage() {
   const [savingKey, setSavingKey] = useState(false);
 
   // Fetch payables list & config
-  const fetchPayables = async () => {
+  const fetchPayables = async (isManualSync = false) => {
     try {
-      setLoading(true);
+      if (isManualSync) setSyncing(true);
+      else setLoading(true);
       setError(null);
+
       const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPayables(data.data);
+        if (isManualSync) {
+          setActionSuccessMessage(`Synced successfully from my.nkbmanufacturing.com (${data.source === 'REMOTE_API' ? 'Live API' : 'Local Sandbox'}).`);
+          setTimeout(() => setActionSuccessMessage(null), 4000);
+        }
       } else {
         setError(data.message || 'Failed to load payables');
       }
@@ -70,6 +89,7 @@ export function PayableApprovalsPage() {
       setError(err.message || 'Network error fetching payables');
     } finally {
       setLoading(false);
+      setSyncing(false);
     }
   };
 
@@ -88,6 +108,15 @@ export function PayableApprovalsPage() {
     fetchConfig();
   }, [statusFilter]);
 
+  // Periodic Auto-Sync (polling every 30 seconds if enabled)
+  useEffect(() => {
+    if (!autoSync) return;
+    const interval = setInterval(() => {
+      fetchPayables();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [autoSync, statusFilter, searchTerm]);
+
   // Handle save API key
   const handleSaveApiKey = async (e) => {
     e.preventDefault();
@@ -104,7 +133,7 @@ export function PayableApprovalsPage() {
         setInputApiKey('');
         setShowConfigModal(false);
         await fetchConfig();
-        await fetchPayables();
+        await fetchPayables(true);
       } else {
         alert(data.message || 'Failed to save API Key');
       }
@@ -125,7 +154,7 @@ export function PayableApprovalsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle Approval / Rejection
+  // Handle Approval / Rejection from Detail View
   const handleConfirmDecision = async (decision) => {
     if (!selectedPayable) return;
 
@@ -135,8 +164,8 @@ export function PayableApprovalsPage() {
     }
 
     const confirmPrompt = decision === 'CONFIRMED'
-      ? `Sigurado ka bang nais mong I-APPROVE ang Payable ${selectedPayable.payable_number} gamit ang Check Number: ${checkNumber.trim()}?`
-      : `Sigurado ka bang nais mong I-REJECT ang Payable ${selectedPayable.payable_number}?`;
+      ? `Sigurado ka bang nais mong I-APPROVE ang Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number} gamit ang Check Number: ${checkNumber.trim()}?`
+      : `Sigurado ka bang nais mong I-REJECT ang Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number}?`;
 
     if (!window.confirm(confirmPrompt)) return;
 
@@ -157,16 +186,59 @@ export function PayableApprovalsPage() {
 
       const data = await res.json();
       if (data.success) {
-        setActionSuccessMessage(`Matagumpay na na-${decision === 'CONFIRMED' ? 'APPROVE' : 'REJECT'} ang Payable ${selectedPayable.payable_number}!`);
+        setActionSuccessMessage(`Matagumpay na na-${decision === 'CONFIRMED' ? 'APPROVE' : 'REJECT'} ang Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number}!`);
         setSelectedPayable(prev => ({
           ...prev,
           status: decision === 'CONFIRMED' ? 'Approved' : 'Rejected',
+          coo_approval: decision,
           cheque_number: checkNumber.trim()
         }));
-        // Refresh master list in background
         fetchPayables();
       } else {
         alert(data.message || 'Failed to submit decision.');
+      }
+    } catch (err) {
+      alert(err.message || 'Error communicating with approval server.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle Quick Action from Table
+  const handleExecuteQuickAction = async () => {
+    if (!quickActionItem) return;
+    const decision = quickActionType === 'APPROVE' ? 'CONFIRMED' : 'REJECTED';
+
+    if (decision === 'CONFIRMED' && !quickCheckNumber.trim()) {
+      alert('Pakilagay ang Check Number (Cheque Number) para sa approval.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const approverName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'COO';
+
+      const res = await apiFetch(`/api/v1/payables/${quickActionItem.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decision,
+          cheque_number: quickCheckNumber.trim(),
+          notes: quickNotes.trim(),
+          confirmed_by: approverName
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setActionSuccessMessage(`Matagumpay na na-${decision === 'CONFIRMED' ? 'APPROVE' : 'REJECT'} ang ${quickActionItem.req_cheque_no || quickActionItem.payable_number}!`);
+        setQuickActionItem(null);
+        setQuickCheckNumber('');
+        setQuickNotes('');
+        fetchPayables();
+        setTimeout(() => setActionSuccessMessage(null), 4000);
+      } else {
+        alert(data.message || 'Failed to submit quick decision.');
       }
     } catch (err) {
       alert(err.message || 'Error communicating with approval server.');
@@ -180,9 +252,13 @@ export function PayableApprovalsPage() {
     if (!searchTerm.trim()) return payables;
     const q = searchTerm.trim().toLowerCase();
     return payables.filter(p =>
+      (p.req_cheque_no || '').toLowerCase().includes(q) ||
       (p.payable_number || '').toLowerCase().includes(q) ||
+      (p.payee_beneficiary || '').toLowerCase().includes(q) ||
       (p.company || '').toLowerCase().includes(q) ||
-      (p.company_code || '').toLowerCase().includes(q) ||
+      (p.category || '').toLowerCase().includes(q) ||
+      (p.bank_account || '').toLowerCase().includes(q) ||
+      (p.purpose_usage || '').toLowerCase().includes(q) ||
       (p.control_number || '').toLowerCase().includes(q) ||
       (p.invoice_number || '').toLowerCase().includes(q) ||
       (p.description || '').toLowerCase().includes(q) ||
@@ -204,13 +280,18 @@ export function PayableApprovalsPage() {
     return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  // Webhook URL display helper
+  const webhookUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/v1/payables/webhook`
+    : 'https://<your-domain>/api/v1/payables/webhook';
+
   // =========================================================================
   // VIEW: APPROVING PAYABLE (DETAIL VIEW MATCHING SCREENSHOT 1)
   // =========================================================================
   if (viewMode === 'detail' && selectedPayable) {
     const p = selectedPayable;
-    const isApproved = p.status === 'Approved' || p.status === 'CONFIRMED';
-    const isRejected = p.status === 'Rejected' || p.status === 'REJECTED';
+    const isApproved = p.coo_approval === 'CONFIRMED' || p.status === 'Approved';
+    const isRejected = p.coo_approval === 'REJECTED' || p.status === 'Rejected';
 
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -234,7 +315,12 @@ export function PayableApprovalsPage() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h1 className="text-xl font-bold text-slate-800">Approving Payable</h1>
+              <div>
+                <h1 className="text-xl font-bold text-slate-800">Approving Payable</h1>
+                <p className="text-xs text-slate-500">
+                  Req / Cheque: <span className="font-mono font-bold text-blue-600">{p.req_cheque_no || p.payable_number}</span> | Payee: <span className="font-semibold text-slate-700">{p.payee_beneficiary || p.vendor}</span>
+                </p>
+              </div>
             </div>
             <button
               onClick={() => window.print()}
@@ -277,11 +363,11 @@ export function PayableApprovalsPage() {
                 />
               </div>
               <div>
-                <label className="block text-blue-600 font-bold mb-1">Payable Number</label>
+                <label className="block text-blue-600 font-bold mb-1">Payable / Cheque Number</label>
                 <input
                   type="text"
                   readOnly
-                  value={p.payable_number || ''}
+                  value={p.req_cheque_no || p.payable_number || ''}
                   className="w-full bg-blue-50 border border-blue-200 rounded-md px-3 py-2 text-blue-600 font-bold focus:outline-none"
                 />
               </div>
@@ -326,29 +412,29 @@ export function PayableApprovalsPage() {
 
               {/* Row 3 */}
               <div>
-                <label className="block text-slate-600 font-semibold mb-1">Vendor</label>
+                <label className="block text-slate-600 font-semibold mb-1">Payee / Beneficiary / Vendor</label>
                 <input
                   type="text"
                   readOnly
-                  value={p.vendor || ''}
+                  value={p.payee_beneficiary || p.vendor || ''}
                   className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 font-medium focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-slate-600 font-semibold mb-1">Term</label>
+                <label className="block text-slate-600 font-semibold mb-1">Bank & Account</label>
                 <input
                   type="text"
                   readOnly
-                  value={p.term || 'Due on Receipt'}
+                  value={p.bank_account || 'BDO - 00234819234'}
                   className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 font-medium focus:outline-none"
                 />
               </div>
               <div className="lg:col-span-2">
-                <label className="block text-slate-600 font-semibold mb-1">Status</label>
+                <label className="block text-slate-600 font-semibold mb-1">COO Approval Status</label>
                 <input
                   type="text"
                   readOnly
-                  value={p.status || 'Submitted For Approval'}
+                  value={p.coo_approval || p.status || 'Submitted For Approval'}
                   className={`w-full border rounded-md px-3 py-2 font-bold focus:outline-none ${
                     isApproved ? 'bg-emerald-50 border-emerald-300 text-emerald-700' :
                     isRejected ? 'bg-rose-50 border-rose-300 text-rose-700' :
@@ -359,11 +445,11 @@ export function PayableApprovalsPage() {
 
               {/* Row 4 */}
               <div className="lg:col-span-2">
-                <label className="block text-slate-600 font-semibold mb-1">Description</label>
+                <label className="block text-slate-600 font-semibold mb-1">Purpose / Usage / Description</label>
                 <input
                   type="text"
                   readOnly
-                  value={p.description || ''}
+                  value={p.purpose_usage || p.description || ''}
                   className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 font-medium focus:outline-none"
                 />
               </div>
@@ -399,17 +485,17 @@ export function PayableApprovalsPage() {
                 <tbody className="divide-y divide-slate-200 bg-white">
                   {(p.items || [
                     {
-                      description: p.description || 'PAYMENT',
+                      description: p.purpose_usage || p.description || 'PAYMENT',
                       expense_category: p.category || 'General',
                       quantity: 1,
-                      cost: p.total || 0,
-                      subtotal: p.subtotal || p.total || 0,
+                      cost: p.amount || p.total || 0,
+                      subtotal: p.subtotal || p.amount || p.total || 0,
                       inclusive: false,
                       vat: p.vat || 0,
                       vat_zero_rated: p.vat_zero_rated || 0,
                       non_vat: p.non_vat || 0,
                       withheld: p.withheld || 0,
-                      total: p.total || 0
+                      total: p.amount || p.total || 0
                     }
                   ]).map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
@@ -471,17 +557,23 @@ export function PayableApprovalsPage() {
                     className="w-full bg-white border border-amber-400 focus:border-amber-600 focus:ring-1 focus:ring-amber-500 rounded-lg px-3.5 py-2.5 text-sm font-mono font-bold text-slate-900 shadow-xs"
                   />
                   <p className="text-[11px] text-amber-800">
-                    Ito ang Check Number na ibabato sa NKB Developer REST API kasama ang desisyon na CONFIRMED.
+                    Ito ang Check Number na ibabato sa NKB Developer REST API (`/payables/:id/confirm`) kasama ang desisyon na CONFIRMED.
                   </p>
                 </div>
 
                 {/* Attached Files Section */}
                 <div className="space-y-1">
-                  <label className="block text-slate-700 font-semibold text-xs">Files</label>
+                  <label className="block text-slate-700 font-semibold text-xs">Attachment / Files</label>
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-500">
-                    {p.files && p.files.length > 0 ? (
+                    {(p.files && p.files.length > 0) || p.attachment ? (
                       <div className="flex flex-wrap gap-2">
-                        {p.files.map((file, fIdx) => (
+                        {p.attachment && (
+                          <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-md text-slate-700 font-medium shadow-2xs">
+                            <Paperclip className="w-3.5 h-3.5 text-blue-500" />
+                            <span>{p.attachment}</span>
+                          </div>
+                        )}
+                        {(p.files || []).filter(f => f !== p.attachment).map((file, fIdx) => (
                           <div key={fIdx} className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-md text-slate-700 font-medium shadow-2xs">
                             <Paperclip className="w-3.5 h-3.5 text-blue-500" />
                             <span>{file}</span>
@@ -500,7 +592,7 @@ export function PayableApprovalsPage() {
                 <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-2.5 text-xs text-slate-700 shadow-2xs">
                   <div className="flex justify-between py-1 border-b border-slate-200/70">
                     <span>Subtotal:</span>
-                    <span className="font-mono font-semibold text-slate-900">{formatMoney(p.subtotal || p.total)}</span>
+                    <span className="font-mono font-semibold text-slate-900">{formatMoney(p.subtotal || p.amount || p.total)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-200/70">
                     <span>VAT:</span>
@@ -520,11 +612,11 @@ export function PayableApprovalsPage() {
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-slate-300 font-bold text-slate-900">
                     <span>Total:</span>
-                    <span className="font-mono text-sm">{formatMoney(p.total)}</span>
+                    <span className="font-mono text-sm">{formatMoney(p.amount || p.total)}</span>
                   </div>
                   <div className="flex justify-between py-2 text-sm font-extrabold text-slate-950">
-                    <span>Amount Due:</span>
-                    <span className="font-mono text-base text-blue-700">{formatMoney(p.amount_due || p.total)}</span>
+                    <span>Amount Due (₱):</span>
+                    <span className="font-mono text-base text-blue-700">{formatMoney(p.amount_due || p.amount || p.total)}</span>
                   </div>
                 </div>
               </div>
@@ -568,43 +660,58 @@ export function PayableApprovalsPage() {
   }
 
   // =========================================================================
-  // VIEW: PAYABLE APPROVALS MASTER LIST (MATCHING SCREENSHOT 2)
+  // VIEW: PAYABLE APPROVALS MASTER LIST (EXACT USER SPECIFIED COLUMNS)
   // =========================================================================
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Top Banner / API Status Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+      {/* Top Banner / API Status & How-To Bar */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${apiConfig.hasKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`}></div>
+          <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${apiConfig.hasKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`}></div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-slate-800">NKB Developer REST API Integration</span>
-              <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold">
-                {apiConfig.hasKey ? 'API Key Configured' : 'Local Sandbox Mode'}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-slate-800">my.nkbmanufacturing.com REST API Connection</span>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                apiConfig.hasKey ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+              }`}>
+                {apiConfig.hasKey ? 'API Key Active (Sync Ready)' : 'No API Key — Using Local Sandbox'}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              Endpoint: <span className="font-mono text-blue-600">http://my.nkbmanufacturing.com/api/v1/payables</span>
-              {apiConfig.maskedKey && <span className="ml-2 font-mono text-slate-600">({apiConfig.maskedKey})</span>}
+            <p className="text-xs text-slate-500 mt-0.5">
+              Live Endpoint: <span className="font-mono text-blue-600">http://my.nkbmanufacturing.com/api/v1/payables</span>
+              {apiConfig.maskedKey && <span className="ml-2 font-mono text-slate-700">({apiConfig.maskedKey})</span>}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+          {/* How to receive approvals button */}
+          <button
+            onClick={() => setShowHowToModal(true)}
+            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition flex items-center gap-1.5 border border-blue-200"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Paano Makatanggap ng Approvals?</span>
+          </button>
+
+          {/* Sync now button */}
+          <button
+            onClick={() => fetchPayables(true)}
+            disabled={syncing}
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 shadow-2xs disabled:opacity-60"
+            title="Fetch latest pending approvals from my.nkbmanufacturing.com"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing...' : 'Sync Now'}</span>
+          </button>
+
+          {/* Configure key button */}
           <button
             onClick={() => setShowConfigModal(true)}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition flex items-center gap-1.5 border border-slate-200"
           >
             <Key className="w-3.5 h-3.5 text-slate-500" />
-            <span>Configure API Key</span>
-          </button>
-          <button
-            onClick={fetchPayables}
-            disabled={loading}
-            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
-            title="Refresh List"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>API Key</span>
           </button>
         </div>
       </div>
@@ -614,9 +721,17 @@ export function PayableApprovalsPage() {
         {/* Table Header & Controls */}
         <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Payable Approvals</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Payable Approvals</h1>
+              {autoSync && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <Radio className="w-3 h-3 animate-pulse" />
+                  Live Polling (30s)
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Review, verify, and approve company cheque disbursements and invoices
+              Review, verify, and approve company cheque disbursements and payables
             </p>
           </div>
 
@@ -625,7 +740,7 @@ export function PayableApprovalsPage() {
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
               <button
                 onClick={() => setStatusFilter('ALL')}
-                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
               >
                 All
               </button>
@@ -636,14 +751,20 @@ export function PayableApprovalsPage() {
                 Pending
               </button>
               <button
-                onClick={() => setStatusFilter('APPROVED')}
-                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'APPROVED' ? 'bg-white text-emerald-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                onClick={() => setStatusFilter('CONFIRMED')}
+                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
               >
                 Approved
               </button>
+              <button
+                onClick={() => setStatusFilter('REJECTED')}
+                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'REJECTED' ? 'bg-white text-rose-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+              >
+                Rejected
+              </button>
             </div>
 
-            {/* Search Box on Top Right (Matching Screenshot 2) */}
+            {/* Search Box */}
             <div className="relative w-full sm:w-64">
               <input
                 type="text"
@@ -660,77 +781,153 @@ export function PayableApprovalsPage() {
           </div>
         </div>
 
-        {/* Table Content */}
+        {/* Table Content with EXACT 10 COLUMNS REQUESTED */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="py-3 px-4">Payable Number</th>
-                <th className="py-3 px-3">Company</th>
-                <th className="py-3 px-3">Control Number</th>
-                <th className="py-3 px-3">Checked By</th>
-                <th className="py-3 px-3">Invoice Number</th>
-                <th className="py-3 px-3">Description</th>
-                <th className="py-3 px-3">Date</th>
-                <th className="py-3 px-3">Due Date</th>
-                <th className="py-3 px-3 text-right">Total</th>
-                <th className="py-3 px-4 text-right">Amount Due</th>
-                <th className="py-3 px-3 text-center">Status</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">Req / Cheque No.</th>
+                <th className="py-3 px-3 whitespace-nowrap">Date</th>
+                <th className="py-3 px-3 whitespace-nowrap">Payee / Beneficiary</th>
+                <th className="py-3 px-3 whitespace-nowrap">Category</th>
+                <th className="py-3 px-3 whitespace-nowrap">Bank & Account</th>
+                <th className="py-3 px-3 min-w-[180px]">Purpose / Usage</th>
+                <th className="py-3 px-3 text-right whitespace-nowrap">Amount (₱)</th>
+                <th className="py-3 px-3 text-center whitespace-nowrap">Attachment</th>
+                <th className="py-3 px-3 text-center whitespace-nowrap">COO Approval</th>
+                <th className="py-3 px-3.5 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
                     <span>Loading payables list...</span>
                   </td>
                 </tr>
               ) : paginatedPayables.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                  <td colSpan={10} className="py-12 text-center text-slate-400">
                     <Info className="w-6 h-6 mx-auto mb-2 text-slate-300" />
                     <span>No payable entries found.</span>
                   </td>
                 </tr>
               ) : (
                 paginatedPayables.map((item, idx) => {
-                  const isApproved = item.status === 'Approved' || item.status === 'CONFIRMED';
-                  const isRejected = item.status === 'Rejected' || item.status === 'REJECTED';
+                  const isApproved = item.coo_approval === 'CONFIRMED' || item.status === 'Approved';
+                  const isRejected = item.coo_approval === 'REJECTED' || item.status === 'Rejected';
+                  const isPending = !isApproved && !isRejected;
 
                   return (
                     <tr
                       key={item.id || idx}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                      onClick={() => handleOpenDetail(item)}
+                      className="hover:bg-slate-50/80 transition-colors group"
                     >
-                      {/* Payable Number - Blue Link as in screenshot */}
-                      <td className="py-3.5 px-4 font-bold text-blue-600 hover:text-blue-800 hover:underline">
-                        {item.payable_number}
+                      {/* 1. Req / Cheque No. (Blue Clickable Link) */}
+                      <td className="py-3 px-3.5 font-bold font-mono text-blue-600 hover:text-blue-800 cursor-pointer hover:underline whitespace-nowrap"
+                          onClick={() => handleOpenDetail(item)}>
+                        {item.req_cheque_no || item.payable_number || `PB-${item.id}`}
                       </td>
-                      <td className="py-3.5 px-3 text-slate-700 font-medium">{item.company_code || item.company}</td>
-                      <td className="py-3.5 px-3 text-slate-600 font-mono">{item.control_number}</td>
-                      <td className="py-3.5 px-3 text-slate-600">{item.checked_by || '—'}</td>
-                      <td className="py-3.5 px-3 text-slate-700 font-mono">{item.invoice_number}</td>
-                      <td className="py-3.5 px-3 text-slate-800 font-semibold max-w-[200px] truncate" title={item.description}>
-                        {item.description}
+
+                      {/* 2. Date */}
+                      <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
+                        {item.date || item.date_created || item.invoice_date}
                       </td>
-                      <td className="py-3.5 px-3 text-slate-600">{item.date}</td>
-                      <td className="py-3.5 px-3 text-slate-600">{item.due_date}</td>
-                      <td className="py-3.5 px-3 text-right font-mono text-slate-800 font-medium">
-                        {formatMoney(item.total)}
+
+                      {/* 3. Payee / Beneficiary */}
+                      <td className="py-3 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                        {item.payee_beneficiary || item.vendor || item.company}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                        {formatMoney(item.amount_due || item.total)}
-                      </td>
-                      <td className="py-3.5 px-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                          isApproved ? 'bg-emerald-100 text-emerald-800' :
-                          isRejected ? 'bg-rose-100 text-rose-800' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
-                          {item.status || 'Pending'}
+
+                      {/* 4. Category */}
+                      <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700">
+                          {item.category || 'Accrued expenses'}
                         </span>
+                      </td>
+
+                      {/* 5. Bank & Account */}
+                      <td className="py-3 px-3 text-slate-700 font-mono text-[11px] whitespace-nowrap">
+                        {item.bank_account || 'BDO - 00234819234'}
+                      </td>
+
+                      {/* 6. Purpose / Usage */}
+                      <td className="py-3 px-3 text-slate-800 font-medium max-w-[220px] truncate" title={item.purpose_usage || item.description}>
+                        {item.purpose_usage || item.description}
+                      </td>
+
+                      {/* 7. Amount (₱) */}
+                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                        ₱{formatMoney(item.amount || item.total || item.amount_due)}
+                      </td>
+
+                      {/* 8. Attachment */}
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        {item.attachment || (item.files && item.files.length > 0) ? (
+                          <button
+                            onClick={() => handleOpenDetail(item)}
+                            className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded"
+                            title="View attachment"
+                          >
+                            <Paperclip className="w-3 h-3" />
+                            <span>View</span>
+                          </button>
+                        ) : (
+                          <span className="text-slate-300 font-mono">—</span>
+                        )}
+                      </td>
+
+                      {/* 9. COO Approval Status */}
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isApproved ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                          isRejected ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                          'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                        }`}>
+                          {item.coo_approval || item.status || 'PENDING_COO_APPROVAL'}
+                        </span>
+                      </td>
+
+                      {/* 10. Actions */}
+                      <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {isPending ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setQuickActionItem(item);
+                                  setQuickActionType('APPROVE');
+                                  setQuickCheckNumber(item.cheque_number || '');
+                                }}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition shadow-2xs flex items-center gap-1"
+                                title="Approve with Check Number"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>Approve</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setQuickActionItem(item);
+                                  setQuickActionType('REJECT');
+                                  setQuickCheckNumber('');
+                                }}
+                                className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] rounded transition shadow-2xs flex items-center gap-1"
+                                title="Reject"
+                              >
+                                <XCircle className="w-3 h-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenDetail(item)}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded transition flex items-center gap-1 border border-slate-200"
+                            >
+                              <Eye className="w-3 h-3 text-slate-500" />
+                              <span>View</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -780,6 +977,159 @@ export function PayableApprovalsPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal: Quick Approve / Reject from Table */}
+      {quickActionItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                {quickActionType === 'APPROVE' ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-rose-600" />
+                )}
+                <h3 className="font-bold text-slate-900 text-base">
+                  {quickActionType === 'APPROVE' ? 'Confirm COO Approval' : 'Reject Cheque Payable'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setQuickActionItem(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+              <p><span className="text-slate-500 font-semibold">Req / Cheque No:</span> <span className="font-mono font-bold text-slate-900">{quickActionItem.req_cheque_no || quickActionItem.payable_number}</span></p>
+              <p><span className="text-slate-500 font-semibold">Payee:</span> <span className="font-bold text-slate-900">{quickActionItem.payee_beneficiary || quickActionItem.vendor}</span></p>
+              <p><span className="text-slate-500 font-semibold">Amount:</span> <span className="font-mono font-extrabold text-blue-700">₱{formatMoney(quickActionItem.amount || quickActionItem.total)}</span></p>
+              <p><span className="text-slate-500 font-semibold">Purpose:</span> <span className="text-slate-800">{quickActionItem.purpose_usage || quickActionItem.description}</span></p>
+            </div>
+
+            {quickActionType === 'APPROVE' && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-800">
+                  Check Number (Cheque Number) <span className="text-rose-600">* Required</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={quickCheckNumber}
+                  onChange={(e) => setQuickCheckNumber(e.target.value)}
+                  placeholder="e.g. CHK-982341"
+                  className="w-full bg-amber-50/50 border border-amber-300 rounded-lg p-2.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-600 shadow-2xs"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Ipapasa ito sa <code>http://my.nkbmanufacturing.com/api/v1/payables/:id/confirm</code>
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Notes / Remarks (Optional)
+              </label>
+              <textarea
+                rows={2}
+                value={quickNotes}
+                onChange={(e) => setQuickNotes(e.target.value)}
+                placeholder="Enter remarks..."
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setQuickActionItem(null)}
+                className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleExecuteQuickAction}
+                className={`px-5 py-2 text-white text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 ${
+                  quickActionType === 'APPROVE'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                {submitting ? 'Submitting...' : (quickActionType === 'APPROVE' ? 'Confirm Approval' : 'Confirm Rejection')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: How to Receive Approvals Guide */}
+      {showHowToModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-base">Paano Makatanggap ng Approvals Mula sa my.nkbmanufacturing.com</h3>
+              </div>
+              <button
+                onClick={() => setShowHowToModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-slate-700">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-2">
+                <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px]">1</span>
+                  Paraan 1: Gamit ang API Key (Inirerekomenda — Automatic Pull / Sync)
+                </h4>
+                <p className="text-slate-600 leading-relaxed">
+                  Ang ating server ay kumokonekta nang direkta sa REST API endpoint ng NKB:
+                </p>
+                <div className="bg-white p-2 rounded border border-blue-200 font-mono text-[11px] text-blue-800">
+                  GET http://my.nkbmanufacturing.com/api/v1/payables?status=PENDING_COO_APPROVAL
+                </div>
+                <ol className="list-decimal list-inside space-y-1 pl-1 text-slate-600">
+                  <li>Pindutin ang <strong>"Configure API Key"</strong> button sa itaas.</li>
+                  <li>Ilagay ang iyong valid <code>x-api-key</code> (e.g. <code>nkb_live_...</code>).</li>
+                  <li>Pindutin ang <strong>"Sync Now"</strong> o hayaang naka-on ang <strong>Live Polling (30s)</strong> para kusa nitong mahakot ang bawat bagong cheque na kailangan ng approval.</li>
+                </ol>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+                <h4 className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[11px]">2</span>
+                  Paraan 2: Gamit ang Webhook (Instant Realtime Push)
+                </h4>
+                <p className="text-slate-600 leading-relaxed">
+                  Kung ang system sa <code>my.nkbmanufacturing.com</code> ay may Webhook settings, i-paste ang Webhook URL na ito sa kanilang system:
+                </p>
+                <div className="bg-white p-2 rounded border border-emerald-200 font-mono text-[11px] text-emerald-900 select-all">
+                  {webhookUrl}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Tuwing may gagawing bagong Cheque Payable doon, awtomatiko itong magpo-post sa webhook na ito at lalabas agad sa listahan.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowHowToModal(false)}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
+              >
+                Naiintindihan Ko
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Configure NKB API Key */}
       {showConfigModal && (
