@@ -1,3 +1,4 @@
+import http from 'http';
 import { express } from '../cjsRequire.js';
 import db from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -5,482 +6,161 @@ import { logAudit } from '../middleware/audit.js';
 
 const router = express.Router();
 
-const NKB_API_BASE_URL = process.env.NKB_API_BASE_URL || 'http://my.nkbmanufacturing.com/api/v1';
+const DEFAULT_API_KEY = 'nkb_live_77be0f89d17ebc1b46ce3e7c3151f943';
+const NKB_API_HOST = 'my.nkbmanufacturing.com';
+const NKB_API_PORT = 80;
+const NKB_API_PREFIX = '/api/v1';
 
-// Seeded fallback payables matching exact Accounting System screenshot
-const DEFAULT_PAYABLES = [
-  {
-    id: 'PB-2127',
-    payable_number: 'PB-2127',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1975',
-    checked_by: '',
-    invoice_number: '239664',
-    invoice_date: '09/22/2026',
-    date: '09/22/2026',
-    due_date: '09/22/2026',
-    category: 'Accrued expenses',
-    vendor: 'BDO LIFE INC',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'INSURANCE',
-    created_by: 'Sharmaine Santos',
-    date_created: '09/22/2026',
-    total: 100000.00,
-    amount_due: 100000.00,
-    subtotal: 100000.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'NKB MANUFACTURING CORPORATION\nCHECK DETAILS\nCheck Date: 09/22/2026',
-    files: ['Invoice_239664.pdf', 'BDO_Life_Premium_Billing.pdf'],
-    items: [
-      {
-        description: 'INSURANCE PAYMENT - MONEY 8',
-        expense_category: 'Insurance - Personal',
-        quantity: 1.00,
-        cost: 100000.00,
-        subtotal: 100000.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 100000.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2126',
-    payable_number: 'PB-2126',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1974',
-    checked_by: '',
-    invoice_number: '239662',
-    invoice_date: '09/22/2026',
-    date: '09/22/2026',
-    due_date: '09/22/2026',
-    category: 'Office & Admin Expenses',
-    vendor: 'PETTY CASH CUSTODIAN',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'PETTY CASH',
-    created_by: 'Sharmaine Santos',
-    date_created: '09/22/2026',
-    total: 100000.00,
-    amount_due: 100000.00,
-    subtotal: 100000.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'REPLENISHMENT OF PETTY CASH REVOLVING FUND',
-    files: ['Petty_Cash_Voucher_1974.pdf'],
-    items: [
-      {
-        description: 'PETTY CASH REPLENISHMENT',
-        expense_category: 'Office Supplies & Miscellaneous',
-        quantity: 1.00,
-        cost: 100000.00,
-        subtotal: 100000.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 100000.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2125',
-    payable_number: 'PB-2125',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1973',
-    checked_by: '',
-    invoice_number: '239663',
-    invoice_date: '09/22/2026',
-    date: '09/22/2026',
-    due_date: '09/22/2026',
-    category: 'Finance Costs',
-    vendor: 'INVESTMENT HOLDINGS',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'INVESTMENT PAYOUT',
-    created_by: 'Sharmaine Santos',
-    date_created: '09/22/2026',
-    total: 45000.00,
-    amount_due: 45000.00,
-    subtotal: 45000.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'SCHEDULED MONTHLY INVESTMENT DIVIDEND PAYOUT',
-    files: ['Investment_Statement_1973.pdf'],
-    items: [
-      {
-        description: 'MONTHLY DIVIDEND DISTRIBUTION',
-        expense_category: 'Investment Return',
-        quantity: 1.00,
-        cost: 45000.00,
-        subtotal: 45000.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 45000.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2118',
-    payable_number: 'PB-2118',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1966',
-    checked_by: '',
-    invoice_number: '239607-2396027',
-    invoice_date: '09/19/2026',
-    date: '09/19/2026',
-    due_date: '10/19/2026',
-    category: 'Direct Cost of Sales',
-    vendor: 'CHEMSOURCE ASIA CORP',
-    term: 'Net 30 Days',
-    status: 'Submitted For Approval',
-    description: 'RAW MATERIALS',
-    created_by: 'Reynold Reyes',
-    date_created: '09/19/2026',
-    total: 3381090.00,
-    amount_due: 3381090.00,
-    subtotal: 3381090.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'PURCHASE OF COSMETIC CHEMICAL BASES AND SURFACTANTS',
-    files: ['SI_239607_Commercial_Invoice.pdf', 'Delivery_Receipt_DR9812.pdf'],
-    items: [
-      {
-        description: 'BULK SODIUM LAURETH SULFATE (SLES 70%) & COCO BETAINE',
-        expense_category: 'Raw Materials - Production',
-        quantity: 1.00,
-        cost: 3381090.00,
-        subtotal: 3381090.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 3381090.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2116',
-    payable_number: 'PB-2116',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1964',
-    checked_by: '',
-    invoice_number: '239606',
-    invoice_date: '09/18/2026',
-    date: '09/18/2026',
-    due_date: '09/18/2026',
-    category: 'Direct Cost of Sales',
-    vendor: 'FRAGRANCE WORLD PH',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'RAW MATERIALS',
-    created_by: 'Reynold Reyes',
-    date_created: '09/18/2026',
-    total: 22066.00,
-    amount_due: 22066.00,
-    subtotal: 22066.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'ESSENTIAL OILS & SPECIALTY PERFUME FRAGRANCES',
-    files: ['Invoice_239606.pdf'],
-    items: [
-      {
-        description: 'PERFUME OIL ESSENCES LOT 2026-A',
-        expense_category: 'Raw Materials - Fragrance',
-        quantity: 1.00,
-        cost: 22066.00,
-        subtotal: 22066.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 22066.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2101',
-    payable_number: 'PB-2101',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1950',
-    checked_by: '',
-    invoice_number: '235375',
-    invoice_date: '09/16/2026',
-    date: '09/16/2026',
-    due_date: '09/16/2026',
-    category: 'Banking & Operational Reserves',
-    vendor: 'METROBANK CORP',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'OPENING OF ACCOUNT',
-    created_by: 'Sharmaine Santos',
-    date_created: '09/16/2026',
-    total: 100000.00,
-    amount_due: 100000.00,
-    subtotal: 100000.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'NEW PAYROLL ACCOUNT INITIAL DEPOSIT',
-    files: [],
-    items: [
-      {
-        description: 'ACCOUNT OPENING MINIMUM BALANCE',
-        expense_category: 'Bank Deposit',
-        quantity: 1.00,
-        cost: 100000.00,
-        subtotal: 100000.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 100000.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2099',
-    payable_number: 'PB-2099',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1948',
-    checked_by: '',
-    invoice_number: '511733',
-    invoice_date: '09/16/2026',
-    date: '09/16/2026',
-    due_date: '09/16/2026',
-    category: 'Inter-Company Funding',
-    vendor: 'INTER-ENTITY FUNDING',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'TRANSFER OF FUNDS',
-    created_by: 'Sharmaine Santos',
-    date_created: '09/16/2026',
-    total: 49800.00,
-    amount_due: 49800.00,
-    subtotal: 49800.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'OPERATIONAL WORKING CAPITAL ADVANCE',
-    files: [],
-    items: [
-      {
-        description: 'FUND TRANSFER ALLOCATION',
-        expense_category: 'Working Capital',
-        quantity: 1.00,
-        cost: 49800.00,
-        subtotal: 49800.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 49800.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2095',
-    payable_number: 'PB-2095',
-    company: 'Valenzuela Oil Products Corp',
-    company_code: 'VOPC',
-    control_number: '1011',
-    checked_by: '',
-    invoice_number: '242141',
-    invoice_date: '09/15/2026',
-    date: '09/15/2026',
-    due_date: '09/15/2026',
-    category: 'Commercial Contracts',
-    vendor: 'EQUIPMENT SERVICES INC',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'PAYMENT',
-    created_by: 'Mark Anthony D.',
-    date_created: '09/15/2026',
-    total: 100000.00,
-    amount_due: 100000.00,
-    subtotal: 100000.00,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'MONTHLY PREVENTIVE MAINTENANCE BILLING',
-    files: [],
-    items: [
-      {
-        description: 'PREVENTIVE MAINTENANCE PAYMENT',
-        expense_category: 'Machinery Maintenance',
-        quantity: 1.00,
-        cost: 100000.00,
-        subtotal: 100000.00,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 100000.00,
-      }
-    ]
-  },
-  {
-    id: 'PB-2094',
-    payable_number: 'PB-2094',
-    company: 'Valenzuela Oil Products Corp',
-    company_code: 'VOPC',
-    control_number: '1010',
-    checked_by: '',
-    invoice_number: '242147',
-    invoice_date: '09/15/2026',
-    date: '09/15/2026',
-    due_date: '09/15/2026',
-    category: 'Cooperative Benefits',
-    vendor: 'NKB EMPLOYEES COOPERATIVE',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'COOP TRANSFER OF FUNDS',
-    created_by: 'Mark Anthony D.',
-    date_created: '09/15/2026',
-    total: 30189.49,
-    amount_due: 30189.49,
-    subtotal: 30189.49,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'EMPLOYEES LOAN DEDUCTION REMITTANCE',
-    files: [],
-    items: [
-      {
-        description: 'COOP REMITTANCE LOANS & SAVINGS',
-        expense_category: 'Employee Benefits',
-        quantity: 1.00,
-        cost: 30189.49,
-        subtotal: 30189.49,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 30189.49,
-      }
-    ]
-  },
-  {
-    id: 'PB-2093',
-    payable_number: 'PB-2093',
-    company: 'NKB Manufacturing Corporation',
-    company_code: 'NKB',
-    control_number: '1946',
-    checked_by: '',
-    invoice_number: '235370',
-    invoice_date: '09/15/2026',
-    date: '09/15/2026',
-    due_date: '09/15/2026',
-    category: 'Cooperative Benefits',
-    vendor: 'NKB EMPLOYEES COOPERATIVE',
-    term: 'Due on Receipt',
-    status: 'Submitted For Approval',
-    description: 'COOP TRANSFER OF FUNDS',
-    created_by: 'Sharmaine Santos',
-    date_created: '09/15/2026',
-    total: 321366.58,
-    amount_due: 321366.58,
-    subtotal: 321366.58,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    cheque_number: '',
-    comments: 'EMPLOYEES SAVINGS & CAPITAL CONTRIBUTION REMITTANCE',
-    files: [],
-    items: [
-      {
-        description: 'MONTHLY COOPERATIVE REMITTANCE',
-        expense_category: 'Employee Benefits',
-        quantity: 1.00,
-        cost: 321366.58,
-        subtotal: 321366.58,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: 321366.58,
-      }
-    ]
-  }
-];
+/**
+ * Robust HTTP client using Node's native http module to avoid undici/fetch IPv6/timeout issues
+ */
+function nkbApiRequest(method, endpointPath, apiKey, bodyData = null) {
+  return new Promise((resolve, reject) => {
+    const fullPath = `${NKB_API_PREFIX}${endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath}`;
+    const headers = {
+      'x-api-key': apiKey || DEFAULT_API_KEY,
+      'Accept': 'application/json',
+      'User-Agent': 'Formulation-Pro/1.0.0 (Node.js)'
+    };
 
-// Helper to normalize and structure payables matching exact COO approval fields
+    let postPayload = null;
+    if (bodyData) {
+      postPayload = typeof bodyData === 'string' ? bodyData : JSON.stringify(bodyData);
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = Buffer.byteLength(postPayload);
+    }
+
+    const req = http.request({
+      hostname: NKB_API_HOST,
+      port: NKB_API_PORT,
+      path: fullPath,
+      method: method,
+      headers: headers,
+      timeout: 10000
+    }, (res) => {
+      let raw = '';
+      res.on('data', chunk => raw += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(raw);
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data: parsed });
+        } catch (_) {
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data: raw });
+        }
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`Timeout connecting to ${NKB_API_HOST}`));
+    });
+
+    req.on('error', (err) => {
+      reject(err);
+    });
+
+    if (postPayload) {
+      req.write(postPayload);
+    }
+    req.end();
+  });
+}
+
+/**
+ * Normalizes payable items from my.nkbmanufacturing.com into standard COO approval structure
+ */
 export function formatPayableItem(p) {
-  const reqNo = p.req_cheque_no || p.cheque_number || p.payable_number || p.req_number || p.control_number || `PB-${p.id}`;
-  const dateVal = p.date || p.date_created || p.invoice_date || '09/22/2026';
-  const payeeVal = p.payee_beneficiary || p.payee || p.beneficiary || p.vendor || p.company || 'NKB Entity';
-  const categoryVal = p.category || (p.items && p.items[0]?.expense_category) || 'Accrued expenses';
-  const bankVal = p.bank_account || p.bank || (String(payeeVal).includes('BDO') ? 'BDO - 00234819234' : String(payeeVal).includes('METROBANK') ? 'Metrobank - 511-98214' : 'BDO - 0019283741');
-  const purposeVal = p.purpose_usage || p.purpose || p.usage || p.description || (p.items && p.items[0]?.description) || 'Disbursement';
+  if (!p) return null;
+
+  const reqNo = p.request_number || p.req_cheque_no || p.cheque_number || p.payable_number || p.req_number || p.control_number || `PB-${p.id}`;
+  const dateVal = p.cheque_date || p.date || p.date_created || p.invoice_date || '2026-10-01';
+  const payeeVal = p.payee_name || p.payee_beneficiary || p.payee || p.beneficiary || p.vendor || p.company_name || p.company || 'NKB Entity';
+  const categoryVal = p.category || p.payable_category || (p.items && p.items[0]?.expense_category) || 'Accrued expenses';
+  const bankVal = p.bank_name || p.bank_account || p.bank || (String(payeeVal).includes('BDO') ? 'BDO: NKB Manufacturing Corporation' : 'BDO - 0080-5801-0547');
+  const purposeVal = p.purpose || p.purpose_usage || p.usage || p.description || (p.items && p.items[0]?.description) || 'Disbursement';
   const amountVal = parseFloat(p.amount || p.total || p.amount_due || 0);
-  const attachmentVal = p.attachment || p.attachment_url || (p.files && p.files.length ? p.files[0] : null);
-  const approvalVal = p.coo_approval || (p.status === 'Approved' ? 'CONFIRMED' : p.status === 'Rejected' ? 'REJECTED' : 'PENDING_COO_APPROVAL');
+
+  // Attachments: if relative URL, prepend with http://my.nkbmanufacturing.com
+  let attachmentVal = p.attachment_url || p.attachment || (p.files && p.files.length ? p.files[0] : null);
+  if (attachmentVal && attachmentVal.startsWith('/')) {
+    attachmentVal = `http://${NKB_API_HOST}${attachmentVal}`;
+  }
+
+  const approvalVal = p.status || p.coo_approval || 'PENDING_COO_APPROVAL';
+
+  // Parse line_items if passed as JSON string
+  let itemsList = [];
+  if (Array.isArray(p.items)) {
+    itemsList = p.items;
+  } else if (typeof p.line_items === 'string') {
+    try {
+      itemsList = JSON.parse(p.line_items);
+    } catch (_) {}
+  } else if (Array.isArray(p.line_items)) {
+    itemsList = p.line_items;
+  }
+
+  if (itemsList.length === 0) {
+    itemsList = [
+      {
+        description: purposeVal,
+        expense_category: categoryVal,
+        quantity: 1.00,
+        cost: amountVal,
+        subtotal: amountVal,
+        inclusive: false,
+        vat: 0.00,
+        vat_zero_rated: 0.00,
+        non_vat: 0.00,
+        withheld: 0.00,
+        total: amountVal
+      }
+    ];
+  }
 
   return {
     ...p,
+    id: p.id,
+    payable_number: reqNo,
     req_cheque_no: reqNo,
+    company: p.company_name || p.company || 'NKB Manufacturing Corporation',
+    company_code: p.company_code || 'NKB',
+    invoice_number: p.invoice_number || p.invoice_reference || '',
+    invoice_date: p.invoice_date || dateVal,
     date: dateVal,
+    date_created: p.created_at || dateVal,
+    due_date: p.due_date || dateVal,
+    control_number: p.control_number || '',
     payee_beneficiary: payeeVal,
+    vendor: payeeVal,
     category: categoryVal,
     bank_account: bankVal,
     purpose_usage: purposeVal,
+    description: purposeVal,
     amount: amountVal,
+    total: amountVal,
+    amount_due: amountVal,
+    subtotal: amountVal,
+    vat: 0.00,
+    vat_zero_rated: 0.00,
+    non_vat: 0.00,
+    withheld: 0.00,
     attachment: attachmentVal,
+    attachment_url: attachmentVal,
+    files: attachmentVal ? [attachmentVal] : (p.files || []),
+    status: approvalVal,
     coo_approval: approvalVal,
+    created_by: p.requested_by_name || p.requestor_name || p.created_by || 'Executive Admin',
+    term: p.terms || p.term || 'Net 30',
+    comments: p.comments || p.coo_notes || '',
+    items: itemsList
   };
 }
 
-// In-memory or database tracking of approvals & check numbers
-let localPayableRecords = DEFAULT_PAYABLES.map(p => formatPayableItem(p));
+// In-memory local cache / tracking
+let localPayableRecords = [];
 
-// Helper to fetch active NKB API Key
+// Helper to fetch active NKB API Key (checks request header, .env, database, or fallback)
 async function getNkbApiKey(req) {
   const headerKey = req.headers['x-nkb-api-key'] || req.headers['x-api-key'];
   if (headerKey && headerKey.trim()) {
@@ -499,7 +179,7 @@ async function getNkbApiKey(req) {
     }
   } catch (_) {}
 
-  return null;
+  return DEFAULT_API_KEY;
 }
 
 /**
@@ -511,29 +191,22 @@ router.get('/config', authenticateToken, async (req, res) => {
     const apiKey = await getNkbApiKey(req);
     const hasKey = Boolean(apiKey && apiKey.length > 0);
     const maskedKey = hasKey
-      ? apiKey.slice(0, 8) + '...' + apiKey.slice(-4)
+      ? apiKey.slice(0, 12) + '...' + apiKey.slice(-4)
       : null;
 
     let apiOnline = false;
-    let apiMessage = 'No API key configured';
+    let apiMessage = 'Connecting...';
+    let keyMetadata = null;
 
     if (hasKey) {
       try {
-        const pingRes = await fetch(`${NKB_API_BASE_URL}/ping`, {
-          method: 'GET',
-          headers: {
-            'x-api-key': apiKey,
-            'Accept': 'application/json'
-          },
-          signal: AbortSignal.timeout(5000)
-        });
-
-        if (pingRes.ok) {
+        const pingRes = await nkbApiRequest('GET', '/ping', apiKey);
+        if (pingRes.ok && pingRes.data?.status === 'ok') {
           apiOnline = true;
-          apiMessage = 'Connected to NKB Developer REST API';
+          apiMessage = 'Connected to NKB Developer REST API (my.nkbmanufacturing.com)';
+          keyMetadata = pingRes.data?.key || null;
         } else {
-          const errData = await pingRes.json().catch(() => ({}));
-          apiMessage = errData.message || `API returned HTTP ${pingRes.status}`;
+          apiMessage = pingRes.data?.message || `API returned status ${pingRes.status}`;
         }
       } catch (netErr) {
         apiMessage = `Cannot reach NKB API: ${netErr.message}`;
@@ -544,9 +217,10 @@ router.get('/config', authenticateToken, async (req, res) => {
       success: true,
       hasKey,
       maskedKey,
-      apiUrl: NKB_API_BASE_URL,
+      apiUrl: `http://${NKB_API_HOST}${NKB_API_PREFIX}`,
       apiOnline,
-      apiMessage
+      apiMessage,
+      keyMetadata
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -592,54 +266,69 @@ router.post('/config', authenticateToken, async (req, res) => {
 
 /**
  * GET /api/v1/payables
- * List cheque payables
+ * List cheque payables directly from my.nkbmanufacturing.com
  */
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const apiKey = await getNkbApiKey(req);
     const { status, category, bank, date_from, date_to, search } = req.query;
 
-    if (apiKey) {
-      try {
-        const queryParams = new URLSearchParams();
-        if (status) queryParams.set('status', status);
-        if (category) queryParams.set('category', category);
-        if (bank) queryParams.set('bank', bank);
-        if (date_from) queryParams.set('date_from', date_from);
-        if (date_to) queryParams.set('date_to', date_to);
+    const queryParams = new URLSearchParams();
+    if (status && status !== 'ALL') queryParams.set('status', status);
+    if (category) queryParams.set('category', category);
+    if (bank) queryParams.set('bank', bank);
+    if (date_from) queryParams.set('date_from', date_from);
+    if (date_to) queryParams.set('date_to', date_to);
 
-        const url = `${NKB_API_BASE_URL}/payables${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        const extRes = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'x-api-key': apiKey,
-            'Accept': 'application/json'
-          },
-          signal: AbortSignal.timeout(8000)
-        });
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
 
-        if (extRes.ok) {
-          const extData = await extRes.json();
-          const items = Array.isArray(extData) ? extData : (extData.data || extData.payables || []);
-          const formattedItems = items.map(it => formatPayableItem(it));
-          return res.json({
-            success: true,
-            source: 'REMOTE_API',
-            data: formattedItems,
-            totalCount: extData.total || formattedItems.length
-          });
+    try {
+      const response = await nkbApiRequest('GET', `/payables${queryString}`, apiKey);
+
+      if (response.ok) {
+        const rawPayload = response.data;
+        const rawItems = Array.isArray(rawPayload)
+          ? rawPayload
+          : (rawPayload.data || rawPayload.payables || []);
+
+        const formatted = rawItems.map(it => formatPayableItem(it));
+
+        // Filter by local search query if provided
+        let filtered = formatted;
+        if (search && search.trim()) {
+          const q = search.trim().toLowerCase();
+          filtered = filtered.filter(p =>
+            (p.req_cheque_no || '').toLowerCase().includes(q) ||
+            (p.payable_number || '').toLowerCase().includes(q) ||
+            (p.payee_beneficiary || '').toLowerCase().includes(q) ||
+            (p.company || '').toLowerCase().includes(q) ||
+            (p.category || '').toLowerCase().includes(q) ||
+            (p.bank_account || '').toLowerCase().includes(q) ||
+            (p.purpose_usage || '').toLowerCase().includes(q) ||
+            (p.control_number || '').toLowerCase().includes(q) ||
+            (p.invoice_number || '').toLowerCase().includes(q)
+          );
         }
-      } catch (err) {
-        console.warn('Notice: Remote payables API fetch failed, falling back to local dataset:', err.message);
+
+        // Cache latest fetched in memory
+        localPayableRecords = formatted;
+
+        return res.json({
+          success: true,
+          source: 'REMOTE_API',
+          data: filtered,
+          totalCount: rawPayload.total || filtered.length
+        });
       }
+    } catch (apiErr) {
+      console.warn('Live API request failed, falling back to local memory cache:', apiErr.message);
     }
 
-    // Local / fallback dataset
-    let results = localPayableRecords.map(it => formatPayableItem(it));
-
+    // Fallback to local memory cache if remote API is temporarily down
+    let fallbackList = localPayableRecords.map(it => formatPayableItem(it));
     if (status && status !== 'ALL') {
       const s = status.toUpperCase();
-      results = results.filter(p =>
+      fallbackList = fallbackList.filter(p =>
         (p.coo_approval || '').toUpperCase().includes(s) ||
         (p.status || '').toUpperCase().includes(s)
       );
@@ -647,65 +336,19 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (search && search.trim()) {
       const q = search.trim().toLowerCase();
-      results = results.filter(p =>
+      fallbackList = fallbackList.filter(p =>
         (p.req_cheque_no || '').toLowerCase().includes(q) ||
         (p.payable_number || '').toLowerCase().includes(q) ||
         (p.payee_beneficiary || '').toLowerCase().includes(q) ||
-        (p.company || '').toLowerCase().includes(q) ||
-        (p.category || '').toLowerCase().includes(q) ||
-        (p.bank_account || '').toLowerCase().includes(q) ||
-        (p.purpose_usage || '').toLowerCase().includes(q) ||
-        (p.control_number || '').toLowerCase().includes(q) ||
-        (p.invoice_number || '').toLowerCase().includes(q) ||
-        (p.vendor || '').toLowerCase().includes(q)
+        (p.purpose_usage || '').toLowerCase().includes(q)
       );
     }
 
     return res.json({
       success: true,
       source: 'LOCAL_DATASET',
-      data: results,
-      totalCount: results.length
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-/**
- * POST /api/v1/payables/webhook
- * Receives incoming payable approval requests directly from my.nkbmanufacturing.com
- */
-router.post('/webhook', async (req, res) => {
-  try {
-    const rawData = req.body;
-    if (!rawData) {
-      return res.status(400).json({ success: false, message: 'Payload is required' });
-    }
-
-    const items = Array.isArray(rawData) ? rawData : (rawData.data || [rawData]);
-    let count = 0;
-
-    for (const raw of items) {
-      const formatted = formatPayableItem(raw);
-      const idx = localPayableRecords.findIndex(p =>
-        String(p.id) === String(formatted.id) ||
-        String(p.payable_number) === String(formatted.payable_number) ||
-        String(p.req_cheque_no) === String(formatted.req_cheque_no)
-      );
-
-      if (idx !== -1) {
-        localPayableRecords[idx] = { ...localPayableRecords[idx], ...formatted };
-      } else {
-        localPayableRecords.unshift(formatted);
-        count++;
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: `Received ${count} new approval request(s) via Webhook from my.nkbmanufacturing.com.`,
-      totalActive: localPayableRecords.length
+      data: fallbackList,
+      totalCount: fallbackList.length
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -714,36 +357,26 @@ router.post('/webhook', async (req, res) => {
 
 /**
  * GET /api/v1/payables/:id
- * Get single payable details
+ * Get single payable details directly from my.nkbmanufacturing.com
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const apiKey = await getNkbApiKey(req);
 
-    if (apiKey) {
-      try {
-        const extRes = await fetch(`${NKB_API_BASE_URL}/payables/${id}`, {
-          method: 'GET',
-          headers: {
-            'x-api-key': apiKey,
-            'Accept': 'application/json'
-          },
-          signal: AbortSignal.timeout(6000)
+    try {
+      const response = await nkbApiRequest('GET', `/payables/${id}`, apiKey);
+      if (response.ok && response.data) {
+        const item = response.data.data || response.data;
+        return res.json({
+          success: true,
+          source: 'REMOTE_API',
+          data: formatPayableItem(item)
         });
+      }
+    } catch (_) {}
 
-        if (extRes.ok) {
-          const extData = await extRes.json();
-          return res.json({
-            success: true,
-            source: 'REMOTE_API',
-            data: extData.data || extData
-          });
-        }
-      } catch (_) {}
-    }
-
-    const found = localPayableRecords.find(p => String(p.id) === String(id) || String(p.payable_number) === String(id));
+    const found = localPayableRecords.find(p => String(p.id) === String(id) || String(p.payable_number) === String(id) || String(p.req_cheque_no) === String(id));
     if (!found) {
       return res.status(404).json({ success: false, message: `Payable ${id} not found.` });
     }
@@ -751,7 +384,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     return res.json({
       success: true,
       source: 'LOCAL_DATASET',
-      data: found
+      data: formatPayableItem(found)
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -760,7 +393,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/v1/payables/:id/confirm
- * Approves or Rejects a payable
+ * Approves or Rejects a payable directly on my.nkbmanufacturing.com
  * Request Body: { decision: 'CONFIRMED' | 'REJECTED', cheque_number: string, notes: string, confirmed_by: string }
  */
 router.post('/:id/confirm', authenticateToken, async (req, res) => {
@@ -788,56 +421,45 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
     let remoteSuccess = false;
     let remoteResponse = null;
 
-    if (apiKey) {
-      try {
-        const extRes = await fetch(`${NKB_API_BASE_URL}/payables/${id}/confirm`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            decision,
-            cheque_number: checkNo,
-            notes: notes || '',
-            confirmed_by: approverName
-          }),
-          signal: AbortSignal.timeout(10000)
-        });
+    try {
+      const response = await nkbApiRequest('POST', `/payables/${id}/confirm`, apiKey, {
+        decision,
+        cheque_number: checkNo,
+        notes: notes || '',
+        confirmed_by: approverName
+      });
 
-        remoteResponse = await extRes.json().catch(() => ({}));
-        if (extRes.ok) {
-          remoteSuccess = true;
-        } else {
-          console.warn('Remote approval API returned non-200:', remoteResponse);
-        }
-      } catch (apiErr) {
-        console.warn('Notice: Remote approval API call failed, recording locally:', apiErr.message);
+      remoteResponse = response.data;
+      if (response.ok) {
+        remoteSuccess = true;
+      } else {
+        console.warn('Remote confirmation returned error:', response.data);
       }
+    } catch (apiErr) {
+      console.warn('Notice: Remote approval API call failed:', apiErr.message);
     }
 
-    // Update local record state
-    const targetIdx = localPayableRecords.findIndex(p => String(p.id) === String(id) || String(p.payable_number) === String(id));
+    // Update local cache record
+    const targetIdx = localPayableRecords.findIndex(p => String(p.id) === String(id) || String(p.req_cheque_no) === String(id));
     if (targetIdx !== -1) {
       localPayableRecords[targetIdx] = {
         ...localPayableRecords[targetIdx],
-        status: decision === 'CONFIRMED' ? 'Approved' : 'Rejected',
+        status: decision,
+        coo_approval: decision,
         cheque_number: checkNo,
         checked_by: approverName,
-        comments: `${localPayableRecords[targetIdx].comments || ''}\n[${new Date().toLocaleString()}] ${decision} by ${approverName}. Check #: ${checkNo || 'N/A'}. Notes: ${notes || 'None'}`.trim(),
-        confirmed_at: new Date().toISOString()
+        comments: `${localPayableRecords[targetIdx].comments || ''}\n[${new Date().toLocaleString()}] ${decision} by ${approverName}. Check #: ${checkNo}. Notes: ${notes || 'None'}`.trim()
       };
     }
 
-    // Log to system audit trail
+    // Log to audit trail
     await logAudit(
       req,
       'PAYABLE_APPROVAL',
       'payables',
       id,
       { decision, cheque_number: checkNo, approver: approverName, remoteSuccess },
-      { status: decision === 'CONFIRMED' ? 'Approved' : 'Rejected' }
+      { status: decision }
     ).catch(() => {});
 
     return res.json({
@@ -850,6 +472,45 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
     });
   } catch (err) {
     console.error('Error confirming payable:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/payables/webhook
+ * Receives incoming payable approval requests directly from my.nkbmanufacturing.com
+ */
+router.post('/webhook', async (req, res) => {
+  try {
+    const rawData = req.body;
+    if (!rawData) {
+      return res.status(400).json({ success: false, message: 'Payload is required' });
+    }
+
+    const items = Array.isArray(rawData) ? rawData : (rawData.data || [rawData]);
+    let count = 0;
+
+    for (const raw of items) {
+      const formatted = formatPayableItem(raw);
+      const idx = localPayableRecords.findIndex(p =>
+        String(p.id) === String(formatted.id) ||
+        String(p.req_cheque_no) === String(formatted.req_cheque_no)
+      );
+
+      if (idx !== -1) {
+        localPayableRecords[idx] = { ...localPayableRecords[idx], ...formatted };
+      } else {
+        localPayableRecords.unshift(formatted);
+        count++;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Received ${count} new approval request(s) via Webhook from my.nkbmanufacturing.com.`,
+      totalActive: localPayableRecords.length
+    });
+  } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
