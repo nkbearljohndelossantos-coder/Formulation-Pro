@@ -24,6 +24,7 @@ import compoundingCodeRoutes from './routes/compoundingCodes.js';
 import inventoryRoutes from './routes/inventory.js';
 import externalInventoryApiRoutes from './routes/externalInventoryApi.js';
 import sampleRequestRoutes from './routes/sampleRequests.js';
+import payablesRoutes from './routes/payables.js';
 import { idempotencyMiddleware } from './middleware/idempotency.js';
 import { ensurePerfumeAdminAccounts } from './services/seedPerfumeAdminService.js';
 import { seedInventoryRoleAndPermissions } from './services/seedInventoryRoleService.js';
@@ -125,6 +126,9 @@ app.use('/api/v1/external/inventory', externalInventoryApiRoutes);
 
 app.use('/api/sample-requests', sampleRequestRoutes);
 app.use('/api/v1/sample-requests', sampleRequestRoutes);
+
+app.use('/api/payables', payablesRoutes);
+app.use('/api/v1/payables', payablesRoutes);
 
 // Health and Readiness Check Endpoints
 app.get('/api/v1/health', async (req, res) => {

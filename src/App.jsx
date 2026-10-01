@@ -30,6 +30,7 @@ import { PurchasingTicketsPage } from './pages/PurchasingTicketsPage';
 import SampleRequestPage from './pages/SampleRequestPage';
 import SampleRequestsListPage from './pages/SampleRequestsListPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import { PayableApprovalsPage } from './pages/PayableApprovalsPage';
 
 // Compounding Operator Portal Pages
 import { OperatorDashboardPage } from './pages/operator/OperatorDashboardPage';
@@ -105,6 +106,7 @@ export function App() {
 
   const purchasingAllowedPages = [
     'purchasing-tickets',
+    'payable-approvals',
     'inventory',
     'materials-list',
     'material-logbook',
@@ -143,6 +145,7 @@ export function App() {
       case 'compounding-logs': return { title: 'Compounding Code Storage & Repository', subtitle: 'Registry of Used CP-XXXX Codes, Audit Logs & Comparison Tool' };
       case 'sample-request-form': return { title: 'Sample Request Form', subtitle: 'Client Product Sample Request Specification & Intake Form' };
       case 'sample-requests-list': return { title: 'Sample Requests Repository', subtitle: 'Client Sample Requests, Review & Approval Hub' };
+      case 'payable-approvals': return { title: 'Payable Approvals', subtitle: 'NKB Developer API — Cheque Disbursements & COO Approvals' };
       case 'operator-dashboard': return { title: 'Compounding Portal', subtitle: 'Shop-Floor Production Execution Station' };
       case 'operator-qr-scanner': return { title: 'QR Scanner', subtitle: 'Formula & Batch QR Code Verification' };
       case 'operator-formula-view': return { title: 'Formula View', subtitle: 'Approved Formulation Specs & Safety Protocols' };
@@ -225,6 +228,7 @@ export function App() {
               {currentPage === 'compounding-logs' && <CompoundingLogsPage setCurrentPage={setCurrentPage} setSelectedBatchId={setSelectedBatchId} />}
               {currentPage === 'sample-request-form' && <SampleRequestPage setCurrentPage={setCurrentPage} />}
               {currentPage === 'sample-requests-list' && <SampleRequestsListPage setCurrentPage={setCurrentPage} />}
+              {currentPage === 'payable-approvals' && <PayableApprovalsPage />}
 
               {/* Operator Portal Views */}
               {currentPage === 'operator-dashboard' && (
