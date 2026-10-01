@@ -151,11 +151,11 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
           });
 
           const normalizePhase = (pName, idx) => {
-            if (!pName) return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
+            if (!pName) return `Phase ${String.fromCharCode(65 + Math.min(idx, 7))}`;
             const match = String(pName).trim().match(/^Phase\s+([A-Za-z0-9]+)/i);
             if (match) {
               const letter = match[1].toUpperCase();
-              if (/^[A-F]$/.test(letter)) return `Phase ${letter}`;
+              if (/^[A-H]$/.test(letter)) return `Phase ${letter}`;
             }
             const lower = String(pName).toLowerCase();
             if (lower.includes('water') || lower.includes('phase a')) return 'Phase A';
@@ -164,7 +164,9 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
             if (lower.includes('cooling') || lower.includes('phase d')) return 'Phase D';
             if (lower.includes('post') || lower.includes('phase e')) return 'Phase E';
             if (lower.includes('phase f')) return 'Phase F';
-            return `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`;
+            if (lower.includes('phase g')) return 'Phase G';
+            if (lower.includes('phase h')) return 'Phase H';
+            return `Phase ${String.fromCharCode(65 + Math.min(idx, 7))}`;
           };
 
           const seenLoaded = new Set();
@@ -756,7 +758,7 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
                             <span className="font-semibold text-slate-900">{m.phase_name}</span>
                           ) : (
                             <select
-                              value={['Phase A', 'Phase B', 'Phase C', 'Phase D', 'Phase E', 'Phase F'].includes(m.phase_name) ? m.phase_name : `Phase ${String.fromCharCode(65 + Math.min(idx, 5))}`}
+                              value={['Phase A', 'Phase B', 'Phase C', 'Phase D', 'Phase E', 'Phase F', 'Phase G', 'Phase H'].includes(m.phase_name) ? m.phase_name : `Phase ${String.fromCharCode(65 + Math.min(idx, 7))}`}
                               onChange={e => handleMaterialChange(idx, 'phase_name', e.target.value)}
                               className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-600 w-32 shadow-xs"
                             >
@@ -766,6 +768,8 @@ export function CosmeticFormulatorPage({ setCurrentPage, initialVersionId, onCle
                               <option value="Phase D">Phase D</option>
                               <option value="Phase E">Phase E</option>
                               <option value="Phase F">Phase F</option>
+                              <option value="Phase G">Phase G</option>
+                              <option value="Phase H">Phase H</option>
                             </select>
                           )}
                         </td>
