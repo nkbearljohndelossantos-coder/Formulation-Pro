@@ -169,16 +169,36 @@ app.get('/favicon.ico', (req, res) => {
 const clientDistPath = path.join(__dirname, '../dist');
 const clientPublicPath = path.join(__dirname, '../public');
 
-app.use(express.static(clientDistPath));
-app.use(express.static(clientPublicPath));
+// Never cache index.html so browser always gets the latest asset hashes
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path === '/index.html') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
+app.use(express.static(clientDistPath, {
+  maxAge: '1d',
+  immutable: true,
+  index: false
+}));
+app.use(express.static(clientPublicPath, { index: false }));
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ success: false, message: 'API route not found' });
   }
 
+  // Never return index.html for missing assets or static files (prevents MIME type errors)
+  if (req.path.startsWith('/assets/') || /\.(css|js|map|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$/i.test(req.path)) {
+    return res.status(404).type('text/plain').send('Asset not found');
+  }
+
   const indexPath = path.join(clientDistPath, 'index.html');
   if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     return res.sendFile(indexPath);
   }
 

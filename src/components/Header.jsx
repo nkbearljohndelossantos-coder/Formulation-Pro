@@ -25,7 +25,10 @@ export function Header({ title, subtitle, setCurrentPage }) {
         setRecentPending(data.recentPending || []);
       }
     } catch (err) {
-      console.error('Error polling notifications:', err);
+      // Graceful silent fallback during network reconnection
+      if (err.name !== 'TypeError') {
+        console.warn('Notice polling notifications:', err.message);
+      }
     }
   };
 

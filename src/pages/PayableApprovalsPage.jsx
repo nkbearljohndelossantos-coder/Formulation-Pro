@@ -214,9 +214,11 @@ export function PayableApprovalsPage() {
   const fetchConfig = async () => {
     try {
       const res = await apiFetch('/api/v1/payables/config');
-      const data = await res.json();
-      if (data.success) {
-        setApiConfig(data);
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setApiConfig(data);
+        }
       }
     } catch (_) {}
   };

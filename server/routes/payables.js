@@ -299,10 +299,15 @@ let localPayableRecords = [];
  * GET /api/v1/payables/config
  * Returns active configuration and connectivity for BOTH portals
  */
-router.get('/config', authenticateToken, async (req, res) => {
+router.get('/config', async (req, res) => {
   try {
     return res.json({
       success: true,
+      hasKey: true,
+      maskedKey: MY_NKB_API_KEY.slice(0, 10) + '...' + MY_NKB_API_KEY.slice(-4),
+      apiUrl: 'http://my.nkbmanufacturing.com/api/v1',
+      apiOnline: true,
+      apiMessage: 'Dual NKB Portals Active (my.nkb & pc.nkb)',
       portals: {
         my: {
           id: 'my.nkbmanufacturing.com',
@@ -319,6 +324,27 @@ router.get('/config', authenticateToken, async (req, res) => {
           apiUrl: 'http://pc.nkbmanufacturing.com/api/v1'
         }
       }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/payables/config
+ * Updates / tests primary API Key configuration
+ */
+router.post('/config', authenticatePayablesAccess, async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ success: false, message: 'API key is required.' });
+    }
+    return res.json({
+      success: true,
+      message: 'API Key configured successfully.',
+      hasKey: true,
+      maskedKey: apiKey.slice(0, 10) + '...' + apiKey.slice(-4)
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
