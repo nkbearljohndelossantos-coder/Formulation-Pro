@@ -28,6 +28,7 @@ import payablesRoutes from './routes/payables.js';
 import { idempotencyMiddleware } from './middleware/idempotency.js';
 import { ensurePerfumeAdminAccounts } from './services/seedPerfumeAdminService.js';
 import { seedInventoryRoleAndPermissions } from './services/seedInventoryRoleService.js';
+import { ensureApiKeysTable } from './services/seedApiKeysService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -214,6 +215,7 @@ async function initDatabase() {
     console.log('✅ Database migrations up to date.');
     await ensurePerfumeAdminAccounts();
     await seedInventoryRoleAndPermissions();
+    await ensureApiKeysTable();
   } catch (err) {
     console.error('Database migration note:', err.message);
   }

@@ -23,7 +23,13 @@ import {
   HelpCircle,
   Radio,
   ExternalLink,
-  Clock
+  Clock,
+  Copy,
+  Plus,
+  Trash2,
+  Code2,
+  Terminal,
+  Layers
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -66,6 +72,116 @@ export function PayableApprovalsPage() {
   });
   const [inputApiKey, setInputApiKey] = useState('');
   const [savingKey, setSavingKey] = useState(false);
+
+  // Multi-API Key Management State for External WebApps
+  const [showApiKeysModal, setShowApiKeysModal] = useState(false);
+  const [apiKeysTab, setApiKeysTab] = useState('list'); // 'list' | 'generate' | 'docs'
+  const [apiKeysList, setApiKeysList] = useState([]);
+  const [loadingApiKeys, setLoadingApiKeys] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newClientApp, setNewClientApp] = useState('');
+  const [newScopes, setNewScopes] = useState('payables:read,payables:create');
+  const [customKeyToken, setCustomKeyToken] = useState('');
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [justGeneratedKey, setJustGeneratedKey] = useState(null);
+  const [copiedKeyId, setCopiedKeyId] = useState(null);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  // Fetch registered API keys
+  const fetchApiKeysList = async () => {
+    try {
+      setLoadingApiKeys(true);
+      const res = await apiFetch('/api/v1/payables/api-keys');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.keys)) {
+        setApiKeysList(data.keys);
+      }
+    } catch (err) {
+      console.error('Error fetching API keys:', err);
+    } finally {
+      setLoadingApiKeys(false);
+    }
+  };
+
+  const handleOpenApiKeysModal = () => {
+    setShowApiKeysModal(true);
+    setJustGeneratedKey(null);
+    fetchApiKeysList();
+  };
+
+  const handleCreateApiKey = async (e) => {
+    e.preventDefault();
+    if (!newKeyName.trim() || !newClientApp.trim()) return;
+    try {
+      setGeneratingKey(true);
+      const res = await apiFetch('/api/v1/payables/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key_name: newKeyName.trim(),
+          client_app: newClientApp.trim(),
+          scopes: newScopes,
+          custom_key: customKeyToken.trim() || undefined
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.key) {
+        setJustGeneratedKey(data.key);
+        setNewKeyName('');
+        setNewClientApp('');
+        setCustomKeyToken('');
+        fetchApiKeysList();
+      } else {
+        alert(data.message || 'Failed to generate API Key');
+      }
+    } catch (err) {
+      alert(err.message || 'Network error generating key');
+    } finally {
+      setGeneratingKey(false);
+    }
+  };
+
+  const handleToggleApiKey = async (keyId) => {
+    try {
+      const res = await apiFetch(`/api/v1/payables/api-keys/${keyId}/toggle`, {
+        method: 'PATCH'
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchApiKeysList();
+      } else {
+        alert(data.message || 'Failed to toggle API Key status');
+      }
+    } catch (err) {
+      alert(err.message || 'Network error');
+    }
+  };
+
+  const handleDeleteApiKey = async (keyId, keyName) => {
+    if (!window.confirm(`Are you sure you want to delete API key "${keyName}"? The external webapp using this key will immediately lose access.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/v1/payables/api-keys/${keyId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchApiKeysList();
+      } else {
+        alert(data.message || 'Failed to delete API Key');
+      }
+    } catch (err) {
+      alert(err.message || 'Network error');
+    }
+  };
+
+  const copyToClipboard = (text, id) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKeyId(id);
+    setTimeout(() => setCopiedKeyId(null), 2500);
+  };
 
   // Fetch payables list & config
   const fetchPayables = async (isManualSync = false) => {
@@ -705,13 +821,24 @@ export function PayableApprovalsPage() {
             <span>{syncing ? 'Syncing...' : 'Sync Now'}</span>
           </button>
 
-          {/* Configure key button */}
+          {/* Manage Multi-API Keys button */}
+          <button
+            onClick={handleOpenApiKeysModal}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 shadow-2xs"
+            title="Manage multiple API keys for external webapps"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>Manage API Keys</span>
+          </button>
+
+          {/* Upstream Master Key Config button */}
           <button
             onClick={() => setShowConfigModal(true)}
             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition flex items-center gap-1.5 border border-slate-200"
+            title="Configure Primary NKB Master Key"
           >
             <Key className="w-3.5 h-3.5 text-slate-500" />
-            <span>API Key</span>
+            <span>Master Key</span>
           </button>
         </div>
       </div>
@@ -1125,6 +1252,427 @@ export function PayableApprovalsPage() {
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
               >
                 Naiintindihan Ko
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Multi-API Key Manager */}
+      {showApiKeysModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Multi-API Key Manager (External WebApps)</h3>
+                  <p className="text-xs text-slate-500">
+                    Payagan ang iba't ibang webapp (e-Commerce, logistics, branch portals) na magbato ng payable requests gamit ang multiple <code className="text-blue-600 font-semibold">x-api-key</code>.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowApiKeysModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg transition"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
+              <button
+                type="button"
+                onClick={() => setApiKeysTab('list')}
+                className={`flex-1 py-2 px-3 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                  apiKeysTab === 'list' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-4 h-4 text-blue-600" />
+                <span>Registered WebApp Keys ({apiKeysList.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiKeysTab('generate')}
+                className={`flex-1 py-2 px-3 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                  apiKeysTab === 'generate' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                <Plus className="w-4 h-4 text-emerald-600" />
+                <span>Generate Key for WebApp</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiKeysTab('docs')}
+                className={`flex-1 py-2 px-3 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                  apiKeysTab === 'docs' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
+                }`}
+              >
+                <Code2 className="w-4 h-4 text-purple-600" />
+                <span>Integration Docs & cURL</span>
+              </button>
+            </div>
+
+            {/* Notification when a new key was just generated */}
+            {justGeneratedKey && (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 text-xs text-emerald-900 space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold flex items-center gap-1.5 text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    New API Key Generated for {justGeneratedKey.client_app}!
+                  </span>
+                  <button
+                    onClick={() => setJustGeneratedKey(null)}
+                    className="text-emerald-700 hover:text-emerald-900 font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="text-slate-600">
+                  Pakikopya ang key na ito ngayon. Ibigay ito sa developer ng webapp para ilagay sa header bilang <code className="font-mono text-emerald-800">x-api-key</code>:
+                </p>
+                <div className="bg-white border border-emerald-300 rounded-lg p-2.5 flex items-center justify-between gap-2 font-mono text-xs text-slate-900">
+                  <span className="truncate select-all">{justGeneratedKey.api_key}</span>
+                  <button
+                    onClick={() => copyToClipboard(justGeneratedKey.api_key, 'newly-created')}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-sans font-semibold text-[11px] shrink-0 flex items-center gap-1 transition"
+                  >
+                    {copiedKeyId === 'newly-created' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Key</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 1: LIST VIEW */}
+            {apiKeysTab === 'list' && (
+              <div className="space-y-3">
+                {loadingApiKeys ? (
+                  <div className="py-8 text-center text-slate-400 text-xs">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
+                    Loading registered API keys...
+                  </div>
+                ) : apiKeysList.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs">
+                    Walang nahanap na API keys. Pindutin ang "Generate Key for WebApp" para magdagdag.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {apiKeysList.map((k) => (
+                      <div
+                        key={k.id}
+                        className={`p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          k.is_active ? 'bg-white border-slate-200 shadow-2xs' : 'bg-slate-50 border-slate-200 opacity-70'
+                        }`}
+                      >
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-800 text-xs">{k.key_name}</span>
+                            {k.is_master && (
+                              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded">
+                                MASTER KEY
+                              </span>
+                            )}
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                k.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {k.is_active ? 'ACTIVE' : 'REVOKED'}
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 flex items-center gap-2 flex-wrap">
+                            <span>WebApp: <strong className="text-slate-700">{k.client_app}</strong></span>
+                            <span>•</span>
+                            <span>Scopes: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600 font-mono text-[10px]">{k.scopes.join(', ')}</code></span>
+                            {k.last_used_at && (
+                              <>
+                                <span>•</span>
+                                <span>Last used: {new Date(k.last_used_at).toLocaleDateString()}</span>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 font-mono text-xs text-slate-600 pt-0.5">
+                            <code className="bg-slate-100 px-2 py-1 rounded border border-slate-200 text-slate-800 select-all text-[11px]">
+                              {k.api_key}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(k.api_key, k.id)}
+                              className="text-slate-500 hover:text-blue-600 p-1 rounded hover:bg-slate-100 transition"
+                              title="Copy API Key"
+                            >
+                              {copiedKeyId === k.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            {copiedKeyId === k.id && (
+                              <span className="text-[10px] text-emerald-600 font-sans font-bold">Copied!</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleApiKey(k.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${
+                              k.is_active
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                            }`}
+                            title={k.is_active ? 'Revoke / Disable this key' : 'Activate this key'}
+                          >
+                            {k.is_active ? 'Revoke Key' : 'Activate Key'}
+                          </button>
+
+                          {!k.is_master && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteApiKey(k.id, k.key_name)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                              title="Delete API Key"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: GENERATE NEW KEY */}
+            {apiKeysTab === 'generate' && (
+              <form onSubmit={handleCreateApiKey} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Key Name / Purpose *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      placeholder="e.g. Shopify Storefront, Branch Cebu App"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Client WebApp Identifier *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newClientApp}
+                      onChange={(e) => setNewClientApp(e.target.value)}
+                      placeholder="e.g. Shopify US Store, Logistics WebApp"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Permissions / Scopes
+                  </label>
+                  <select
+                    value={newScopes}
+                    onChange={(e) => setNewScopes(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="payables:read,payables:create">Read & Create Payables (Recommended for WebApps)</option>
+                    <option value="payables:create">Create Only (Submit Payable Requests)</option>
+                    <option value="payables:read">Read Only (Status Check Only)</option>
+                    <option value="payables:read,payables:create,payables:confirm">Full Access (Read, Create, Confirm)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Custom Key Token (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={customKeyToken}
+                    onChange={(e) => setCustomKeyToken(e.target.value)}
+                    placeholder="Leave blank to auto-generate secure nkb_live_... token"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Kung iiwang blangko, awtomatikong bubuo ang system ng crypto-secure token (e.g. <code>nkb_live_32hex...</code>).
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setApiKeysTab('list')}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={generatingKey || !newKeyName.trim() || !newClientApp.trim()}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{generatingKey ? 'Generating...' : 'Generate New API Key'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 3: INTEGRATION DOCS & CURL */}
+            {apiKeysTab === 'docs' && (
+              <div className="space-y-4 text-xs text-slate-700">
+                <div className="bg-slate-900 text-slate-200 p-4 rounded-xl space-y-3 font-mono text-[11px]">
+                  <div className="flex items-center justify-between text-slate-400 pb-2 border-b border-slate-800">
+                    <span className="font-sans font-bold text-xs text-white flex items-center gap-1.5">
+                      <Terminal className="w-4 h-4 text-emerald-400" />
+                      1. Submitting a Payable Request from External WebApp (cURL)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const snippet = `curl -X POST "${window.location.origin}/api/v1/payables" \\
+  -H "x-api-key: YOUR_API_KEY_HERE" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "payee_name": "ABC Chemical Supplies",
+    "amount": 45000.00,
+    "category": "Raw Materials",
+    "bank_name": "BDO - 0080-5801-0547",
+    "purpose": "Batch solvent materials for Perfume Production",
+    "invoice_number": "INV-2026-8801",
+    "due_date": "${new Date().toISOString().slice(0, 10)}"
+  }'`;
+                        copyToClipboard(snippet, 'curl-snippet');
+                      }}
+                      className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-sans text-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedKeyId === 'curl-snippet' ? 'Copied!' : 'Copy cURL'}</span>
+                    </button>
+                  </div>
+                  <pre className="overflow-x-auto text-emerald-400 leading-relaxed">
+{`curl -X POST "${window.location.origin}/api/v1/payables" \\
+  -H "x-api-key: YOUR_API_KEY_HERE" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "payee_name": "ABC Chemical Supplies",
+    "amount": 45000.00,
+    "category": "Raw Materials",
+    "bank_name": "BDO - 0080-5801-0547",
+    "purpose": "Batch solvent materials for Perfume Production",
+    "invoice_number": "INV-2026-8801",
+    "due_date": "${new Date().toISOString().slice(0, 10)}"
+  }'`}
+                  </pre>
+                </div>
+
+                <div className="bg-slate-900 text-slate-200 p-4 rounded-xl space-y-3 font-mono text-[11px]">
+                  <div className="flex items-center justify-between text-slate-400 pb-2 border-b border-slate-800">
+                    <span className="font-sans font-bold text-xs text-white flex items-center gap-1.5">
+                      <Code2 className="w-4 h-4 text-blue-400" />
+                      2. JavaScript / Node.js (fetch)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const snippet = `const response = await fetch("${window.location.origin}/api/v1/payables", {
+  method: "POST",
+  headers: {
+    "x-api-key": "YOUR_API_KEY_HERE",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    payee_name: "ABC Chemical Supplies",
+    amount: 45000.00,
+    category: "Raw Materials",
+    purpose: "Batch solvent materials",
+    invoice_number: "INV-2026-8801"
+  })
+});
+const result = await response.json();
+console.log("Payable submitted:", result);`;
+                        copyToClipboard(snippet, 'js-snippet');
+                      }}
+                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-sans text-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedKeyId === 'js-snippet' ? 'Copied!' : 'Copy JS'}</span>
+                    </button>
+                  </div>
+                  <pre className="overflow-x-auto text-blue-300 leading-relaxed">
+{`const response = await fetch("${window.location.origin}/api/v1/payables", {
+  method: "POST",
+  headers: {
+    "x-api-key": "YOUR_API_KEY_HERE",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    payee_name: "ABC Chemical Supplies",
+    amount: 45000.00,
+    category: "Raw Materials",
+    purpose: "Batch solvent materials",
+    invoice_number: "INV-2026-8801"
+  })
+});
+const result = await response.json();
+console.log("Payable submitted:", result);`}
+                  </pre>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs text-slate-600">
+                  <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Automatic COO Queue & Upstream Sync
+                  </p>
+                  <p>
+                    Bawat matagumpay na request mula sa external webapp ay awtomatikong:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 pl-2 text-slate-600">
+                    <li>Papasok sa COO Payable Approvals Queue sa dashboard na ito na may status na <code className="text-amber-700 font-bold">PENDING_COO_APPROVAL</code>.</li>
+                    <li>Magsi-sync sa <code className="text-blue-600 font-semibold">my.nkbmanufacturing.com</code> gamit ang master connection key.</li>
+                    <li>Maaaring suriin ng external webapp ang status gamit ang <code className="font-mono">GET /api/v1/payables?search=&lt;invoice_number&gt;</code> kasama ang parehong <code className="font-mono">x-api-key</code>.</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex justify-end pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowApiKeysModal(false)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xs transition"
+              >
+                Close Manager
               </button>
             </div>
           </div>
