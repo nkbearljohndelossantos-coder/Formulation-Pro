@@ -29,7 +29,9 @@ import {
   Trash2,
   Code2,
   Terminal,
-  Layers
+  Layers,
+  Edit3,
+  Save
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -73,6 +75,21 @@ export function PayableApprovalsPage() {
   });
   const [inputApiKey, setInputApiKey] = useState('');
   const [savingKey, setSavingKey] = useState(false);
+
+  // Portal Configuration state for editing
+  const [configPortalTab, setConfigPortalTab] = useState('my'); // 'my' | 'pc'
+  const [myApiKeyInput, setMyApiKeyInput] = useState('');
+  const [myApiUrlInput, setMyApiUrlInput] = useState('http://my.nkbmanufacturing.com/api/v1');
+  const [pcApiKeyInput, setPcApiKeyInput] = useState('');
+  const [pcApiUrlInput, setPcApiUrlInput] = useState('http://pc.nkbmanufacturing.com/api/v1');
+
+  // Editing existing API key state in Multi-API Key Manager
+  const [editingKeyItem, setEditingKeyItem] = useState(null);
+  const [editKeyName, setEditKeyName] = useState('');
+  const [editClientApp, setEditClientApp] = useState('');
+  const [editKeyToken, setEditKeyToken] = useState('');
+  const [editScopes, setEditScopes] = useState('payables:read,payables:create');
+  const [savingEditKey, setSavingEditKey] = useState(false);
 
   // Multi-API Key Management State for External WebApps
   const [showApiKeysModal, setShowApiKeysModal] = useState(false);
@@ -218,6 +235,10 @@ export function PayableApprovalsPage() {
         const data = await res.json();
         if (data.success) {
           setApiConfig(data);
+          if (data.portals?.my?.apiKey) setMyApiKeyInput(data.portals.my.apiKey);
+          if (data.portals?.my?.apiUrl) setMyApiUrlInput(data.portals.my.apiUrl);
+          if (data.portals?.pc?.apiKey) setPcApiKeyInput(data.portals.pc.apiKey);
+          if (data.portals?.pc?.apiUrl) setPcApiUrlInput(data.portals.pc.apiUrl);
         }
       }
     } catch (_) {}
@@ -237,30 +258,76 @@ export function PayableApprovalsPage() {
     return () => clearInterval(interval);
   }, [autoSync, statusFilter, portalFilter, searchTerm]);
 
-  // Handle save API key
+  // Handle save Portal API keys & URLs
   const handleSaveApiKey = async (e) => {
     e.preventDefault();
-    if (!inputApiKey.trim()) return;
     try {
       setSavingKey(true);
       const res = await apiFetch('/api/v1/payables/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: inputApiKey.trim() })
+        body: JSON.stringify({
+          my_api_key: myApiKeyInput.trim(),
+          my_api_url: myApiUrlInput.trim(),
+          pc_api_key: pcApiKeyInput.trim(),
+          pc_api_url: pcApiUrlInput.trim()
+        })
       });
       const data = await res.json();
       if (data.success) {
-        setInputApiKey('');
         setShowConfigModal(false);
+        setActionSuccessMessage('Portal API keys and configurations updated successfully!');
         await fetchConfig();
         await fetchPayables(true);
+        setTimeout(() => setActionSuccessMessage(null), 4000);
       } else {
-        alert(data.message || 'Failed to save API Key');
+        alert(data.message || 'Failed to update API configurations');
       }
     } catch (err) {
-      alert(err.message || 'Network error');
+      alert(err.message || 'Network error updating API configurations');
     } finally {
       setSavingKey(false);
+    }
+  };
+
+  // Handlers for Editing registered API keys
+  const handleStartEditApiKey = (k) => {
+    setEditingKeyItem(k);
+    setEditKeyName(k.key_name || '');
+    setEditClientApp(k.client_app || '');
+    setEditKeyToken(k.api_key || '');
+    setEditScopes(Array.isArray(k.scopes) ? k.scopes.join(',') : (k.scopes || 'payables:read,payables:create'));
+  };
+
+  const handleSaveEditedApiKey = async (e) => {
+    e.preventDefault();
+    if (!editingKeyItem || !editKeyName.trim() || !editClientApp.trim() || !editKeyToken.trim()) return;
+    try {
+      setSavingEditKey(true);
+      const res = await apiFetch(`/api/v1/payables/api-keys/${editingKeyItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key_name: editKeyName.trim(),
+          client_app: editClientApp.trim(),
+          api_key: editKeyToken.trim(),
+          scopes: editScopes
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingKeyItem(null);
+        await fetchApiKeysList();
+        await fetchConfig();
+        setActionSuccessMessage(`API Key "${editKeyName}" successfully updated.`);
+        setTimeout(() => setActionSuccessMessage(null), 4000);
+      } else {
+        alert(data.message || 'Failed to update API key');
+      }
+    } catch (err) {
+      alert(err.message || 'Network error updating API key');
+    } finally {
+      setSavingEditKey(false);
     }
   };
 
@@ -1540,6 +1607,15 @@ export function PayableApprovalsPage() {
                         <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                           <button
                             type="button"
+                            onClick={() => handleStartEditApiKey(k)}
+                            className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition border border-slate-200"
+                            title="Edit or replace this API Key"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => handleToggleApiKey(k.id)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${
                               k.is_active
@@ -1786,16 +1862,20 @@ console.log("Payable submitted:", result);`}
         </div>
       )}
 
-      {/* Modal: Configure NKB API Key */}
+      {/* Modal: Configure NKB Portals API Keys & Endpoints */}
       {showConfigModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 space-y-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <Key className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-base">NKB API Key Setup</h3>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Portal API Keys & Connections</h3>
+                  <p className="text-xs text-slate-500">Edit or replace keys and endpoints for live sync & COO confirmation</p>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowConfigModal(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
               >
@@ -1803,50 +1883,110 @@ console.log("Payable submitted:", result);`}
               </button>
             </div>
 
+            {/* Portal Switch Tabs */}
+            <div className="flex border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => setConfigPortalTab('my')}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 ${
+                  configPortalTab === 'my'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                my.nkb (Main Portal)
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfigPortalTab('pc')}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 ${
+                  configPortalTab === 'pc'
+                    ? 'border-purple-600 text-purple-600 bg-purple-50/50'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                pc.nkb (Petty Cash)
+              </button>
+            </div>
+
             <form onSubmit={handleSaveApiKey} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  API Key (`x-api-key`)
-                </label>
-                <input
-                  type="text"
-                  value={inputApiKey}
-                  onChange={(e) => setInputApiKey(e.target.value)}
-                  placeholder="e.g. nkb_live_98ab76cd54ef..."
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Both system portal keys are active in the database. You can override or update the primary master key below.
+              {configPortalTab === 'my' ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      my.nkb API Key (`x-api-key`)
+                    </label>
+                    <input
+                      type="text"
+                      value={myApiKeyInput}
+                      onChange={(e) => setMyApiKeyInput(e.target.value)}
+                      placeholder="e.g. nkb_live_317afeed3bd23218969a04d4abecdfb6"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Active key used for syncing and confirming requests on <code className="text-blue-600">https://my.nkbmanufacturing.com</code>.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      my.nkb API Base URL
+                    </label>
+                    <input
+                      type="text"
+                      value={myApiUrlInput}
+                      onChange={(e) => setMyApiUrlInput(e.target.value)}
+                      placeholder="http://my.nkbmanufacturing.com/api/v1"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      pc.nkb API Key (`x-api-key`)
+                    </label>
+                    <input
+                      type="text"
+                      value={pcApiKeyInput}
+                      onChange={(e) => setPcApiKeyInput(e.target.value)}
+                      placeholder="e.g. nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-600"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Active key used for syncing and confirming requests on <code className="text-purple-600">https://pc.nkbmanufacturing.com</code>.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      pc.nkb API Base URL
+                    </label>
+                    <input
+                      type="text"
+                      value={pcApiUrlInput}
+                      onChange={(e) => setPcApiUrlInput(e.target.value)}
+                      placeholder="http://pc.nkbmanufacturing.com/api/v1"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-600"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs text-slate-600 space-y-1">
+                <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Instant Database & Live Cache Update
+                </p>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Changes take effect immediately across all sync and COO confirmation routines without restarting the server.
                 </p>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-xs text-slate-600 space-y-2">
-                <p className="font-bold text-slate-800">Active System Connections:</p>
-                <div className="space-y-1 font-mono text-[11px]">
-                  <div className="flex items-center justify-between bg-white p-1.5 rounded border border-slate-200">
-                    <span className="text-blue-700 font-semibold truncate mr-2">my.nkb (nkb_live_317a...dfb6)</span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard('nkb_live_317afeed3bd23218969a04d4abecdfb6', 'modal-my-key')}
-                      className="text-slate-500 hover:text-blue-600 font-sans text-[10px] shrink-0 font-bold"
-                    >
-                      {copiedKeyId === 'modal-my-key' ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between bg-white p-1.5 rounded border border-slate-200">
-                    <span className="text-purple-700 font-semibold truncate mr-2">pc.nkb (nkb_live_f1d0...a2f)</span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard('nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f', 'modal-pc-key')}
-                      className="text-slate-500 hover:text-purple-600 font-sans text-[10px] shrink-0 font-bold"
-                    >
-                      {copiedKeyId === 'modal-pc-key' ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowConfigModal(false)}
@@ -1857,9 +1997,127 @@ console.log("Payable submitted:", result);`}
                 <button
                   type="submit"
                   disabled={savingKey}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {savingKey ? 'Saving...' : 'Save API Key'}
+                  <Save className="w-4 h-4" />
+                  <span>{savingKey ? 'Saving...' : 'Save Connections'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Existing Registered API Key */}
+      {editingKeyItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-60">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Edit & Replace API Key</h3>
+                  <p className="text-xs text-slate-500">ID #{editingKeyItem.id} &bull; {editingKeyItem.client_app || 'Custom Client'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingKeyItem(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditedApiKey} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Key Name / Purpose *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editKeyName}
+                  onChange={(e) => setEditKeyName(e.target.value)}
+                  placeholder="e.g. my.nkbmanufacturing.com API"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Client WebApp / Origin *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editClientApp}
+                  onChange={(e) => setEditClientApp(e.target.value)}
+                  placeholder="e.g. https://my.nkbmanufacturing.com"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    API Key Token string (`x-api-key`) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const randHex = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+                      setEditKeyToken(`nkb_live_${randHex}`);
+                    }}
+                    className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold"
+                  >
+                    Generate Random Token
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={editKeyToken}
+                  onChange={(e) => setEditKeyToken(e.target.value)}
+                  placeholder="nkb_live_..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  You can paste a new API key here to replace the current token immediately.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Permissions / Scopes
+                </label>
+                <select
+                  value={editScopes}
+                  onChange={(e) => setEditScopes(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                >
+                  <option value="payables:read,payables:create">Read & Create Payables (Recommended)</option>
+                  <option value="payables:create">Create Only (Submit Payable Requests)</option>
+                  <option value="payables:read">Read Only (Status Check Only)</option>
+                  <option value="payables:read,payables:create,payables:confirm">Full Access (Read, Create, Confirm)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingKeyItem(null)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEditKey || !editKeyName.trim() || !editClientApp.trim() || !editKeyToken.trim()}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{savingEditKey ? 'Saving...' : 'Save & Update Key'}</span>
                 </button>
               </div>
             </form>

@@ -12,6 +12,69 @@ export const PC_NKB_API_KEY = 'nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e
 export const LEGACY_MASTER_KEY = 'nkb_live_77be0f89d17ebc1b46ce3e7c3151f943';
 export const DEFAULT_API_KEY = MY_NKB_API_KEY;
 
+export let dynamicPortalKeys = {
+  my: MY_NKB_API_KEY,
+  pc: PC_NKB_API_KEY
+};
+
+export let dynamicPortalUrls = {
+  my: 'http://my.nkbmanufacturing.com/api/v1',
+  pc: 'http://pc.nkbmanufacturing.com/api/v1'
+};
+
+export async function getActivePortalKey(portalId) {
+  try {
+    const isPc = portalId === 'pc' || (portalId && portalId.includes('pc.'));
+    const appLike = isPc ? '%pc.nkb%' : '%my.nkb%';
+    const record = await db('api_keys').where('client_app', 'like', appLike).andWhere({ is_active: 1 }).orderBy('id', 'desc').first();
+    if (record && record.api_key) {
+      if (isPc) dynamicPortalKeys.pc = record.api_key;
+      else dynamicPortalKeys.my = record.api_key;
+      return record.api_key;
+    }
+  } catch (_) {}
+  return (portalId === 'pc' || (portalId && portalId.includes('pc.'))) ? dynamicPortalKeys.pc : dynamicPortalKeys.my;
+}
+
+export async function updateOrCreatePortalKey(domain, newKey) {
+  const isPc = domain.includes('pc.');
+  const appMatch = isPc ? '%pc.nkb%' : '%my.nkb%';
+  const defaultName = isPc ? 'pc.nkbmanufacturing.com API' : 'my.nkbmanufacturing.com API';
+  const defaultApp = isPc ? 'https://pc.nkbmanufacturing.com/' : 'https://my.nkbmanufacturing.com/';
+
+  if (isPc) dynamicPortalKeys.pc = newKey;
+  else dynamicPortalKeys.my = newKey;
+
+  const existing = await db('api_keys').where('client_app', 'like', appMatch).first();
+  if (existing) {
+    await db('api_keys').where({ id: existing.id }).update({
+      api_key: newKey,
+      is_active: 1,
+      updated_at: db.fn.now()
+    });
+  } else {
+    await db('api_keys').insert({
+      key_name: defaultName,
+      client_app: defaultApp,
+      api_key: newKey,
+      scopes: 'payables:read,payables:create,payables:confirm',
+      is_active: 1,
+      rate_limit_rpm: 300,
+      created_at: db.fn.now(),
+      updated_at: db.fn.now()
+    });
+  }
+
+  // Update system_settings as well
+  const settingKey = isPc ? 'nkb_payables_pc_api_key' : 'nkb_payables_my_api_key';
+  const settingExisting = await db('system_settings').where({ key: settingKey }).first();
+  if (settingExisting) {
+    await db('system_settings').where({ key: settingKey }).update({ value: newKey, updated_at: db.fn.now() });
+  } else {
+    await db('system_settings').insert({ key: settingKey, value: newKey, description: `${domain} API Key`, created_at: db.fn.now(), updated_at: db.fn.now() });
+  }
+}
+
 export const NKB_PORTALS = {
   my: {
     id: 'my.nkbmanufacturing.com',
@@ -39,10 +102,11 @@ const NKB_API_PREFIX = '/api/v1';
  */
 export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, targetHost = null) {
   return new Promise((resolve, reject) => {
-    const hostToUse = targetHost || (apiKey === PC_NKB_API_KEY ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
+    const hostToUse = targetHost || ((apiKey && apiKey.includes('f1d0')) || apiKey === PC_NKB_API_KEY ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
     const fullPath = `${NKB_API_PREFIX}${endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath}`;
+    const effectiveKey = apiKey || (hostToUse.includes('pc.') ? dynamicPortalKeys.pc : dynamicPortalKeys.my);
     const headers = {
-      'x-api-key': apiKey || DEFAULT_API_KEY,
+      'x-api-key': effectiveKey,
       'Accept': 'application/json',
       'User-Agent': 'Formulation-Pro/1.0.0 (Node.js)'
     };
@@ -301,27 +365,34 @@ let localPayableRecords = [];
  */
 router.get('/config', async (req, res) => {
   try {
+    const myKey = await getActivePortalKey('my');
+    const pcKey = await getActivePortalKey('pc');
+    const myUrlSetting = await db('system_settings').where({ key: 'nkb_payables_my_api_url' }).first();
+    const pcUrlSetting = await db('system_settings').where({ key: 'nkb_payables_pc_api_url' }).first();
+    const myUrl = myUrlSetting ? myUrlSetting.value : dynamicPortalUrls.my;
+    const pcUrl = pcUrlSetting ? pcUrlSetting.value : dynamicPortalUrls.pc;
+
     return res.json({
       success: true,
-      hasKey: true,
-      maskedKey: MY_NKB_API_KEY.slice(0, 10) + '...' + MY_NKB_API_KEY.slice(-4),
-      apiUrl: 'http://my.nkbmanufacturing.com/api/v1',
+      hasKey: Boolean(myKey || pcKey),
+      maskedKey: myKey ? (myKey.slice(0, 10) + '...' + myKey.slice(-4)) : '',
+      apiUrl: myUrl,
       apiOnline: true,
       apiMessage: 'Dual NKB Portals Active (my.nkb & pc.nkb)',
       portals: {
         my: {
           id: 'my.nkbmanufacturing.com',
           name: 'Main NKB Portal',
-          apiKey: MY_NKB_API_KEY,
-          maskedKey: MY_NKB_API_KEY.slice(0, 10) + '...' + MY_NKB_API_KEY.slice(-4),
-          apiUrl: 'http://my.nkbmanufacturing.com/api/v1'
+          apiKey: myKey,
+          maskedKey: myKey ? (myKey.slice(0, 10) + '...' + myKey.slice(-4)) : '',
+          apiUrl: myUrl
         },
         pc: {
           id: 'pc.nkbmanufacturing.com',
           name: 'Petty Cash NKB Portal',
-          apiKey: PC_NKB_API_KEY,
-          maskedKey: PC_NKB_API_KEY.slice(0, 10) + '...' + PC_NKB_API_KEY.slice(-4),
-          apiUrl: 'http://pc.nkbmanufacturing.com/api/v1'
+          apiKey: pcKey,
+          maskedKey: pcKey ? (pcKey.slice(0, 10) + '...' + pcKey.slice(-4)) : '',
+          apiUrl: pcUrl
         }
       }
     });
@@ -332,19 +403,69 @@ router.get('/config', async (req, res) => {
 
 /**
  * POST /api/v1/payables/config
- * Updates / tests primary API Key configuration
+ * Updates / replaces active portal API keys or endpoint URLs
  */
 router.post('/config', authenticatePayablesAccess, async (req, res) => {
   try {
-    const { apiKey } = req.body;
-    if (!apiKey) {
-      return res.status(400).json({ success: false, message: 'API key is required.' });
+    const { my_api_key, pc_api_key, my_api_url, pc_api_url, apiKey, portal } = req.body;
+
+    if (apiKey && apiKey.trim()) {
+      const keyVal = apiKey.trim();
+      if (portal === 'pc' || portal === 'pc.nkbmanufacturing.com') {
+        await updateOrCreatePortalKey('pc.nkbmanufacturing.com', keyVal);
+      } else {
+        await updateOrCreatePortalKey('my.nkbmanufacturing.com', keyVal);
+      }
     }
+
+    if (my_api_key && my_api_key.trim()) {
+      await updateOrCreatePortalKey('my.nkbmanufacturing.com', my_api_key.trim());
+    }
+
+    if (pc_api_key && pc_api_key.trim()) {
+      await updateOrCreatePortalKey('pc.nkbmanufacturing.com', pc_api_key.trim());
+    }
+
+    if (my_api_url && my_api_url.trim()) {
+      dynamicPortalUrls.my = my_api_url.trim();
+      const existing = await db('system_settings').where({ key: 'nkb_payables_my_api_url' }).first();
+      if (existing) {
+        await db('system_settings').where({ key: 'nkb_payables_my_api_url' }).update({ value: my_api_url.trim(), updated_at: db.fn.now() });
+      } else {
+        await db('system_settings').insert({ key: 'nkb_payables_my_api_url', value: my_api_url.trim(), description: 'my.nkb API base URL', created_at: db.fn.now(), updated_at: db.fn.now() });
+      }
+    }
+
+    if (pc_api_url && pc_api_url.trim()) {
+      dynamicPortalUrls.pc = pc_api_url.trim();
+      const existing = await db('system_settings').where({ key: 'nkb_payables_pc_api_url' }).first();
+      if (existing) {
+        await db('system_settings').where({ key: 'nkb_payables_pc_api_url' }).update({ value: pc_api_url.trim(), updated_at: db.fn.now() });
+      } else {
+        await db('system_settings').insert({ key: 'nkb_payables_pc_api_url', value: pc_api_url.trim(), description: 'pc.nkb API base URL', created_at: db.fn.now(), updated_at: db.fn.now() });
+      }
+    }
+
+    const updatedMyKey = await getActivePortalKey('my');
+    const updatedPcKey = await getActivePortalKey('pc');
+
     return res.json({
       success: true,
-      message: 'API Key configured successfully.',
-      hasKey: true,
-      maskedKey: apiKey.slice(0, 10) + '...' + apiKey.slice(-4)
+      message: 'Portal API configuration updated successfully.',
+      portals: {
+        my: {
+          id: 'my.nkbmanufacturing.com',
+          apiKey: updatedMyKey,
+          maskedKey: updatedMyKey ? (updatedMyKey.slice(0, 10) + '...' + updatedMyKey.slice(-4)) : '',
+          apiUrl: dynamicPortalUrls.my
+        },
+        pc: {
+          id: 'pc.nkbmanufacturing.com',
+          apiKey: updatedPcKey,
+          maskedKey: updatedPcKey ? (updatedPcKey.slice(0, 10) + '...' + updatedPcKey.slice(-4)) : '',
+          apiUrl: dynamicPortalUrls.pc
+        }
+      }
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -478,6 +599,60 @@ router.patch('/api-keys/:id/toggle', authenticateToken, async (req, res) => {
 });
 
 /**
+ * PUT /api/v1/payables/api-keys/:id
+ * Updates an existing API key's details, token, or scopes
+ */
+router.put('/api-keys/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { key_name, client_app, api_key, scopes, rate_limit_rpm, is_active } = req.body;
+    const existing = await db('api_keys').where({ id }).first();
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'API key not found.' });
+    }
+
+    const updateData = { updated_at: db.fn.now() };
+    if (key_name) updateData.key_name = key_name.trim();
+    if (client_app) updateData.client_app = client_app.trim();
+    if (api_key) updateData.api_key = api_key.trim();
+    if (scopes) updateData.scopes = Array.isArray(scopes) ? scopes.join(',') : scopes;
+    if (rate_limit_rpm !== undefined) updateData.rate_limit_rpm = parseInt(rate_limit_rpm, 10) || 120;
+    if (is_active !== undefined) updateData.is_active = is_active ? 1 : 0;
+
+    await db('api_keys').where({ id }).update(updateData);
+    const updated = await db('api_keys').where({ id }).first();
+
+    // If this was a portal key, update in-memory dynamicPortalKeys
+    if (updated.client_app && updated.client_app.includes('pc.')) {
+      dynamicPortalKeys.pc = updated.api_key;
+    } else if (updated.client_app && updated.client_app.includes('my.')) {
+      dynamicPortalKeys.my = updated.api_key;
+    }
+
+    return res.json({
+      success: true,
+      message: `API Key '${updated.key_name}' updated successfully.`,
+      key: {
+        id: updated.id,
+        key_name: updated.key_name,
+        client_app: updated.client_app,
+        api_key: updated.api_key,
+        masked_key: updated.api_key ? (updated.api_key.slice(0, 10) + '...' + updated.api_key.slice(-4)) : '',
+        scopes: updated.scopes ? updated.scopes.split(',') : [],
+        is_active: Boolean(updated.is_active),
+        rate_limit_rpm: updated.rate_limit_rpm || 120,
+        last_used_at: updated.last_used_at,
+        created_at: updated.created_at,
+        is_master: updated.api_key === MY_NKB_API_KEY || updated.api_key === PC_NKB_API_KEY || updated.api_key === LEGACY_MASTER_KEY
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * DELETE /api/v1/payables/api-keys/:id
  * Permanently deletes an API key (prevents deletion of System Portal Keys)
  */
@@ -534,7 +709,8 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
 
     // 1. Try pulling from my.nkbmanufacturing.com
     try {
-      const myRes = await nkbApiRequest('GET', `/payables${queryString}`, MY_NKB_API_KEY, null, 'my.nkbmanufacturing.com');
+      const myKey = await getActivePortalKey('my');
+      const myRes = await nkbApiRequest('GET', `/payables${queryString}`, myKey, null, 'my.nkbmanufacturing.com');
       if (myRes.ok && myRes.data) {
         const rawItems = Array.isArray(myRes.data) ? myRes.data : (myRes.data.data || myRes.data.payables || []);
         pulledItems.push(...rawItems.map(it => formatPayableItem(it, 'my.nkbmanufacturing.com')));
@@ -544,7 +720,8 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
 
     // 2. Try pulling from pc.nkbmanufacturing.com
     try {
-      const pcRes = await nkbApiRequest('GET', `/payables${queryString}`, PC_NKB_API_KEY, null, 'pc.nkbmanufacturing.com');
+      const pcKey = await getActivePortalKey('pc');
+      const pcRes = await nkbApiRequest('GET', `/payables${queryString}`, pcKey, null, 'pc.nkbmanufacturing.com');
       if (pcRes.ok && pcRes.data) {
         const rawItems = Array.isArray(pcRes.data) ? pcRes.data : (pcRes.data.data || pcRes.data.payables || []);
         pulledItems.push(...rawItems.map(it => formatPayableItem(it, 'pc.nkbmanufacturing.com')));
@@ -712,7 +889,7 @@ router.post('/', authenticatePayablesAccess, async (req, res) => {
     // Forward upstream to the corresponding portal
     let upstreamSynced = false;
     let upstreamResult = null;
-    const targetKey = isPc ? PC_NKB_API_KEY : MY_NKB_API_KEY;
+    const targetKey = isPc ? (await getActivePortalKey('pc')) : (await getActivePortalKey('my'));
     try {
       const upstreamRes = await nkbApiRequest('POST', '/payables', targetKey, newPayableRecord, sourcePortal);
       if (upstreamRes.ok && upstreamRes.data) {
@@ -837,7 +1014,7 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
 
     const isPc = Boolean(targetItem && (targetItem.source_portal === 'pc.nkbmanufacturing.com' || targetItem.company_code === 'NKB-PC'));
     const targetPortal = isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com';
-    const targetApiKey = isPc ? PC_NKB_API_KEY : MY_NKB_API_KEY;
+    const targetApiKey = isPc ? (await getActivePortalKey('pc')) : (await getActivePortalKey('my'));
 
     let remoteSuccess = false;
     let remoteResponse = null;
