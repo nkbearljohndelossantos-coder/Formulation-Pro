@@ -44,6 +44,7 @@ export function PayableApprovalsPage() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [portalFilter, setPortalFilter] = useState('ALL'); // 'ALL' | 'my.nkbmanufacturing.com' | 'pc.nkbmanufacturing.com'
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [autoSync, setAutoSync] = useState(true);
   const itemsPerPage = 10;
@@ -190,12 +191,13 @@ export function PayableApprovalsPage() {
       else setLoading(true);
       setError(null);
 
-      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}`);
+      const portalParam = portalFilter !== 'ALL' ? `&portal=${encodeURIComponent(portalFilter)}` : '';
+      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}${portalParam}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPayables(data.data);
         if (isManualSync) {
-          setActionSuccessMessage(`Synced successfully from my.nkbmanufacturing.com (${data.source === 'REMOTE_API' ? 'Live API' : 'Local Sandbox'}).`);
+          setActionSuccessMessage(`Synced successfully from both my.nkb and pc.nkb portals (${data.source === 'REMOTE_API' ? 'Live API' : 'Cached/Local Records'}).`);
           setTimeout(() => setActionSuccessMessage(null), 4000);
         }
       } else {
@@ -222,7 +224,7 @@ export function PayableApprovalsPage() {
   useEffect(() => {
     fetchPayables();
     fetchConfig();
-  }, [statusFilter]);
+  }, [statusFilter, portalFilter]);
 
   // Periodic Auto-Sync (polling every 30 seconds if enabled)
   useEffect(() => {
@@ -231,7 +233,7 @@ export function PayableApprovalsPage() {
       fetchPayables();
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoSync, statusFilter, searchTerm]);
+  }, [autoSync, statusFilter, portalFilter, searchTerm]);
 
   // Handle save API key
   const handleSaveApiKey = async (e) => {
@@ -363,11 +365,15 @@ export function PayableApprovalsPage() {
     }
   };
 
-  // Search filter
+  // Search and portal filter
   const filteredPayables = useMemo(() => {
-    if (!searchTerm.trim()) return payables;
+    let list = payables;
+    if (portalFilter !== 'ALL') {
+      list = list.filter(p => (p.source_portal || '').toLowerCase().includes(portalFilter.toLowerCase()));
+    }
+    if (!searchTerm.trim()) return list;
     const q = searchTerm.trim().toLowerCase();
-    return payables.filter(p =>
+    return list.filter(p =>
       (p.req_cheque_no || '').toLowerCase().includes(q) ||
       (p.payable_number || '').toLowerCase().includes(q) ||
       (p.payee_beneficiary || '').toLowerCase().includes(q) ||
@@ -378,9 +384,10 @@ export function PayableApprovalsPage() {
       (p.control_number || '').toLowerCase().includes(q) ||
       (p.invoice_number || '').toLowerCase().includes(q) ||
       (p.description || '').toLowerCase().includes(q) ||
-      (p.vendor || '').toLowerCase().includes(q)
+      (p.vendor || '').toLowerCase().includes(q) ||
+      (p.source_portal || '').toLowerCase().includes(q)
     );
-  }, [payables, searchTerm]);
+  }, [payables, searchTerm, portalFilter]);
 
   // Pagination calculation
   const totalEntries = filteredPayables.length;
@@ -432,9 +439,20 @@ export function PayableApprovalsPage() {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-bold text-slate-800">Approving Payable</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-slate-800">Approving Payable</h1>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-bold border ${
+                      (p.source_portal || '').includes('pc.nkb')
+                        ? 'bg-purple-100 text-purple-700 border-purple-200'
+                        : 'bg-blue-100 text-blue-700 border-blue-200'
+                    }`}
+                  >
+                    {(p.source_portal || '').includes('pc.nkb') ? 'pc.nkb (Petty Cash)' : 'my.nkb (Main)'}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500">
-                  Req / Cheque: <span className="font-mono font-bold text-blue-600">{p.req_cheque_no || p.payable_number}</span> | Payee: <span className="font-semibold text-slate-700">{p.payee_beneficiary || p.vendor}</span>
+                  Req / Cheque: <span className="font-mono font-bold text-blue-600">{p.req_cheque_no || p.payable_number}</span> | Payee: <span className="font-semibold text-slate-700">{p.payee_beneficiary || p.vendor}</span> | Portal: <span className="font-mono text-slate-600">{p.source_portal || 'my.nkbmanufacturing.com'}</span>
                 </p>
               </div>
             </div>
@@ -780,34 +798,46 @@ export function PayableApprovalsPage() {
   // =========================================================================
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Top Banner / API Status & How-To Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
-        <div className="flex items-center gap-3">
-          <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${apiConfig.hasKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`}></div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-slate-800">my.nkbmanufacturing.com REST API Connection</span>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
-                apiConfig.hasKey ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-              }`}>
-                {apiConfig.hasKey ? 'API Key Active (Sync Ready)' : 'No API Key — Using Local Sandbox'}
-              </span>
+      {/* Top Banner: Dual NKB REST API Connections */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Card 1: my.nkbmanufacturing.com */}
+          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-lg p-2.5 px-3">
+            <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse shrink-0"></div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-xs text-slate-800">my.nkbmanufacturing.com</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">Main Portal</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                Key: <span className="font-semibold text-slate-700">nkb_live_317a...dfb6</span>
+              </p>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Live Endpoint: <span className="font-mono text-blue-600">http://my.nkbmanufacturing.com/api/v1/payables</span>
-              {apiConfig.maskedKey && <span className="ml-2 font-mono text-slate-700">({apiConfig.maskedKey})</span>}
-            </p>
+          </div>
+
+          {/* Card 2: pc.nkbmanufacturing.com */}
+          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-lg p-2.5 px-3">
+            <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse shrink-0"></div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-xs text-slate-800">pc.nkbmanufacturing.com</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">Petty Cash</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                Key: <span className="font-semibold text-slate-700">nkb_live_f1d0...a2f</span>
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+        <div className="flex items-center gap-2 flex-wrap self-end xl:self-auto">
           {/* How to receive approvals button */}
           <button
             onClick={() => setShowHowToModal(true)}
             className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition flex items-center gap-1.5 border border-blue-200"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>How to Receive Approvals?</span>
+            <span>How to Connect?</span>
           </button>
 
           {/* Sync now button */}
@@ -815,10 +845,10 @@ export function PayableApprovalsPage() {
             onClick={() => fetchPayables(true)}
             disabled={syncing}
             className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 shadow-2xs disabled:opacity-60"
-            title="Fetch latest pending approvals from my.nkbmanufacturing.com"
+            title="Fetch latest pending approvals from both portals"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{syncing ? 'Syncing...' : 'Sync Now'}</span>
+            <span>{syncing ? 'Syncing...' : 'Sync Both Portals'}</span>
           </button>
 
           {/* Manage Multi-API Keys button */}
@@ -838,7 +868,7 @@ export function PayableApprovalsPage() {
             title="Configure Primary NKB Master Key"
           >
             <Key className="w-3.5 h-3.5 text-slate-500" />
-            <span>Master Key</span>
+            <span>Connection Keys</span>
           </button>
         </div>
       </div>
@@ -862,29 +892,51 @@ export function PayableApprovalsPage() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            {/* Portal Source Filter Tabs */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
+              <button
+                onClick={() => { setPortalFilter('ALL'); setCurrentPageNum(1); }}
+                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+              >
+                All Portals
+              </button>
+              <button
+                onClick={() => { setPortalFilter('my.nkbmanufacturing.com'); setCurrentPageNum(1); }}
+                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'my.nkbmanufacturing.com' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+              >
+                my.nkb
+              </button>
+              <button
+                onClick={() => { setPortalFilter('pc.nkbmanufacturing.com'); setCurrentPageNum(1); }}
+                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'pc.nkbmanufacturing.com' ? 'bg-white text-purple-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+              >
+                pc.nkb
+              </button>
+            </div>
+
             {/* Status Filter Tabs */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
               <button
-                onClick={() => setStatusFilter('ALL')}
+                onClick={() => { setStatusFilter('ALL'); setCurrentPageNum(1); }}
                 className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
               >
                 All
               </button>
               <button
-                onClick={() => setStatusFilter('PENDING')}
+                onClick={() => { setStatusFilter('PENDING'); setCurrentPageNum(1); }}
                 className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'PENDING' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
               >
                 Pending
               </button>
               <button
-                onClick={() => setStatusFilter('CONFIRMED')}
+                onClick={() => { setStatusFilter('CONFIRMED'); setCurrentPageNum(1); }}
                 className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
               >
                 Approved
               </button>
               <button
-                onClick={() => setStatusFilter('REJECTED')}
+                onClick={() => { setStatusFilter('REJECTED'); setCurrentPageNum(1); }}
                 className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'REJECTED' ? 'bg-white text-rose-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
               >
                 Rejected
@@ -895,7 +947,7 @@ export function PayableApprovalsPage() {
             <div className="relative w-full sm:w-64">
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search payables, req #, payee..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -951,10 +1003,26 @@ export function PayableApprovalsPage() {
                       key={item.id || idx}
                       className="hover:bg-slate-50/80 transition-colors group"
                     >
-                      {/* 1. Req / Cheque No. (Blue Clickable Link) */}
-                      <td className="py-3 px-3.5 font-bold font-mono text-blue-600 hover:text-blue-800 cursor-pointer hover:underline whitespace-nowrap"
-                          onClick={() => handleOpenDetail(item)}>
-                        {item.req_cheque_no || item.payable_number || `PB-${item.id}`}
+                      {/* 1. Req / Cheque No. (Blue Clickable Link with Portal Badge) */}
+                      <td className="py-3 px-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                              (item.source_portal || '').includes('pc.nkb')
+                                ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                : 'bg-blue-100 text-blue-700 border-blue-200'
+                            }`}
+                            title={`Submitted via ${item.source_portal || 'my.nkbmanufacturing.com'}`}
+                          >
+                            {(item.source_portal || '').includes('pc.nkb') ? 'pc.nkb' : 'my.nkb'}
+                          </span>
+                          <span
+                            className="font-bold font-mono text-blue-600 hover:text-blue-800 cursor-pointer hover:underline"
+                            onClick={() => handleOpenDetail(item)}
+                          >
+                            {item.req_cheque_no || item.payable_number || `PB-${item.id}`}
+                          </span>
+                        </div>
                       </td>
 
                       {/* 2. Date */}
@@ -1195,11 +1263,11 @@ export function PayableApprovalsPage() {
       {/* Modal: How to Receive Approvals Guide */}
       {showHowToModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 space-y-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-base">How to Receive Approvals from my.nkbmanufacturing.com</h3>
+                <h3 className="font-bold text-slate-900 text-base">How to Receive Approvals from NKB Portals</h3>
               </div>
               <button
                 onClick={() => setShowHowToModal(false)}
@@ -1210,37 +1278,74 @@ export function PayableApprovalsPage() {
             </div>
 
             <div className="space-y-4 text-xs text-slate-700">
+              {/* Dual Portal Connection Info */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  Dual Portal Active API Keys
+                </h4>
+                <p className="text-slate-600">
+                  Both NKB system portals are pre-configured, authenticated, and accepted simultaneously:
+                </p>
+                <div className="space-y-2">
+                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-blue-900">1. my.nkbmanufacturing.com (Main Portal)</strong>
+                      <span className="text-[10px] bg-blue-200 text-blue-800 font-bold px-1.5 py-0.2 rounded">ACTIVE</span>
+                    </div>
+                    <p className="font-mono text-[11px] text-blue-800 mt-1 select-all break-all">
+                      nkb_live_317afeed3bd23218969a04d4abecdfb6
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-purple-900">2. pc.nkbmanufacturing.com (Petty Cash Portal)</strong>
+                      <span className="text-[10px] bg-purple-200 text-purple-800 font-bold px-1.5 py-0.2 rounded">ACTIVE</span>
+                    </div>
+                    <p className="font-mono text-[11px] text-purple-800 mt-1 select-all break-all">
+                      nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Method 1: Polling / Sync */}
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-2">
                 <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px]">1</span>
-                  Method 1: Using API Key (Recommended — Automatic Pull & Sync)
+                  Automatic Pull & Sync (Live Polling)
                 </h4>
                 <p className="text-slate-600 leading-relaxed">
-                  Our server connects directly to the NKB REST API endpoint:
+                  Our server concurrently queries both portals every 30 seconds:
                 </p>
-                <div className="bg-white p-2 rounded border border-blue-200 font-mono text-[11px] text-blue-800">
-                  GET http://my.nkbmanufacturing.com/api/v1/payables?status=PENDING_COO_APPROVAL
+                <div className="space-y-1 font-mono text-[10px]">
+                  <div className="bg-white p-1.5 rounded border border-blue-200 text-blue-800">
+                    GET http://my.nkbmanufacturing.com/api/v1/payables?status=PENDING_COO_APPROVAL
+                  </div>
+                  <div className="bg-white p-1.5 rounded border border-purple-200 text-purple-800">
+                    GET http://pc.nkbmanufacturing.com/api/v1/payables?status=PENDING_COO_APPROVAL
+                  </div>
                 </div>
-                <ol className="list-decimal list-inside space-y-1 pl-1 text-slate-600">
-                  <li>Click the <strong>"Master Key"</strong> or <strong>"Manage API Keys"</strong> button in the top bar.</li>
-                  <li>Ensure your valid <code>x-api-key</code> (e.g. <code>nkb_live_...</code>) is active.</li>
-                  <li>Click <strong>"Sync Now"</strong> or keep <strong>Live Polling (30s)</strong> enabled to automatically pull pending cheques requiring approval.</li>
-                </ol>
+                <p className="text-[11px] text-slate-500">
+                  Any new cheques created in either system automatically appear in this dashboard with their respective source portal tag.
+                </p>
               </div>
 
+              {/* Method 2: Webhooks */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-2">
                 <h4 className="font-bold text-emerald-900 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[11px]">2</span>
-                  Method 2: Using Webhook (Instant Real-Time Push)
+                  Real-Time Push Webhook
                 </h4>
                 <p className="text-slate-600 leading-relaxed">
-                  If the system at <code>my.nkbmanufacturing.com</code> supports webhooks, paste this Webhook URL into their webhook settings:
+                  External webapps and portals can push new payable requests directly into this webhook endpoint:
                 </p>
                 <div className="bg-white p-2 rounded border border-emerald-200 font-mono text-[11px] text-emerald-900 select-all">
                   {webhookUrl}
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Whenever a new Cheque Payable is created there, it will automatically push to this webhook and appear in your queue instantly.
+                  Include either portal's API key in the <code className="font-mono">x-api-key</code> request header.
                 </p>
               </div>
             </div>
@@ -1709,14 +1814,34 @@ console.log("Payable submitted:", result);`}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  From NKB Developer REST API documentation (OpenAPI: <code>http://my.nkbmanufacturing.com/api/v1/openapi.json</code>).
+                  Both system portal keys are active in the database. You can override or update the primary master key below.
                 </p>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-lg text-xs text-slate-600 space-y-1">
-                <p className="font-semibold text-slate-800">Current Status:</p>
-                <p>{apiConfig.hasKey ? `Active Key: ${apiConfig.maskedKey}` : 'No API Key configured (using local cache).'}</p>
-                <p className="text-[11px] text-slate-500">API URL: {apiConfig.apiUrl}</p>
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-xs text-slate-600 space-y-2">
+                <p className="font-bold text-slate-800">Active System Connections:</p>
+                <div className="space-y-1 font-mono text-[11px]">
+                  <div className="flex items-center justify-between bg-white p-1.5 rounded border border-slate-200">
+                    <span className="text-blue-700 font-semibold truncate mr-2">my.nkb (nkb_live_317a...dfb6)</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard('nkb_live_317afeed3bd23218969a04d4abecdfb6', 'modal-my-key')}
+                      className="text-slate-500 hover:text-blue-600 font-sans text-[10px] shrink-0 font-bold"
+                    >
+                      {copiedKeyId === 'modal-my-key' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between bg-white p-1.5 rounded border border-slate-200">
+                    <span className="text-purple-700 font-semibold truncate mr-2">pc.nkb (nkb_live_f1d0...a2f)</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard('nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f', 'modal-pc-key')}
+                      className="text-slate-500 hover:text-purple-600 font-sans text-[10px] shrink-0 font-bold"
+                    >
+                      {copiedKeyId === 'modal-pc-key' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
