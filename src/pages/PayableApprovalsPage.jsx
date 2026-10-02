@@ -275,13 +275,13 @@ export function PayableApprovalsPage() {
     if (!selectedPayable) return;
 
     if (decision === 'CONFIRMED' && !checkNumber.trim()) {
-      alert('Pakilagay ang Check Number (Cheque Number) bago mag-approve.\nCheck Number is required for approval.');
+      alert('Please enter the Cheque Number before approving.\nCheque Number is required for approval.');
       return;
     }
 
     const confirmPrompt = decision === 'CONFIRMED'
-      ? `Sigurado ka bang nais mong I-APPROVE ang Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number} gamit ang Check Number: ${checkNumber.trim()}?`
-      : `Sigurado ka bang nais mong I-REJECT ang Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number}?`;
+      ? `Are you sure you want to APPROVE Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number} with Cheque Number: ${checkNumber.trim()}?`
+      : `Are you sure you want to REJECT Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number}?`;
 
     if (!window.confirm(confirmPrompt)) return;
 
@@ -302,7 +302,7 @@ export function PayableApprovalsPage() {
 
       const data = await res.json();
       if (data.success) {
-        setActionSuccessMessage(`Matagumpay na na-${decision === 'CONFIRMED' ? 'APPROVE' : 'REJECT'} ang Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number}!`);
+        setActionSuccessMessage(`Successfully ${decision === 'CONFIRMED' ? 'APPROVED' : 'REJECTED'} Payable ${selectedPayable.req_cheque_no || selectedPayable.payable_number}!`);
         setSelectedPayable(prev => ({
           ...prev,
           status: decision === 'CONFIRMED' ? 'Approved' : 'Rejected',
@@ -326,7 +326,7 @@ export function PayableApprovalsPage() {
     const decision = quickActionType === 'APPROVE' ? 'CONFIRMED' : 'REJECTED';
 
     if (decision === 'CONFIRMED' && !quickCheckNumber.trim()) {
-      alert('Pakilagay ang Check Number (Cheque Number) para sa approval.');
+      alert('Please enter the Cheque Number for confirmation.');
       return;
     }
 
@@ -347,7 +347,7 @@ export function PayableApprovalsPage() {
 
       const data = await res.json();
       if (data.success) {
-        setActionSuccessMessage(`Matagumpay na na-${decision === 'CONFIRMED' ? 'APPROVE' : 'REJECT'} ang ${quickActionItem.req_cheque_no || quickActionItem.payable_number}!`);
+        setActionSuccessMessage(`Successfully ${decision === 'CONFIRMED' ? 'APPROVED' : 'REJECTED'} ${quickActionItem.req_cheque_no || quickActionItem.payable_number}!`);
         setQuickActionItem(null);
         setQuickCheckNumber('');
         setQuickNotes('');
@@ -673,7 +673,7 @@ export function PayableApprovalsPage() {
                     className="w-full bg-white border border-amber-400 focus:border-amber-600 focus:ring-1 focus:ring-amber-500 rounded-lg px-3.5 py-2.5 text-sm font-mono font-bold text-slate-900 shadow-xs"
                   />
                   <p className="text-[11px] text-amber-800">
-                    Ito ang Check Number na ibabato sa NKB Developer REST API (`/payables/:id/confirm`) kasama ang desisyon na CONFIRMED.
+                    This Cheque Number will be submitted to the NKB Developer REST API (`/payables/:id/confirm`) with the CONFIRMED decision.
                   </p>
                 </div>
 
@@ -807,7 +807,7 @@ export function PayableApprovalsPage() {
             className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition flex items-center gap-1.5 border border-blue-200"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Paano Makatanggap ng Approvals?</span>
+            <span>How to Receive Approvals?</span>
           </button>
 
           {/* Sync now button */}
@@ -1149,7 +1149,7 @@ export function PayableApprovalsPage() {
                   className="w-full bg-amber-50/50 border border-amber-300 rounded-lg p-2.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-amber-600 shadow-2xs"
                 />
                 <p className="text-[11px] text-slate-500">
-                  Ipapasa ito sa <code>http://my.nkbmanufacturing.com/api/v1/payables/:id/confirm</code>
+                  This will be submitted to <code>http://my.nkbmanufacturing.com/api/v1/payables/:id/confirm</code>
                 </p>
               </div>
             )}
@@ -1199,7 +1199,7 @@ export function PayableApprovalsPage() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-base">Paano Makatanggap ng Approvals Mula sa my.nkbmanufacturing.com</h3>
+                <h3 className="font-bold text-slate-900 text-base">How to Receive Approvals from my.nkbmanufacturing.com</h3>
               </div>
               <button
                 onClick={() => setShowHowToModal(false)}
@@ -1213,34 +1213,34 @@ export function PayableApprovalsPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-2">
                 <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px]">1</span>
-                  Paraan 1: Gamit ang API Key (Inirerekomenda — Automatic Pull / Sync)
+                  Method 1: Using API Key (Recommended — Automatic Pull & Sync)
                 </h4>
                 <p className="text-slate-600 leading-relaxed">
-                  Ang ating server ay kumokonekta nang direkta sa REST API endpoint ng NKB:
+                  Our server connects directly to the NKB REST API endpoint:
                 </p>
                 <div className="bg-white p-2 rounded border border-blue-200 font-mono text-[11px] text-blue-800">
                   GET http://my.nkbmanufacturing.com/api/v1/payables?status=PENDING_COO_APPROVAL
                 </div>
                 <ol className="list-decimal list-inside space-y-1 pl-1 text-slate-600">
-                  <li>Pindutin ang <strong>"Configure API Key"</strong> button sa itaas.</li>
-                  <li>Ilagay ang iyong valid <code>x-api-key</code> (e.g. <code>nkb_live_...</code>).</li>
-                  <li>Pindutin ang <strong>"Sync Now"</strong> o hayaang naka-on ang <strong>Live Polling (30s)</strong> para kusa nitong mahakot ang bawat bagong cheque na kailangan ng approval.</li>
+                  <li>Click the <strong>"Master Key"</strong> or <strong>"Manage API Keys"</strong> button in the top bar.</li>
+                  <li>Ensure your valid <code>x-api-key</code> (e.g. <code>nkb_live_...</code>) is active.</li>
+                  <li>Click <strong>"Sync Now"</strong> or keep <strong>Live Polling (30s)</strong> enabled to automatically pull pending cheques requiring approval.</li>
                 </ol>
               </div>
 
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-2">
                 <h4 className="font-bold text-emerald-900 flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[11px]">2</span>
-                  Paraan 2: Gamit ang Webhook (Instant Realtime Push)
+                  Method 2: Using Webhook (Instant Real-Time Push)
                 </h4>
                 <p className="text-slate-600 leading-relaxed">
-                  Kung ang system sa <code>my.nkbmanufacturing.com</code> ay may Webhook settings, i-paste ang Webhook URL na ito sa kanilang system:
+                  If the system at <code>my.nkbmanufacturing.com</code> supports webhooks, paste this Webhook URL into their webhook settings:
                 </p>
                 <div className="bg-white p-2 rounded border border-emerald-200 font-mono text-[11px] text-emerald-900 select-all">
                   {webhookUrl}
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Tuwing may gagawing bagong Cheque Payable doon, awtomatiko itong magpo-post sa webhook na ito at lalabas agad sa listahan.
+                  Whenever a new Cheque Payable is created there, it will automatically push to this webhook and appear in your queue instantly.
                 </p>
               </div>
             </div>
@@ -1251,7 +1251,7 @@ export function PayableApprovalsPage() {
                 onClick={() => setShowHowToModal(false)}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
               >
-                Naiintindihan Ko
+                I Understand
               </button>
             </div>
           </div>
@@ -1271,7 +1271,7 @@ export function PayableApprovalsPage() {
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">Multi-API Key Manager (External WebApps)</h3>
                   <p className="text-xs text-slate-500">
-                    Payagan ang iba't ibang webapp (e-Commerce, logistics, branch portals) na magbato ng payable requests gamit ang multiple <code className="text-blue-600 font-semibold">x-api-key</code>.
+                    Allow external web applications (e-Commerce, logistics, branch portals) to submit payable requests using multiple <code className="text-blue-600 font-semibold">x-api-key</code> credentials.
                   </p>
                 </div>
               </div>
@@ -1333,7 +1333,7 @@ export function PayableApprovalsPage() {
                   </button>
                 </div>
                 <p className="text-slate-600">
-                  Pakikopya ang key na ito ngayon. Ibigay ito sa developer ng webapp para ilagay sa header bilang <code className="font-mono text-emerald-800">x-api-key</code>:
+                  Please copy this key now. Provide it to the web application developer to include in headers as <code className="font-mono text-emerald-800">x-api-key</code>:
                 </p>
                 <div className="bg-white border border-emerald-300 rounded-lg p-2.5 flex items-center justify-between gap-2 font-mono text-xs text-slate-900">
                   <span className="truncate select-all">{justGeneratedKey.api_key}</span>
@@ -1367,7 +1367,7 @@ export function PayableApprovalsPage() {
                   </div>
                 ) : apiKeysList.length === 0 ? (
                   <div className="py-8 text-center text-slate-400 text-xs">
-                    Walang nahanap na API keys. Pindutin ang "Generate Key for WebApp" para magdagdag.
+                    No registered API keys found. Click "Generate Key for WebApp" to create one.
                   </div>
                 ) : (
                   <div className="space-y-2.5">
@@ -1523,7 +1523,7 @@ export function PayableApprovalsPage() {
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Kung iiwang blangko, awtomatikong bubuo ang system ng crypto-secure token (e.g. <code>nkb_live_32hex...</code>).
+                    If left blank, the system will automatically generate a secure token (e.g. <code>nkb_live_32hex...</code>).
                   </p>
                 </div>
 
@@ -1654,12 +1654,12 @@ console.log("Payable submitted:", result);`}
                     Automatic COO Queue & Upstream Sync
                   </p>
                   <p>
-                    Bawat matagumpay na request mula sa external webapp ay awtomatikong:
+                    Every successful request submitted by an external web application will automatically:
                   </p>
                   <ul className="list-disc list-inside space-y-0.5 pl-2 text-slate-600">
-                    <li>Papasok sa COO Payable Approvals Queue sa dashboard na ito na may status na <code className="text-amber-700 font-bold">PENDING_COO_APPROVAL</code>.</li>
-                    <li>Magsi-sync sa <code className="text-blue-600 font-semibold">my.nkbmanufacturing.com</code> gamit ang master connection key.</li>
-                    <li>Maaaring suriin ng external webapp ang status gamit ang <code className="font-mono">GET /api/v1/payables?search=&lt;invoice_number&gt;</code> kasama ang parehong <code className="font-mono">x-api-key</code>.</li>
+                    <li>Enter the COO Payable Approvals Queue on this dashboard with status <code className="text-amber-700 font-bold">PENDING_COO_APPROVAL</code>.</li>
+                    <li>Synchronize upstream to <code className="text-blue-600 font-semibold">my.nkbmanufacturing.com</code> using the master connection key.</li>
+                    <li>Allow the external web application to verify approval status via <code className="font-mono">GET /api/v1/payables?search=&lt;invoice_number&gt;</code> using their <code className="font-mono">x-api-key</code>.</li>
                   </ul>
                 </div>
               </div>
@@ -1709,13 +1709,13 @@ console.log("Payable submitted:", result);`}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Mula sa NKB Developer REST API documentation (OpenAPI: <code>http://my.nkbmanufacturing.com/api/v1/openapi.json</code>).
+                  From NKB Developer REST API documentation (OpenAPI: <code>http://my.nkbmanufacturing.com/api/v1/openapi.json</code>).
                 </p>
               </div>
 
               <div className="bg-slate-50 p-3 rounded-lg text-xs text-slate-600 space-y-1">
                 <p className="font-semibold text-slate-800">Current Status:</p>
-                <p>{apiConfig.hasKey ? `Active Key: ${apiConfig.maskedKey}` : 'Walang naka-set na API Key (gumagamit ng Local Cache).'}</p>
+                <p>{apiConfig.hasKey ? `Active Key: ${apiConfig.maskedKey}` : 'No API Key configured (using local cache).'}</p>
                 <p className="text-[11px] text-slate-500">API URL: {apiConfig.apiUrl}</p>
               </div>
 
