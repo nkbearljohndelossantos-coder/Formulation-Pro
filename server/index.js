@@ -233,11 +233,26 @@ async function initDatabase() {
     console.log('Checking database migrations...');
     await db.migrate.latest();
     console.log('✅ Database migrations up to date.');
-    await ensurePerfumeAdminAccounts();
-    await seedInventoryRoleAndPermissions();
-    await ensureApiKeysTable();
   } catch (err) {
     console.error('Database migration note:', err.message);
+  }
+
+  try {
+    await ensurePerfumeAdminAccounts();
+  } catch (err) {
+    console.error('Perfume admin note:', err.message);
+  }
+
+  try {
+    await seedInventoryRoleAndPermissions();
+  } catch (err) {
+    console.error('Inventory role note:', err.message);
+  }
+
+  try {
+    await ensureApiKeysTable();
+  } catch (err) {
+    console.error('API keys table note:', err.message);
   }
 }
 

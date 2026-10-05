@@ -76,15 +76,17 @@ export async function updateOrCreatePortalKey(domain, newKey) {
       updated_at: db.fn.now()
     });
   } else {
-    await db('api_keys').insert({
+    const hasScopesCol = await db.schema.hasColumn('api_keys', 'scopes').catch(() => false);
+    const insertObj = {
       key_name: defaultName,
       client_app: defaultApp,
       api_key: keyVal,
-      scopes: 'payables:read,payables:create,payables:confirm',
       is_active: 1,
       created_at: db.fn.now(),
       updated_at: db.fn.now()
-    });
+    };
+    if (hasScopesCol) insertObj.scopes = 'payables:read,payables:create,payables:confirm';
+    await db('api_keys').insert(insertObj);
   }
 }
 
