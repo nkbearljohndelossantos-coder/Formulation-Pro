@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 import crypto from 'crypto';
 import { express } from '../cjsRequire.js';
 import db from '../db.js';
@@ -7,7 +8,8 @@ import { logAudit } from '../middleware/audit.js';
 
 const router = express.Router();
 
-export const MY_NKB_API_KEY = 'nkb_live_317afeed3bd23218969a04d4abecdfb6';
+export const MY_NKB_API_KEY = 'nkb_inv_live_6ae6965c1ca61aef54939d6b1ecfac1b';
+export const MY_NKB_LEGACY_KEY = 'nkb_live_317afeed3bd23218969a04d4abecdfb6';
 export const PC_NKB_API_KEY = 'nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f';
 export const LEGACY_MASTER_KEY = 'nkb_live_77be0f89d17ebc1b46ce3e7c3151f943';
 export const DEFAULT_API_KEY = MY_NKB_API_KEY;
@@ -19,12 +21,21 @@ export let dynamicPortalKeys = {
 
 export let dynamicPortalUrls = {
   my: 'http://my.nkbmanufacturing.com/api/v1',
-  pc: 'http://pc.nkbmanufacturing.com/api/v1'
+  pc: 'https://pc.nkbmanufacturing.com/api/v1'
 };
 
 export async function getActivePortalKey(portalId) {
   try {
     const isPc = portalId === 'pc' || (portalId && portalId.includes('pc.'));
+    const settingKey = isPc ? 'nkb_payables_pc_api_key' : 'nkb_payables_my_api_key';
+    const setting = await db('system_settings').where({ key: settingKey }).first();
+    if (setting && setting.value && setting.value.trim()) {
+      const keyVal = setting.value.trim();
+      if (isPc) dynamicPortalKeys.pc = keyVal;
+      else dynamicPortalKeys.my = keyVal;
+      return keyVal;
+    }
+
     const appLike = isPc ? '%pc.nkb%' : '%my.nkb%';
     const record = await db('api_keys').where('client_app', 'like', appLike).andWhere({ is_active: 1 }).orderBy('id', 'desc').first();
     if (record && record.api_key) {
@@ -37,18 +48,30 @@ export async function getActivePortalKey(portalId) {
 }
 
 export async function updateOrCreatePortalKey(domain, newKey) {
-  const isPc = domain.includes('pc.');
+  if (!newKey || !newKey.trim()) return;
+  const keyVal = newKey.trim();
+  const isPc = domain === 'pc' || domain.includes('pc.');
   const appMatch = isPc ? '%pc.nkb%' : '%my.nkb%';
   const defaultName = isPc ? 'pc.nkbmanufacturing.com API' : 'my.nkbmanufacturing.com API';
   const defaultApp = isPc ? 'https://pc.nkbmanufacturing.com/' : 'https://my.nkbmanufacturing.com/';
 
-  if (isPc) dynamicPortalKeys.pc = newKey;
-  else dynamicPortalKeys.my = newKey;
+  if (isPc) dynamicPortalKeys.pc = keyVal;
+  else dynamicPortalKeys.my = keyVal;
 
-  const existing = await db('api_keys').where('client_app', 'like', appMatch).first();
-  if (existing) {
-    await db('api_keys').where({ id: existing.id }).update({
-      api_key: newKey,
+  // 1. Update in system_settings
+  const settingKey = isPc ? 'nkb_payables_pc_api_key' : 'nkb_payables_my_api_key';
+  const settingExisting = await db('system_settings').where({ key: settingKey }).first();
+  if (settingExisting) {
+    await db('system_settings').where({ key: settingKey }).update({ value: keyVal, updated_at: db.fn.now() });
+  } else {
+    await db('system_settings').insert({ key: settingKey, value: keyVal, description: `${domain} API Key`, created_at: db.fn.now(), updated_at: db.fn.now() });
+  }
+
+  // 2. Synchronize all matching records in api_keys
+  const matching = await db('api_keys').where('client_app', 'like', appMatch);
+  if (matching && matching.length > 0) {
+    await db('api_keys').where('client_app', 'like', appMatch).update({
+      api_key: keyVal,
       is_active: 1,
       updated_at: db.fn.now()
     });
@@ -56,22 +79,13 @@ export async function updateOrCreatePortalKey(domain, newKey) {
     await db('api_keys').insert({
       key_name: defaultName,
       client_app: defaultApp,
-      api_key: newKey,
+      api_key: keyVal,
       scopes: 'payables:read,payables:create,payables:confirm',
       is_active: 1,
       rate_limit_rpm: 300,
       created_at: db.fn.now(),
       updated_at: db.fn.now()
     });
-  }
-
-  // Update system_settings as well
-  const settingKey = isPc ? 'nkb_payables_pc_api_key' : 'nkb_payables_my_api_key';
-  const settingExisting = await db('system_settings').where({ key: settingKey }).first();
-  if (settingExisting) {
-    await db('system_settings').where({ key: settingKey }).update({ value: newKey, updated_at: db.fn.now() });
-  } else {
-    await db('system_settings').insert({ key: settingKey, value: newKey, description: `${domain} API Key`, created_at: db.fn.now(), updated_at: db.fn.now() });
   }
 }
 
@@ -89,22 +103,50 @@ export const NKB_PORTALS = {
     name: 'pc.nkbmanufacturing.com (Petty Cash Portal)',
     host: 'pc.nkbmanufacturing.com',
     apiKey: PC_NKB_API_KEY,
-    protocol: 'http',
-    port: 80
+    protocol: 'https',
+    port: 443
   }
 };
 
 const NKB_API_PREFIX = '/api/v1';
 
 /**
- * Robust HTTP client using Node's native http module to avoid undici/fetch IPv6/timeout issues
- * Supports both my.nkbmanufacturing.com and pc.nkbmanufacturing.com hosts
+ * Robust HTTP/HTTPS client supporting both protocols, custom endpoints, and automatic redirect handling (301/302).
  */
-export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, targetHost = null) {
+export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, targetHost = null, redirectCount = 0) {
   return new Promise((resolve, reject) => {
-    const hostToUse = targetHost || ((apiKey && apiKey.includes('f1d0')) || apiKey === PC_NKB_API_KEY ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
-    const fullPath = `${NKB_API_PREFIX}${endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath}`;
-    const effectiveKey = apiKey || (hostToUse.includes('pc.') ? dynamicPortalKeys.pc : dynamicPortalKeys.my);
+    if (redirectCount > 3) {
+      return reject(new Error('Too many redirects attempting to connect to portal'));
+    }
+
+    let isPc = false;
+    if (targetHost) {
+      isPc = targetHost.includes('pc.') || targetHost.includes('petty');
+    } else if (apiKey) {
+      isPc = apiKey.includes('f1d0') || apiKey === PC_NKB_API_KEY;
+    }
+
+    let defaultBaseUrl = isPc ? dynamicPortalUrls.pc : dynamicPortalUrls.my;
+    let urlObj;
+    try {
+      if (targetHost && targetHost.startsWith('http')) {
+        urlObj = new URL(endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath, targetHost);
+      } else {
+        const base = defaultBaseUrl.endsWith('/') ? defaultBaseUrl.slice(0, -1) : defaultBaseUrl;
+        const cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
+        const baseWithoutApi = base.includes('/api/v1') ? base.replace('/api/v1', '') : base;
+        urlObj = new URL(cleanPath, baseWithoutApi);
+        if (!urlObj.pathname.startsWith('/api/v1')) {
+          urlObj.pathname = `/api/v1${urlObj.pathname}`;
+        }
+      }
+    } catch (_) {
+      const host = targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
+      const proto = (isPc || host.includes('pc.')) ? 'https:' : 'http:';
+      urlObj = new URL(`${proto}//${host}/api/v1${endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath}`);
+    }
+
+    const effectiveKey = apiKey || (isPc ? dynamicPortalKeys.pc : dynamicPortalKeys.my);
     const headers = {
       'x-api-key': effectiveKey,
       'Accept': 'application/json',
@@ -118,14 +160,29 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
       headers['Content-Length'] = Buffer.byteLength(postPayload);
     }
 
-    const req = http.request({
-      hostname: hostToUse,
-      port: 80,
-      path: fullPath,
+    const isHttps = urlObj.protocol === 'https:';
+    const clientModule = isHttps ? https : http;
+    const port = urlObj.port ? parseInt(urlObj.port, 10) : (isHttps ? 443 : 80);
+
+    const req = clientModule.request({
+      hostname: urlObj.hostname,
+      port: port,
+      path: `${urlObj.pathname}${urlObj.search}`,
       method: method,
       headers: headers,
-      timeout: 8000
+      timeout: 10000
     }, (res) => {
+      // Follow 301 / 302 / 307 / 308 redirects automatically
+      if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+        let redirectTarget = res.headers.location;
+        if (!redirectTarget.startsWith('http')) {
+          redirectTarget = `${urlObj.origin}${redirectTarget}`;
+        }
+        return nkbApiRequest(method, '', effectiveKey, bodyData, redirectTarget, redirectCount + 1)
+          .then(resolve)
+          .catch(reject);
+      }
+
       let raw = '';
       res.on('data', chunk => raw += chunk);
       res.on('end', () => {
@@ -140,7 +197,7 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
 
     req.on('timeout', () => {
       req.destroy();
-      reject(new Error(`Timeout connecting to ${hostToUse}`));
+      reject(new Error(`Timeout connecting to ${urlObj.hostname}`));
     });
 
     req.on('error', (err) => {
@@ -157,7 +214,7 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
 /**
  * Authentication Middleware:
  * Supports external webapps using multiple registered API Keys:
- * - my.nkbmanufacturing.com key (nkb_live_317afeed3bd23218969a04d4abecdfb6)
+ * - my.nkbmanufacturing.com key (nkb_inv_live_6ae6965c1ca61aef54939d6b1ecfac1b, nkb_live_317afeed3bd23218969a04d4abecdfb6)
  * - pc.nkbmanufacturing.com key (nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f)
  * - Any dynamically generated API Key in `api_keys` table
  *
@@ -179,32 +236,54 @@ export async function authenticatePayablesAccess(req, res, next) {
       // 1. Check database api_keys table
       let keyRecord = await db('api_keys').where({ api_key: passedKey }).first();
 
-      // 2. Fallback check for built-in portal keys if not yet queried from DB
+      // 2. Check dynamic portal keys from settings
       if (!keyRecord) {
-        if (passedKey === MY_NKB_API_KEY) {
-          keyRecord = {
-            id: 991,
-            key_name: 'my.nkbmanufacturing.com API',
-            client_app: 'https://my.nkbmanufacturing.com/',
-            api_key: MY_NKB_API_KEY,
-            scopes: 'payables:read,payables:create,payables:confirm',
-            is_active: 1
-          };
-        } else if (passedKey === PC_NKB_API_KEY) {
+        const myKey = await getActivePortalKey('my');
+        const pcKey = await getActivePortalKey('pc');
+        if (passedKey === pcKey) {
           keyRecord = {
             id: 992,
             key_name: 'pc.nkbmanufacturing.com API',
             client_app: 'https://pc.nkbmanufacturing.com/',
-            api_key: PC_NKB_API_KEY,
+            api_key: pcKey,
             scopes: 'payables:read,payables:create,payables:confirm',
             is_active: 1
           };
-        } else if (passedKey === LEGACY_MASTER_KEY) {
+        } else if (passedKey === myKey) {
           keyRecord = {
-            id: 993,
-            key_name: 'Primary NKB Master Key',
-            client_app: 'my.nkbmanufacturing.com (Global Admin)',
-            api_key: LEGACY_MASTER_KEY,
+            id: 991,
+            key_name: 'my.nkbmanufacturing.com API',
+            client_app: 'https://my.nkbmanufacturing.com/',
+            api_key: myKey,
+            scopes: 'payables:read,payables:create,payables:confirm',
+            is_active: 1
+          };
+        }
+      }
+
+      // 3. Fallback check for all known built-in keys
+      if (!keyRecord) {
+        const isPcKey = passedKey === 'nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f' || passedKey === PC_NKB_API_KEY;
+        const isMyKey = passedKey === 'nkb_inv_live_6ae6965c1ca61aef54939d6b1ecfac1b' ||
+                        passedKey === 'nkb_live_317afeed3bd23218969a04d4abecdfb6' ||
+                        passedKey === 'nkb_live_77be0f89d17ebc1b46ce3e7c3151f943' ||
+                        passedKey === MY_NKB_API_KEY;
+
+        if (isPcKey) {
+          keyRecord = {
+            id: 992,
+            key_name: 'pc.nkbmanufacturing.com API',
+            client_app: 'https://pc.nkbmanufacturing.com/',
+            api_key: passedKey,
+            scopes: 'payables:read,payables:create,payables:confirm',
+            is_active: 1
+          };
+        } else if (isMyKey) {
+          keyRecord = {
+            id: 991,
+            key_name: 'my.nkbmanufacturing.com API',
+            client_app: 'https://my.nkbmanufacturing.com/',
+            api_key: passedKey,
             scopes: 'payables:read,payables:create,payables:confirm',
             is_active: 1
           };
@@ -230,7 +309,7 @@ export async function authenticatePayablesAccess(req, res, next) {
         db('api_keys').where({ id: keyRecord.id }).update({ last_used_at: db.fn.now() }).catch(() => {});
       }
 
-      const isPc = passedKey === PC_NKB_API_KEY || (keyRecord.client_app && keyRecord.client_app.includes('pc.'));
+      const isPc = passedKey.includes('f1d0') || (keyRecord.client_app && keyRecord.client_app.includes('pc.'));
       req.apiAuthType = 'API_KEY';
       req.apiKeyRecord = keyRecord;
       req.clientApp = keyRecord.client_app;

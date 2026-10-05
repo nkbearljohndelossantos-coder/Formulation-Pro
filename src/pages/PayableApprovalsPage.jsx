@@ -1862,16 +1862,18 @@ console.log("Payable submitted:", result);`}
         </div>
       )}
 
-      {/* Modal: Configure NKB Portals API Keys & Endpoints */}
+      {/* Modal: Configure NKB Portals API Keys & Endpoints (Dual Portal Simultaneous View) */}
       {showConfigModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 border border-slate-200 space-y-4 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <Key className="w-5 h-5 text-blue-600" />
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-100 rounded-xl">
+                  <Key className="w-5 h-5 text-blue-700" />
+                </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Portal API Keys & Connections</h3>
-                  <p className="text-xs text-slate-500">Edit or replace keys and endpoints for live sync & COO confirmation</p>
+                  <h3 className="font-bold text-slate-900 text-base">Dual Portal API Connections</h3>
+                  <p className="text-xs text-slate-500">Both API keys are active together &mdash; view and configure both portals simultaneously</p>
                 </div>
               </div>
               <button
@@ -1883,37 +1885,22 @@ console.log("Payable submitted:", result);`}
               </button>
             </div>
 
-            {/* Portal Switch Tabs */}
-            <div className="flex border-b border-slate-200">
-              <button
-                type="button"
-                onClick={() => setConfigPortalTab('my')}
-                className={`flex-1 py-2 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 ${
-                  configPortalTab === 'my'
-                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                my.nkb (Main Portal)
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfigPortalTab('pc')}
-                className={`flex-1 py-2 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 ${
-                  configPortalTab === 'pc'
-                    ? 'border-purple-600 text-purple-600 bg-purple-50/50'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-purple-600"></span>
-                pc.nkb (Petty Cash)
-              </button>
-            </div>
-
             <form onSubmit={handleSaveApiKey} className="space-y-4">
-              {configPortalTab === 'my' ? (
-                <div className="space-y-3">
+              {/* SECTION 1: my.nkbmanufacturing.com (Main Portal) */}
+              <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+                    <h4 className="font-bold text-xs text-blue-900 uppercase tracking-wider">
+                      1. my.nkbmanufacturing.com (Main ERP Portal)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    Active Portal
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       my.nkb API Key (`x-api-key`)
@@ -1922,11 +1909,11 @@ console.log("Payable submitted:", result);`}
                       type="text"
                       value={myApiKeyInput}
                       onChange={(e) => setMyApiKeyInput(e.target.value)}
-                      placeholder="e.g. nkb_live_317afeed3bd23218969a04d4abecdfb6"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                      placeholder="e.g. nkb_inv_live_6ae6965c1ca61aef54939d6b1ecfac1b"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
                     />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Active key used for syncing and confirming requests on <code className="text-blue-600">https://my.nkbmanufacturing.com</code>.
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Target host: <code className="text-blue-700 font-semibold">https://my.nkbmanufacturing.com</code>
                     </p>
                   </div>
 
@@ -1939,12 +1926,27 @@ console.log("Payable submitted:", result);`}
                       value={myApiUrlInput}
                       onChange={(e) => setMyApiUrlInput(e.target.value)}
                       placeholder="http://my.nkbmanufacturing.com/api/v1"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
                     />
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-3">
+              </div>
+
+              {/* SECTION 2: pc.nkbmanufacturing.com (Petty Cash Portal) */}
+              <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse"></span>
+                    <h4 className="font-bold text-xs text-purple-900 uppercase tracking-wider">
+                      2. pc.nkbmanufacturing.com (Petty Cash Portal)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                    Active Portal
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       pc.nkb API Key (`x-api-key`)
@@ -1954,10 +1956,10 @@ console.log("Payable submitted:", result);`}
                       value={pcApiKeyInput}
                       onChange={(e) => setPcApiKeyInput(e.target.value)}
                       placeholder="e.g. nkb_live_f1d0f3378f2fab77868d961f0c9084a5e427174e964eba2f"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-600"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-600 shadow-2xs"
                     />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Active key used for syncing and confirming requests on <code className="text-purple-600">https://pc.nkbmanufacturing.com</code>.
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Target host: <code className="text-purple-700 font-semibold">https://pc.nkbmanufacturing.com</code>
                     </p>
                   </div>
 
@@ -1969,20 +1971,20 @@ console.log("Payable submitted:", result);`}
                       type="text"
                       value={pcApiUrlInput}
                       onChange={(e) => setPcApiUrlInput(e.target.value)}
-                      placeholder="http://pc.nkbmanufacturing.com/api/v1"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-600"
+                      placeholder="https://pc.nkbmanufacturing.com/api/v1"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-purple-600 shadow-2xs"
                     />
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs text-slate-600 space-y-1">
                 <p className="font-bold text-slate-800 flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Instant Database & Live Cache Update
+                  Both APIs Remain Concurrently Saved in Database
                 </p>
                 <p className="text-[11px] leading-relaxed text-slate-500">
-                  Changes take effect immediately across all sync and COO confirmation routines without restarting the server.
+                  Saving updates both connections at once. Neither key will ever be cleared or overwritten when updating the other.
                 </p>
               </div>
 
@@ -2000,7 +2002,7 @@ console.log("Payable submitted:", result);`}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{savingKey ? 'Saving...' : 'Save Connections'}</span>
+                  <span>{savingKey ? 'Saving Connections...' : 'Save Both Connections'}</span>
                 </button>
               </div>
             </form>
