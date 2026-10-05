@@ -82,7 +82,6 @@ export async function updateOrCreatePortalKey(domain, newKey) {
       api_key: keyVal,
       scopes: 'payables:read,payables:create,payables:confirm',
       is_active: 1,
-      rate_limit_rpm: 300,
       created_at: db.fn.now(),
       updated_at: db.fn.now()
     });
@@ -619,7 +618,6 @@ router.post('/api-keys', authenticateToken, async (req, res) => {
       api_key: generatedKey,
       scopes: scopesStr,
       is_active: 1,
-      rate_limit_rpm: 120,
       created_at: new Date(),
       updated_at: new Date()
     });
@@ -638,7 +636,6 @@ router.post('/api-keys', authenticateToken, async (req, res) => {
         masked_key: createdRecord.api_key.slice(0, 10) + '...' + createdRecord.api_key.slice(-4),
         scopes: createdRecord.scopes ? createdRecord.scopes.split(',') : [],
         is_active: Boolean(createdRecord.is_active),
-        rate_limit_rpm: createdRecord.rate_limit_rpm,
         created_at: createdRecord.created_at,
         is_master: false
       }
@@ -684,7 +681,7 @@ router.patch('/api-keys/:id/toggle', authenticateToken, async (req, res) => {
 router.put('/api-keys/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { key_name, client_app, api_key, scopes, rate_limit_rpm, is_active } = req.body;
+    const { key_name, client_app, api_key, scopes, is_active } = req.body;
     const existing = await db('api_keys').where({ id }).first();
 
     if (!existing) {
@@ -696,7 +693,6 @@ router.put('/api-keys/:id', authenticateToken, async (req, res) => {
     if (client_app) updateData.client_app = client_app.trim();
     if (api_key) updateData.api_key = api_key.trim();
     if (scopes) updateData.scopes = Array.isArray(scopes) ? scopes.join(',') : scopes;
-    if (rate_limit_rpm !== undefined) updateData.rate_limit_rpm = parseInt(rate_limit_rpm, 10) || 120;
     if (is_active !== undefined) updateData.is_active = is_active ? 1 : 0;
 
     await db('api_keys').where({ id }).update(updateData);
