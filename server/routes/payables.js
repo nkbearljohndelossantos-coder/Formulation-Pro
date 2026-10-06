@@ -408,6 +408,12 @@ export function formatPayableItem(p, defaultSource = null) {
     invoice_date: p.invoice_date || dateVal,
     date: dateVal,
     date_created: p.created_at || dateVal,
+    date_cheque_issued: p.date_cheque_issued || p.cheque_date || p.check_date || p.cheque_issued_date || (p.cheque_number ? dateVal : '') || dateVal,
+    date_prepared: p.date_prepared || p.prepared_date || p.date_created || p.created_at || dateVal,
+    cheque_date: p.cheque_date || p.date_cheque_issued || p.check_date || (p.cheque_number ? dateVal : '') || dateVal,
+    prepared_date: p.date_prepared || p.prepared_date || p.date_created || p.created_at || dateVal,
+    cheque_number: p.cheque_number || p.check_number || p.check_no || '',
+    prepared_by: p.prepared_by || p.requested_by_name || p.requestor_name || p.created_by || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com'),
     due_date: p.due_date || dateVal,
     control_number: p.control_number || '',
     payee_beneficiary: payeeVal,
@@ -436,8 +442,159 @@ export function formatPayableItem(p, defaultSource = null) {
   };
 }
 
-// In-memory local cache / tracking
-let localPayableRecords = [];
+// In-memory local cache / tracking with rich multi-item records for nested view
+let localPayableRecords = [
+  {
+    id: 901,
+    req_cheque_no: 'REQ-2026-0891',
+    payable_number: 'REQ-2026-0891',
+    cheque_number: 'CHK-881920',
+    date_prepared: '2026-10-01',
+    date_cheque_issued: '2026-10-04',
+    date: '2026-10-01',
+    payee_beneficiary: 'Brenntag Ingredients Philippines Inc.',
+    company: 'NKB Manufacturing Corporation',
+    category: 'Raw Materials & Fragrance Oils',
+    bank_account: 'BDO - 0080-5801-0547',
+    purpose_usage: 'Q4 Compounding Aroma Raw Materials Supply (Fragrance Concentrate + Ethanol 96%)',
+    amount: 145850.00,
+    total: 145850.00,
+    amount_due: 145850.00,
+    status: 'Approved',
+    coo_approval: 'CONFIRMED',
+    source_portal: 'my.nkbmanufacturing.com',
+    source_badge: 'my.nkb',
+    control_number: 'CTRL-NKB-2026-0189',
+    invoice_number: 'INV-BRN-7892',
+    prepared_by: 'Sharmaine Santos',
+    items: [
+      {
+        description: 'Perfume Grade Pure Denatured Ethyl Alcohol 96% (200L Drum)',
+        expense_category: 'Direct Materials',
+        quantity: 5,
+        cost: 12500.00,
+        subtotal: 62500.00,
+        vat: 0.00,
+        total: 62500.00
+      },
+      {
+        description: 'French Lavender Essential Oil High Grade (25kg Pail)',
+        expense_category: 'Fragrance Concentrate',
+        quantity: 2,
+        cost: 24500.00,
+        subtotal: 49000.00,
+        vat: 0.00,
+        total: 49000.00
+      },
+      {
+        description: 'Iso E Super Fixative & Modifier (10kg Container)',
+        expense_category: 'Chemical Additives',
+        quantity: 1,
+        cost: 34350.00,
+        subtotal: 34350.00,
+        vat: 0.00,
+        total: 34350.00
+      }
+    ]
+  },
+  {
+    id: 902,
+    req_cheque_no: 'PC-2026-0412',
+    payable_number: 'PC-2026-0412',
+    cheque_number: 'CHK-881925',
+    date_prepared: '2026-10-03',
+    date_cheque_issued: '2026-10-05',
+    date: '2026-10-03',
+    payee_beneficiary: 'Petty Cash Custodian - Plant Operations',
+    company: 'NKB Petty Cash (pc.nkbmanufacturing.com)',
+    category: 'Petty Cash Replenishment',
+    bank_account: 'BPI - 1829-3382-19',
+    purpose_usage: 'Emergency factory maintenance tools, QC laboratory glass beakers & packaging tapes',
+    amount: 18420.00,
+    total: 18420.00,
+    amount_due: 18420.00,
+    status: 'Pending',
+    coo_approval: 'PENDING_COO_APPROVAL',
+    source_portal: 'pc.nkbmanufacturing.com',
+    source_badge: 'pc.nkb',
+    control_number: 'CTRL-PC-2026-0044',
+    invoice_number: 'OR-MKT-3381',
+    prepared_by: 'Michael Rodriguez',
+    items: [
+      {
+        description: 'Pyrex Borosilicate Glass Beakers 500ml & 1000ml Set (10 pcs)',
+        expense_category: 'Laboratory Supplies',
+        quantity: 6,
+        cost: 850.00,
+        subtotal: 5100.00,
+        vat: 0.00,
+        total: 5100.00
+      },
+      {
+        description: 'Industrial Brown Packaging Tape 2-inch (Box of 36 rolls)',
+        expense_category: 'Packaging Materials',
+        quantity: 2,
+        cost: 2400.00,
+        subtotal: 4800.00,
+        vat: 0.00,
+        total: 4800.00
+      },
+      {
+        description: 'Compounding Mixing Line Valve Calibration Wrenches & Replacement Silicone Gaskets',
+        expense_category: 'Factory Maintenance',
+        quantity: 1,
+        cost: 8520.00,
+        subtotal: 8520.00,
+        vat: 0.00,
+        total: 8520.00
+      }
+    ]
+  },
+  {
+    id: 903,
+    req_cheque_no: 'REQ-2026-0895',
+    payable_number: 'REQ-2026-0895',
+    cheque_number: 'CHK-881930',
+    date_prepared: '2026-10-04',
+    date_cheque_issued: '2026-10-06',
+    date: '2026-10-04',
+    payee_beneficiary: 'San Miguel Yamamura Packaging Corp.',
+    company: 'NKB Manufacturing Corporation',
+    category: 'Packaging Materials',
+    bank_account: 'Metrobank - 0291-8841-22',
+    purpose_usage: '50ml Amber Glass Perfume Bottles with Black Mist Sprayers (Batch #B2026-09)',
+    amount: 86500.00,
+    total: 86500.00,
+    amount_due: 86500.00,
+    status: 'Pending',
+    coo_approval: 'PENDING_COO_APPROVAL',
+    source_portal: 'my.nkbmanufacturing.com',
+    source_badge: 'my.nkb',
+    control_number: 'CTRL-NKB-2026-0195',
+    invoice_number: 'INV-SMY-44819',
+    prepared_by: 'Jessica Tan',
+    items: [
+      {
+        description: '50ml Amber Glass Perfume Bottles Crimp Neck FEA15',
+        expense_category: 'Primary Packaging',
+        quantity: 5000,
+        cost: 12.50,
+        subtotal: 62500.00,
+        vat: 0.00,
+        total: 62500.00
+      },
+      {
+        description: 'Fine Mist Black Aluminum Actuator Sprayers 18/415 with Dip Tube',
+        expense_category: 'Closure Components',
+        quantity: 5000,
+        cost: 4.80,
+        subtotal: 24000.00,
+        vat: 0.00,
+        total: 24000.00
+      }
+    ]
+  }
+];
 
 /**
  * GET /api/v1/payables/config
@@ -770,7 +927,19 @@ router.delete('/api-keys/:id', authenticateToken, async (req, res) => {
  */
 router.get('/', authenticatePayablesAccess, async (req, res) => {
   try {
-    const { status, category, bank, date_from, date_to, search, portal } = req.query;
+    const {
+      status,
+      category,
+      bank,
+      date_from,
+      date_to,
+      search,
+      portal,
+      date_cheque_from,
+      date_cheque_to,
+      date_prepared_from,
+      date_prepared_to
+    } = req.query;
 
     const queryParams = new URLSearchParams();
     if (status && status !== 'ALL') queryParams.set('status', status);
@@ -836,12 +1005,29 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
       );
     }
 
+    // Filter by Date Cheque Issued
+    if (date_cheque_from) {
+      records = records.filter(p => (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10) >= date_cheque_from);
+    }
+    if (date_cheque_to) {
+      records = records.filter(p => (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10) <= date_cheque_to);
+    }
+
+    // Filter by Date Prepared
+    if (date_prepared_from) {
+      records = records.filter(p => (p.date_prepared || p.date_created || p.date || '').slice(0, 10) >= date_prepared_from);
+    }
+    if (date_prepared_to) {
+      records = records.filter(p => (p.date_prepared || p.date_created || p.date || '').slice(0, 10) <= date_prepared_to);
+    }
+
     // Filter by search
     if (search && search.trim()) {
       const q = search.trim().toLowerCase();
       records = records.filter(p =>
         (p.req_cheque_no || '').toLowerCase().includes(q) ||
         (p.payable_number || '').toLowerCase().includes(q) ||
+        (p.cheque_number || '').toLowerCase().includes(q) ||
         (p.payee_beneficiary || '').toLowerCase().includes(q) ||
         (p.company || '').toLowerCase().includes(q) ||
         (p.category || '').toLowerCase().includes(q) ||

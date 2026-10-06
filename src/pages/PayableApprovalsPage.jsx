@@ -17,6 +17,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   ShieldCheck,
   Eye,
   Info,
@@ -31,7 +33,14 @@ import {
   Terminal,
   Layers,
   Edit3,
-  Save
+  Save,
+  Filter,
+  X,
+  CreditCard,
+  Hash,
+  Maximize2,
+  Minimize2,
+  Receipt
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +59,16 @@ export function PayableApprovalsPage() {
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [autoSync, setAutoSync] = useState(true);
   const itemsPerPage = 10;
+
+  // Nested Row / Child Row expansion state
+  const [expandedRows, setExpandedRows] = useState({});
+
+  // Date filter states: Date Cheque Issued & Date Prepared
+  const [showDateFilterBar, setShowDateFilterBar] = useState(false);
+  const [dateChequeFrom, setDateChequeFrom] = useState('');
+  const [dateChequeTo, setDateChequeTo] = useState('');
+  const [datePreparedFrom, setDatePreparedFrom] = useState('');
+  const [datePreparedTo, setDatePreparedTo] = useState('');
 
   // Form state in detail view
   const [checkNumber, setCheckNumber] = useState('');
@@ -209,7 +228,11 @@ export function PayableApprovalsPage() {
       setError(null);
 
       const portalParam = portalFilter !== 'ALL' ? `&portal=${encodeURIComponent(portalFilter)}` : '';
-      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}${portalParam}`);
+      const chkFrom = dateChequeFrom ? `&date_cheque_from=${encodeURIComponent(dateChequeFrom)}` : '';
+      const chkTo = dateChequeTo ? `&date_cheque_to=${encodeURIComponent(dateChequeTo)}` : '';
+      const prepFrom = datePreparedFrom ? `&date_prepared_from=${encodeURIComponent(datePreparedFrom)}` : '';
+      const prepTo = datePreparedTo ? `&date_prepared_to=${encodeURIComponent(datePreparedTo)}` : '';
+      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}${portalParam}${chkFrom}${chkTo}${prepFrom}${prepTo}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPayables(data.data);
@@ -247,7 +270,7 @@ export function PayableApprovalsPage() {
   useEffect(() => {
     fetchPayables();
     fetchConfig();
-  }, [statusFilter, portalFilter]);
+  }, [statusFilter, portalFilter, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
 
   // Periodic Auto-Sync (polling every 30 seconds if enabled)
   useEffect(() => {
@@ -256,7 +279,7 @@ export function PayableApprovalsPage() {
       fetchPayables();
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoSync, statusFilter, portalFilter, searchTerm]);
+  }, [autoSync, statusFilter, portalFilter, searchTerm, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
 
   // Handle save Portal API keys & URLs
   const handleSaveApiKey = async (e) => {
@@ -434,17 +457,101 @@ export function PayableApprovalsPage() {
     }
   };
 
-  // Search and portal filter
+  // Toggle row expansion for child/nested records
+  const toggleRow = (id) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const expandAllRows = () => {
+    const next = {};
+    filteredPayables.forEach(item => {
+      const key = item.id || item.req_cheque_no || item.payable_number;
+      next[key] = true;
+    });
+    setExpandedRows(next);
+  };
+
+  const collapseAllRows = () => {
+    setExpandedRows({});
+  };
+
+  const clearDateFilters = () => {
+    setDateChequeFrom('');
+    setDateChequeTo('');
+    setDatePreparedFrom('');
+    setDatePreparedTo('');
+    setCurrentPageNum(1);
+  };
+
+  const applyDatePreset = (preset) => {
+    const today = new Date();
+    const formatIso = (d) => d.toISOString().slice(0, 10);
+
+    if (preset === 'today') {
+      const t = formatIso(today);
+      setDatePreparedFrom(t);
+      setDatePreparedTo(t);
+    } else if (preset === 'last7') {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 7);
+      setDatePreparedFrom(formatIso(past));
+      setDatePreparedTo(formatIso(today));
+    } else if (preset === 'thisMonth') {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      setDatePreparedFrom(formatIso(start));
+      setDatePreparedTo(formatIso(today));
+    }
+    setCurrentPageNum(1);
+  };
+
+  const activeDateFilterCount = (dateChequeFrom ? 1 : 0) + (dateChequeTo ? 1 : 0) + (datePreparedFrom ? 1 : 0) + (datePreparedTo ? 1 : 0);
+
+  // Search, portal, status, and date filters
   const filteredPayables = useMemo(() => {
     let list = payables;
     if (portalFilter !== 'ALL') {
       list = list.filter(p => (p.source_portal || '').toLowerCase().includes(portalFilter.toLowerCase()));
+    }
+    if (statusFilter !== 'ALL') {
+      const s = statusFilter.toUpperCase();
+      list = list.filter(p =>
+        (p.coo_approval || '').toUpperCase().includes(s) ||
+        (p.status || '').toUpperCase().includes(s)
+      );
+    }
+    if (dateChequeFrom) {
+      list = list.filter(p => {
+        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
+        return d && d >= dateChequeFrom;
+      });
+    }
+    if (dateChequeTo) {
+      list = list.filter(p => {
+        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
+        return d && d <= dateChequeTo;
+      });
+    }
+    if (datePreparedFrom) {
+      list = list.filter(p => {
+        const d = (p.date_prepared || p.date_created || p.date || '').slice(0, 10);
+        return d && d >= datePreparedFrom;
+      });
+    }
+    if (datePreparedTo) {
+      list = list.filter(p => {
+        const d = (p.date_prepared || p.date_created || p.date || '').slice(0, 10);
+        return d && d <= datePreparedTo;
+      });
     }
     if (!searchTerm.trim()) return list;
     const q = searchTerm.trim().toLowerCase();
     return list.filter(p =>
       (p.req_cheque_no || '').toLowerCase().includes(q) ||
       (p.payable_number || '').toLowerCase().includes(q) ||
+      (p.cheque_number || '').toLowerCase().includes(q) ||
       (p.payee_beneficiary || '').toLowerCase().includes(q) ||
       (p.company || '').toLowerCase().includes(q) ||
       (p.category || '').toLowerCase().includes(q) ||
@@ -456,7 +563,7 @@ export function PayableApprovalsPage() {
       (p.vendor || '').toLowerCase().includes(q) ||
       (p.source_portal || '').toLowerCase().includes(q)
     );
-  }, [payables, searchTerm, portalFilter]);
+  }, [payables, searchTerm, portalFilter, statusFilter, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
 
   // Pagination calculation
   const totalEntries = filteredPayables.length;
@@ -1012,6 +1119,25 @@ export function PayableApprovalsPage() {
               </button>
             </div>
 
+            {/* Date Filters Toggle Button */}
+            <button
+              onClick={() => setShowDateFilterBar(prev => !prev)}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 border ${
+                showDateFilterBar || activeDateFilterCount > 0
+                  ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-2xs'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              }`}
+              title="Filter by Date Cheque Issued or Date Prepared"
+            >
+              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+              <span>Date Filters</span>
+              {activeDateFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                  {activeDateFilterCount}
+                </span>
+              )}
+            </button>
+
             {/* Search Box */}
             <div className="relative w-full sm:w-64">
               <input
@@ -1029,13 +1155,148 @@ export function PayableApprovalsPage() {
           </div>
         </div>
 
-        {/* Table Content with EXACT 10 COLUMNS REQUESTED */}
+        {/* Expandable Advanced Date Filters & Nested Row Controls Bar */}
+        {(showDateFilterBar || activeDateFilterCount > 0) && (
+          <div className="border-b border-slate-200 bg-slate-50/80 px-5 py-3.5 flex flex-col gap-3">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+              {/* Date Filters Inputs */}
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                {/* 1. Date Cheque Issued */}
+                <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg p-1.5 px-2.5 shadow-2xs">
+                  <CreditCard className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="font-bold text-slate-700 text-[11px] whitespace-nowrap">Date Cheque Issued:</span>
+                  <input
+                    type="date"
+                    value={dateChequeFrom}
+                    onChange={(e) => { setDateChequeFrom(e.target.value); setCurrentPageNum(1); }}
+                    className="text-[11px] font-mono border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-blue-500"
+                    title="Date Cheque Issued From"
+                  />
+                  <span className="text-slate-400 text-[10px]">to</span>
+                  <input
+                    type="date"
+                    value={dateChequeTo}
+                    onChange={(e) => { setDateChequeTo(e.target.value); setCurrentPageNum(1); }}
+                    className="text-[11px] font-mono border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-blue-500"
+                    title="Date Cheque Issued To"
+                  />
+                  {(dateChequeFrom || dateChequeTo) && (
+                    <button
+                      onClick={() => { setDateChequeFrom(''); setDateChequeTo(''); setCurrentPageNum(1); }}
+                      className="text-slate-400 hover:text-slate-700 p-0.5"
+                      title="Clear Cheque Date filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* 2. Date Prepared */}
+                <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg p-1.5 px-2.5 shadow-2xs">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="font-bold text-slate-700 text-[11px] whitespace-nowrap">Date Prepared:</span>
+                  <input
+                    type="date"
+                    value={datePreparedFrom}
+                    onChange={(e) => { setDatePreparedFrom(e.target.value); setCurrentPageNum(1); }}
+                    className="text-[11px] font-mono border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-blue-500"
+                    title="Date Prepared From"
+                  />
+                  <span className="text-slate-400 text-[10px]">to</span>
+                  <input
+                    type="date"
+                    value={datePreparedTo}
+                    onChange={(e) => { setDatePreparedTo(e.target.value); setCurrentPageNum(1); }}
+                    className="text-[11px] font-mono border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none focus:border-blue-500"
+                    title="Date Prepared To"
+                  />
+                  {(datePreparedFrom || datePreparedTo) && (
+                    <button
+                      onClick={() => { setDatePreparedFrom(''); setDatePreparedTo(''); setCurrentPageNum(1); }}
+                      className="text-slate-400 hover:text-slate-700 p-0.5"
+                      title="Clear Date Prepared filter"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Date Presets */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => applyDatePreset('today')}
+                    className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded text-[11px] font-medium transition"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => applyDatePreset('last7')}
+                    className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded text-[11px] font-medium transition"
+                  >
+                    Last 7 Days
+                  </button>
+                  <button
+                    onClick={() => applyDatePreset('thisMonth')}
+                    className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded text-[11px] font-medium transition"
+                  >
+                    This Month
+                  </button>
+                  {activeDateFilterCount > 0 && (
+                    <button
+                      onClick={clearDateFilters}
+                      className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold transition flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>Reset Dates</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Nested View Actions: Expand All / Collapse All */}
+              <div className="flex items-center gap-2 self-end xl:self-auto">
+                <button
+                  onClick={expandAllRows}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-700 font-semibold text-[11px] rounded border border-blue-200 transition flex items-center gap-1 shadow-2xs"
+                  title="Expand all child rows to view line item breakdowns"
+                >
+                  <Maximize2 className="w-3 h-3" />
+                  <span>Expand All Rows</span>
+                </button>
+                <button
+                  onClick={collapseAllRows}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 font-semibold text-[11px] rounded border border-slate-200 transition flex items-center gap-1 shadow-2xs"
+                  title="Collapse all child rows"
+                >
+                  <Minimize2 className="w-3 h-3" />
+                  <span>Collapse All</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table Content with 12 COLUMNS (Includes Expand Toggle, Date Prepared, Date Cheque Issued) */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                <th className="py-3 px-2 text-center w-10 whitespace-nowrap">
+                  <button
+                    onClick={() => {
+                      const hasAny = Object.values(expandedRows).some(Boolean);
+                      if (hasAny) collapseAllRows();
+                      else expandAllRows();
+                    }}
+                    className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800 transition"
+                    title="Toggle all child / nested rows"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                  </button>
+                </th>
                 <th className="py-3 px-3.5 whitespace-nowrap">Req / Cheque No.</th>
-                <th className="py-3 px-3 whitespace-nowrap">Date</th>
+                <th className="py-3 px-3 whitespace-nowrap">Date Prepared</th>
+                <th className="py-3 px-3 whitespace-nowrap">Date Cheque Issued</th>
                 <th className="py-3 px-3 whitespace-nowrap">Payee / Beneficiary</th>
                 <th className="py-3 px-3 whitespace-nowrap">Category</th>
                 <th className="py-3 px-3 whitespace-nowrap">Bank & Account</th>
@@ -1049,151 +1310,391 @@ export function PayableApprovalsPage() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400">
+                  <td colSpan={12} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
                     <span>Loading payables list...</span>
                   </td>
                 </tr>
               ) : paginatedPayables.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400">
+                  <td colSpan={12} className="py-12 text-center text-slate-400">
                     <Info className="w-6 h-6 mx-auto mb-2 text-slate-300" />
                     <span>No payable entries found.</span>
                   </td>
                 </tr>
               ) : (
                 paginatedPayables.map((item, idx) => {
+                  const itemKey = item.id || item.req_cheque_no || item.payable_number || idx;
+                  const isExpanded = Boolean(expandedRows[itemKey]);
                   const isApproved = item.coo_approval === 'CONFIRMED' || item.status === 'Approved';
                   const isRejected = item.coo_approval === 'REJECTED' || item.status === 'Rejected';
                   const isPending = !isApproved && !isRejected;
 
                   return (
-                    <tr
-                      key={item.id || idx}
-                      className="hover:bg-slate-50/80 transition-colors group"
-                    >
-                      {/* 1. Req / Cheque No. (Blue Clickable Link with Portal Badge) */}
-                      <td className="py-3 px-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                              (item.source_portal || '').includes('pc.nkb')
-                                ? 'bg-purple-100 text-purple-700 border-purple-200'
-                                : 'bg-blue-100 text-blue-700 border-blue-200'
-                            }`}
-                            title={`Submitted via ${item.source_portal || 'my.nkbmanufacturing.com'}`}
-                          >
-                            {(item.source_portal || '').includes('pc.nkb') ? 'pc.nkb' : 'my.nkb'}
-                          </span>
-                          <span
-                            className="font-bold font-mono text-blue-600 hover:text-blue-800 cursor-pointer hover:underline"
-                            onClick={() => handleOpenDetail(item)}
-                          >
-                            {item.req_cheque_no || item.payable_number || `PB-${item.id}`}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 2. Date */}
-                      <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
-                        {item.date || item.date_created || item.invoice_date}
-                      </td>
-
-                      {/* 3. Payee / Beneficiary */}
-                      <td className="py-3 px-3 font-semibold text-slate-800 whitespace-nowrap">
-                        {item.payee_beneficiary || item.vendor || item.company}
-                      </td>
-
-                      {/* 4. Category */}
-                      <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700">
-                          {item.category || 'Accrued expenses'}
-                        </span>
-                      </td>
-
-                      {/* 5. Bank & Account */}
-                      <td className="py-3 px-3 text-slate-700 font-mono text-[11px] whitespace-nowrap">
-                        {item.bank_account || 'BDO - 00234819234'}
-                      </td>
-
-                      {/* 6. Purpose / Usage */}
-                      <td className="py-3 px-3 text-slate-800 font-medium max-w-[220px] truncate" title={item.purpose_usage || item.description}>
-                        {item.purpose_usage || item.description}
-                      </td>
-
-                      {/* 7. Amount (₱) */}
-                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                        ₱{formatMoney(item.amount || item.total || item.amount_due)}
-                      </td>
-
-                      {/* 8. Attachment */}
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {item.attachment || (item.files && item.files.length > 0) ? (
+                    <React.Fragment key={itemKey}>
+                      {/* PARENT ROW */}
+                      <tr
+                        className={`hover:bg-slate-50/80 transition-colors group ${isExpanded ? 'bg-blue-50/20' : ''}`}
+                      >
+                        {/* 0. Expand / Collapse Trigger */}
+                        <td className="py-3 px-2 text-center whitespace-nowrap">
                           <button
-                            onClick={() => handleOpenDetail(item)}
-                            className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded"
-                            title="View attachment"
+                            type="button"
+                            onClick={() => toggleRow(itemKey)}
+                            className={`p-1 rounded-md transition-colors ${
+                              isExpanded ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-200 text-slate-400 hover:text-slate-700'
+                            }`}
+                            title={isExpanded ? 'Collapse child records' : 'Expand child records & line items'}
                           >
-                            <Paperclip className="w-3 h-3" />
-                            <span>View</span>
+                            <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-blue-600' : ''}`} />
                           </button>
-                        ) : (
-                          <span className="text-slate-300 font-mono">—</span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* 9. COO Approval Status */}
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                          isApproved ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                          isRejected ? 'bg-rose-100 text-rose-800 border border-rose-200' :
-                          'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
-                        }`}>
-                          {item.coo_approval || item.status || 'PENDING_COO_APPROVAL'}
-                        </span>
-                      </td>
+                        {/* 1. Req / Cheque No. (Blue Clickable Link with Portal Badge + Child Items Badge) */}
+                        <td className="py-3 px-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                (item.source_portal || '').includes('pc.nkb')
+                                  ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                  : 'bg-blue-100 text-blue-700 border-blue-200'
+                              }`}
+                              title={`Submitted via ${item.source_portal || 'my.nkbmanufacturing.com'}`}
+                            >
+                              {(item.source_portal || '').includes('pc.nkb') ? 'pc.nkb' : 'my.nkb'}
+                            </span>
+                            <span
+                              className="font-bold font-mono text-blue-600 hover:text-blue-800 cursor-pointer hover:underline"
+                              onClick={() => handleOpenDetail(item)}
+                            >
+                              {item.req_cheque_no || item.payable_number || `PB-${item.id}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleRow(itemKey)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 transition"
+                              title="Click to view child line items"
+                            >
+                              {item.items?.length || 1} {item.items?.length === 1 ? 'item' : 'items'}
+                            </button>
+                          </div>
+                        </td>
 
-                      {/* 10. Actions */}
-                      <td className="py-3 px-3.5 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {isPending ? (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setQuickActionItem(item);
-                                  setQuickActionType('APPROVE');
-                                  setQuickCheckNumber(item.cheque_number || '');
-                                }}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition shadow-2xs flex items-center gap-1"
-                                title="Approve with Check Number"
-                              >
-                                <Check className="w-3 h-3" />
-                                <span>Approve</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setQuickActionItem(item);
-                                  setQuickActionType('REJECT');
-                                  setQuickCheckNumber('');
-                                }}
-                                className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] rounded transition shadow-2xs flex items-center gap-1"
-                                title="Reject"
-                              >
-                                <XCircle className="w-3 h-3" />
-                              </button>
-                            </>
+                        {/* 2. Date Prepared */}
+                        <td className="py-3 px-3 text-slate-700 whitespace-nowrap font-mono text-[11px]">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <span>{item.date_prepared || item.date_created || item.date}</span>
+                          </div>
+                        </td>
+
+                        {/* 3. Date Cheque Issued */}
+                        <td className="py-3 px-3 text-slate-700 whitespace-nowrap font-mono text-[11px]">
+                          {item.date_cheque_issued || item.cheque_date ? (
+                            <span className="inline-flex items-center gap-1 text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60">
+                              <CreditCard className="w-3 h-3 text-blue-500" />
+                              <span>{item.date_cheque_issued || item.cheque_date}</span>
+                            </span>
                           ) : (
+                            <span className="text-slate-400 font-mono text-[11px]">—</span>
+                          )}
+                        </td>
+
+                        {/* 4. Payee / Beneficiary */}
+                        <td className="py-3 px-3 font-semibold text-slate-800 whitespace-nowrap">
+                          {item.payee_beneficiary || item.vendor || item.company}
+                        </td>
+
+                        {/* 5. Category */}
+                        <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700">
+                            {item.category || 'Accrued expenses'}
+                          </span>
+                        </td>
+
+                        {/* 6. Bank & Account */}
+                        <td className="py-3 px-3 text-slate-700 font-mono text-[11px] whitespace-nowrap">
+                          {item.bank_account || 'BDO - 00234819234'}
+                        </td>
+
+                        {/* 7. Purpose / Usage */}
+                        <td className="py-3 px-3 text-slate-800 font-medium max-w-[220px] truncate" title={item.purpose_usage || item.description}>
+                          {item.purpose_usage || item.description}
+                        </td>
+
+                        {/* 8. Amount (₱) */}
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                          ₱{formatMoney(item.amount || item.total || item.amount_due)}
+                        </td>
+
+                        {/* 9. Attachment */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          {item.attachment || (item.files && item.files.length > 0) ? (
                             <button
                               onClick={() => handleOpenDetail(item)}
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded transition flex items-center gap-1 border border-slate-200"
+                              className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded"
+                              title="View attachment"
                             >
-                              <Eye className="w-3 h-3 text-slate-500" />
+                              <Paperclip className="w-3 h-3" />
                               <span>View</span>
                             </button>
+                          ) : (
+                            <span className="text-slate-300 font-mono">—</span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+
+                        {/* 10. COO Approval Status */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isApproved ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                            isRejected ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                            'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                          }`}>
+                            {item.coo_approval || item.status || 'PENDING_COO_APPROVAL'}
+                          </span>
+                        </td>
+
+                        {/* 11. Actions */}
+                        <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isPending ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setQuickActionItem(item);
+                                    setQuickActionType('APPROVE');
+                                    setQuickCheckNumber(item.cheque_number || '');
+                                  }}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition shadow-2xs flex items-center gap-1"
+                                  title="Approve with Check Number"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>Approve</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setQuickActionItem(item);
+                                    setQuickActionType('REJECT');
+                                    setQuickCheckNumber('');
+                                  }}
+                                  className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] rounded transition shadow-2xs flex items-center gap-1"
+                                  title="Reject"
+                                >
+                                  <XCircle className="w-3 h-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleOpenDetail(item)}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded transition flex items-center gap-1 border border-slate-200"
+                              >
+                                <Eye className="w-3 h-3 text-slate-500" />
+                                <span>View</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* NESTED CHILD ROW (EXPANDED) */}
+                      {isExpanded && (
+                        <tr
+                          key={`${itemKey}-child`}
+                          className="bg-gradient-to-r from-slate-50/90 via-blue-50/20 to-slate-50/90 border-b-2 border-slate-300 transition-all"
+                        >
+                          <td colSpan={12} className="p-0">
+                            <div className="p-4 sm:p-5 pl-8 sm:pl-12 border-l-4 border-l-blue-600 space-y-4">
+                              {/* Header of Nested Child Row */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Layers className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <span className="font-bold text-slate-900 text-xs tracking-tight">
+                                    Child Records & Item Breakdown
+                                  </span>
+                                  <span className="text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                    {item.req_cheque_no || item.payable_number}
+                                  </span>
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                      (item.source_portal || '').includes('pc.nkb')
+                                        ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                        : 'bg-blue-100 text-blue-700 border-blue-200'
+                                    }`}
+                                  >
+                                    {(item.source_portal || '').includes('pc.nkb') ? 'pc.nkb (Petty Cash)' : 'my.nkb (Main Portal)'}
+                                  </span>
+                                  {item.invoice_number && (
+                                    <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
+                                      Invoice: {item.invoice_number}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-3 text-xs">
+                                  <span className="text-slate-500">
+                                    Total Items: <strong className="font-mono text-slate-800">{item.items?.length || 1}</strong>
+                                  </span>
+                                  <span className="text-slate-400">|</span>
+                                  <span className="text-slate-500">
+                                    Net Amount Due: <strong className="font-mono text-blue-700 text-sm">₱{formatMoney(item.amount_due || item.amount || item.total)}</strong>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Sub-table: Itemized Breakdown */}
+                              <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
+                                <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                                  <span className="font-bold text-[11px] text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                                    <Receipt className="w-3.5 h-3.5 text-blue-600" />
+                                    Itemized Line Records ({item.items?.length || 1} {item.items?.length === 1 ? 'item' : 'items'})
+                                  </span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                      <tr className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200 text-[11px]">
+                                        <th className="py-2 px-3 w-10 text-center">#</th>
+                                        <th className="py-2 px-3">Description / Item Particulars</th>
+                                        <th className="py-2 px-3">Expense Category</th>
+                                        <th className="py-2 px-3 text-right">Qty</th>
+                                        <th className="py-2 px-3 text-right">Unit Cost (₱)</th>
+                                        <th className="py-2 px-3 text-right">Subtotal (₱)</th>
+                                        <th className="py-2 px-3 text-right">Tax / VAT (₱)</th>
+                                        <th className="py-2 px-3 text-right">Total (₱)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                      {(item.items || []).map((subItem, sIdx) => (
+                                        <tr key={sIdx} className="hover:bg-slate-50/70 transition-colors">
+                                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{sIdx + 1}</td>
+                                          <td className="py-2.5 px-3 font-semibold text-slate-800">{subItem.description || item.purpose_usage || 'Standard Disbursement Item'}</td>
+                                          <td className="py-2.5 px-3 text-slate-600">
+                                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                                              {subItem.expense_category || item.category || 'Disbursement'}
+                                            </span>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">{subItem.quantity || 1}</td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">₱{formatMoney(subItem.cost || subItem.subtotal || item.amount)}</td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">₱{formatMoney(subItem.subtotal || subItem.total || item.amount)}</td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-500">₱{formatMoney(subItem.vat || 0)}</td>
+                                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">₱{formatMoney(subItem.total || subItem.subtotal || item.amount)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                    <tfoot>
+                                      <tr className="bg-slate-50 font-bold text-slate-800 border-t border-slate-200 text-xs">
+                                        <td colSpan={5} className="py-2.5 px-3 text-right">Summary Total:</td>
+                                        <td className="py-2.5 px-3 text-right font-mono">₱{formatMoney(item.amount || item.total)}</td>
+                                        <td className="py-2.5 px-3 text-right font-mono text-slate-500">₱{formatMoney(item.vat || 0)}</td>
+                                        <td className="py-2.5 px-3 text-right font-mono text-blue-700 font-extrabold text-sm">₱{formatMoney(item.amount_due || item.amount || item.total)}</td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              </div>
+
+                              {/* 3 Associated Cards */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                {/* Card 1: Cheque Issuance Record */}
+                                <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-2 shadow-2xs">
+                                  <div className="flex items-center gap-1.5 font-bold text-slate-800 pb-2 border-b border-slate-100">
+                                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Cheque Issuance Record</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Cheque Number:</span>
+                                    <span className="font-mono font-bold text-slate-900">{item.cheque_number || 'Pending Issuance'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Date Cheque Issued:</span>
+                                    <span className="font-mono font-semibold text-blue-700">{item.date_cheque_issued || item.cheque_date || '—'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Bank & Account:</span>
+                                    <span className="font-mono text-slate-700 truncate max-w-[150px]">{item.bank_account || 'BDO'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Disbursed To:</span>
+                                    <span className="font-medium text-slate-800 truncate max-w-[150px]">{item.payee_beneficiary || item.vendor}</span>
+                                  </div>
+                                </div>
+
+                                {/* Card 2: Preparation & Voucher Control */}
+                                <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-2 shadow-2xs">
+                                  <div className="flex items-center gap-1.5 font-bold text-slate-800 pb-2 border-b border-slate-100">
+                                    <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span>Preparation & Control Record</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Date Prepared:</span>
+                                    <span className="font-mono font-semibold text-indigo-700">{item.date_prepared || item.date_created || item.date || '—'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Prepared By:</span>
+                                    <span className="font-semibold text-slate-800">{item.prepared_by || item.created_by || 'Finance'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Control No:</span>
+                                    <span className="font-mono text-slate-700">{item.control_number || 'None'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600">
+                                    <span>Invoice Reference:</span>
+                                    <span className="font-mono text-slate-700">{item.invoice_number ? `${item.invoice_number} (${item.invoice_date || 'N/A'})` : 'N/A'}</span>
+                                  </div>
+                                </div>
+
+                                {/* Card 3: COO Approval Status & Actions */}
+                                <div className="bg-white p-3.5 rounded-lg border border-slate-200 space-y-2 shadow-2xs flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-center gap-1.5 font-bold text-slate-800 pb-2 border-b border-slate-100">
+                                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>COO Approval Trail</span>
+                                    </div>
+                                    <div className="flex justify-between py-0.5 text-slate-600">
+                                      <span>Approval Status:</span>
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                        isApproved ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                        isRejected ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                                        'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                      }`}>
+                                        {item.coo_approval || item.status || 'PENDING_COO_APPROVAL'}
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 pt-1">
+                                      <span className="font-medium text-slate-600">Remarks: </span>
+                                      <span className="italic">{item.comments || item.purpose_usage || 'No additional remarks'}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="pt-2 flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleOpenDetail(item)}
+                                      className="flex-1 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] rounded transition flex items-center justify-center gap-1 border border-blue-200"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                      <span>Open Full Voucher</span>
+                                    </button>
+                                    {isPending && (
+                                      <button
+                                        onClick={() => {
+                                          setQuickActionItem(item);
+                                          setQuickActionType('APPROVE');
+                                          setQuickCheckNumber(item.cheque_number || '');
+                                        }}
+                                        className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded transition flex items-center gap-1 shadow-2xs"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Approve</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}
