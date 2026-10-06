@@ -609,13 +609,11 @@ export function PayableApprovalsPage() {
     );
   }, [payables, searchTerm, portalFilter, statusFilter, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
 
-  // Pagination calculation
+  // Total entries & amount calculation for continuous list view (no pagination)
   const totalEntries = filteredPayables.length;
-  const totalPages = Math.ceil(totalEntries / itemsPerPage) || 1;
-  const paginatedPayables = useMemo(() => {
-    const start = (currentPageNum - 1) * itemsPerPage;
-    return filteredPayables.slice(start, start + itemsPerPage);
-  }, [filteredPayables, currentPageNum]);
+  const totalPayablesAmount = useMemo(() => {
+    return filteredPayables.reduce((sum, p) => sum + (parseFloat(p.amount_due || p.amount || p.total) || 0), 0);
+  }, [filteredPayables]);
 
   // Formatter helper
   const formatMoney = (val) => {
@@ -1386,7 +1384,7 @@ export function PayableApprovalsPage() {
                     <span>Loading payables list...</span>
                   </td>
                 </tr>
-              ) : paginatedPayables.length === 0 ? (
+              ) : filteredPayables.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="py-12 text-center text-slate-400">
                     <Info className="w-6 h-6 mx-auto mb-2 text-slate-300" />
@@ -1394,7 +1392,7 @@ export function PayableApprovalsPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedPayables.map((item, idx) => {
+                filteredPayables.map((item, idx) => {
                   const itemKey = item.id || item.req_cheque_no || item.payable_number || idx;
                   const isExpanded = Boolean(expandedRows[itemKey]);
                   const isApproved = item.coo_approval === 'CONFIRMED' || item.status === 'Approved';
@@ -1820,43 +1818,34 @@ export function PayableApprovalsPage() {
           </table>
         </div>
 
-        {/* Pagination matching Screenshot 2 */}
+        {/* Continuous List Summary Footer (No Pagination / All In One View) */}
         <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 bg-white">
-          <div>
-            Showing {totalEntries > 0 ? (currentPageNum - 1) * itemsPerPage + 1 : 0} to{' '}
-            {Math.min(currentPageNum * itemsPerPage, totalEntries)} of {totalEntries} entries
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-800">
+              Showing all <strong className="font-bold text-slate-900">{totalEntries}</strong> {totalEntries === 1 ? 'payable entry' : 'payable entries'}
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="text-[11px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+              Continuous List (Single View)
+            </span>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPageNum(p => Math.max(p - 1, 1))}
-              disabled={currentPageNum === 1}
-              className="px-3 py-1.5 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition"
-            >
-              Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+          <div className="flex items-center gap-4">
+            <div className="text-slate-600">
+              Total Amount:{' '}
+              <strong className="font-mono font-bold text-blue-700 text-sm">
+                ₱{formatMoney(totalPayablesAmount)}
+              </strong>
+            </div>
+            {totalEntries > 8 && (
               <button
-                key={pageNum}
-                onClick={() => setCurrentPageNum(pageNum)}
-                className={`w-8 h-8 rounded-md font-bold text-xs transition ${
-                  currentPageNum === pageNum
-                    ? 'bg-blue-600 text-white'
-                    : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                }`}
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-md transition text-[11px] font-semibold flex items-center gap-1 shadow-2xs"
+                title="Scroll back to top"
               >
-                {pageNum}
+                <span>Back to top ↑</span>
               </button>
-            ))}
-
-            <button
-              onClick={() => setCurrentPageNum(p => Math.min(p + 1, totalPages))}
-              disabled={currentPageNum === totalPages || totalPages === 0}
-              className="px-3 py-1.5 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition"
-            >
-              Next
-            </button>
+            )}
           </div>
         </div>
       </div>
