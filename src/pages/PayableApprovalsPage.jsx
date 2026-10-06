@@ -507,6 +507,40 @@ export function PayableApprovalsPage() {
     setCurrentPageNum(1);
   };
 
+  // Extracts normalized YYYY-MM-DD from any text/description (e.g., '10/8/2026', 'OCTOBER 1, 2026', '2026-10-08')
+  const extractDateFromText = (text) => {
+    if (!text || typeof text !== 'string') return null;
+    const isoMatch = text.match(/\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    const slashMatch = text.match(/\b(0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])[-/.](20\d{2})\b/);
+    if (slashMatch) return `${slashMatch[3]}-${slashMatch[1].padStart(2, '0')}-${slashMatch[2].padStart(2, '0')}`;
+    const monthNames = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+    const namedMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+([0-2]?\d|3[01])(?:st|nd|rd|th)?,?\s+(20\d{2})\b/i);
+    if (namedMatch) {
+      const m = monthNames[namedMatch[1].toLowerCase().slice(0, 3)] || '01';
+      return `${namedMatch[3]}-${m}-${namedMatch[2].padStart(2, '0')}`;
+    }
+    return null;
+  };
+
+  // Helper to resolve the active Date Cheque Issued, prioritizing date from Description
+  const getChequeDateInfo = (item) => {
+    if (!item) return { date: '', isFromDesc: false };
+    const fromDesc = item.date_cheque_issued_from_desc ||
+      extractDateFromText(item.description) ||
+      extractDateFromText(item.purpose_usage) ||
+      extractDateFromText(item.purpose) ||
+      extractDateFromText(item.comments) ||
+      extractDateFromText(item.remarks) ||
+      (item.items && item.items.length ? extractDateFromText(item.items[0]?.description) : null);
+
+    if (fromDesc) {
+      return { date: fromDesc, isFromDesc: true };
+    }
+    const fallback = item.date_cheque_issued || item.cheque_date || item.date || '';
+    return { date: fallback, isFromDesc: false };
+  };
+
   const activeDateFilterCount = (dateChequeFrom ? 1 : 0) + (dateChequeTo ? 1 : 0) + (datePreparedFrom ? 1 : 0) + (datePreparedTo ? 1 : 0);
 
   // Search, portal, status, and date filters
@@ -524,14 +558,24 @@ export function PayableApprovalsPage() {
     }
     if (dateChequeFrom) {
       list = list.filter(p => {
-        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
-        return d && d >= dateChequeFrom;
+        const info = getChequeDateInfo(p);
+        const d = (info.date || '').slice(0, 10);
+        const lineMatch = (p.items || []).some(itm => {
+          const lDate = itm.date_cheque_issued || extractDateFromText(itm.description) || '';
+          return lDate && lDate.slice(0, 10) >= dateChequeFrom;
+        });
+        return (d && d >= dateChequeFrom) || lineMatch;
       });
     }
     if (dateChequeTo) {
       list = list.filter(p => {
-        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
-        return d && d <= dateChequeTo;
+        const info = getChequeDateInfo(p);
+        const d = (info.date || '').slice(0, 10);
+        const lineMatch = (p.items || []).some(itm => {
+          const lDate = itm.date_cheque_issued || extractDateFromText(itm.description) || '';
+          return lDate && lDate.slice(0, 10) <= dateChequeTo;
+        });
+        return (d && d <= dateChequeTo) || lineMatch;
       });
     }
     if (datePreparedFrom) {
@@ -763,12 +807,28 @@ export function PayableApprovalsPage() {
                   className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 font-medium focus:outline-none"
                 />
               </div>
-              <div className="lg:col-span-2">
+              <div>
+                <label className="block text-blue-700 font-semibold mb-1 flex items-center justify-between">
+                  <span>Date Cheque Issued</span>
+                  {getChequeDateInfo(p).isFromDesc && (
+                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                      From Desc
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  value={getChequeDateInfo(p).date || p.cheque_date || '—'}
+                  className="w-full bg-blue-50/60 border border-blue-200 rounded-md px-3 py-2 text-blue-800 font-mono font-bold focus:outline-none"
+                />
+              </div>
+              <div>
                 <label className="block text-slate-600 font-semibold mb-1">Due Date</label>
                 <input
                   type="text"
                   readOnly
-                  value={p.due_date || ''}
+                  value={p.due_date || '—'}
                   className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-slate-800 font-medium focus:outline-none"
                 />
               </div>
@@ -809,7 +869,18 @@ export function PayableApprovalsPage() {
                     }
                   ]).map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
-                      <td className="p-3 font-medium text-slate-800">{item.description}</td>
+                      <td className="p-3 font-medium text-slate-800">
+                        <div>{item.description}</div>
+                        {(() => {
+                          const itemDate = item.date_cheque_issued || extractDateFromText(item.description);
+                          return itemDate ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 mt-1">
+                              <CreditCard className="w-2.5 h-2.5 text-blue-500" />
+                              <span>Cheque Date: {itemDate}</span>
+                            </span>
+                          ) : null;
+                        })()}
+                      </td>
                       <td className="p-3 text-slate-600">{item.expense_category}</td>
                       <td className="p-3 text-right text-slate-800 font-mono">{parseFloat(item.quantity || 1).toFixed(2)}</td>
                       <td className="p-3 text-right text-slate-800 font-mono">{formatMoney(item.cost)}</td>
@@ -1390,14 +1461,24 @@ export function PayableApprovalsPage() {
 
                         {/* 3. Date Cheque Issued */}
                         <td className="py-3 px-3 text-slate-700 whitespace-nowrap font-mono text-[11px]">
-                          {item.date_cheque_issued || item.cheque_date ? (
-                            <span className="inline-flex items-center gap-1 text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60">
-                              <CreditCard className="w-3 h-3 text-blue-500" />
-                              <span>{item.date_cheque_issued || item.cheque_date}</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 font-mono text-[11px]">—</span>
-                          )}
+                          {(() => {
+                            const chequeInfo = getChequeDateInfo(item);
+                            return chequeInfo.date ? (
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="inline-flex items-center gap-1 text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60">
+                                  <CreditCard className="w-3 h-3 text-blue-500" />
+                                  <span>{chequeInfo.date}</span>
+                                </span>
+                                {chequeInfo.isFromDesc && (
+                                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200" title="Extracted directly from Description / particulars">
+                                    From Desc
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 font-mono text-[11px]">—</span>
+                            );
+                          })()}
                         </td>
 
                         {/* 4. Payee / Beneficiary */}
@@ -1418,8 +1499,17 @@ export function PayableApprovalsPage() {
                         </td>
 
                         {/* 7. Purpose / Usage */}
-                        <td className="py-3 px-3 text-slate-800 font-medium max-w-[220px] truncate" title={item.purpose_usage || item.description}>
-                          {item.purpose_usage || item.description}
+                        <td className="py-3 px-3 text-slate-800 font-medium max-w-[220px]" title={item.purpose_usage || item.description}>
+                          <div className="truncate">{item.purpose_usage || item.description}</div>
+                          {(() => {
+                            const descDate = extractDateFromText(item.purpose_usage || item.description);
+                            return descDate ? (
+                              <div className="flex items-center gap-1 text-[10px] text-amber-700 font-mono mt-0.5">
+                                <span className="font-semibold">Cheque Date:</span>
+                                <span>{descDate}</span>
+                              </div>
+                            ) : null;
+                          })()}
                         </td>
 
                         {/* 8. Amount (₱) */}
@@ -1555,6 +1645,7 @@ export function PayableApprovalsPage() {
                                       <tr className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200 text-[11px]">
                                         <th className="py-2 px-3 w-10 text-center">#</th>
                                         <th className="py-2 px-3">Description / Item Particulars</th>
+                                        <th className="py-2 px-3">Date (From Particulars)</th>
                                         <th className="py-2 px-3">Expense Category</th>
                                         <th className="py-2 px-3 text-right">Qty</th>
                                         <th className="py-2 px-3 text-right">Unit Cost (₱)</th>
@@ -1564,26 +1655,41 @@ export function PayableApprovalsPage() {
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                      {(item.items || []).map((subItem, sIdx) => (
-                                        <tr key={sIdx} className="hover:bg-slate-50/70 transition-colors">
-                                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{sIdx + 1}</td>
-                                          <td className="py-2.5 px-3 font-semibold text-slate-800">{subItem.description || item.purpose_usage || 'Standard Disbursement Item'}</td>
-                                          <td className="py-2.5 px-3 text-slate-600">
-                                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
-                                              {subItem.expense_category || item.category || 'Disbursement'}
-                                            </span>
-                                          </td>
-                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">{subItem.quantity || 1}</td>
-                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">₱{formatMoney(subItem.cost || subItem.subtotal || item.amount)}</td>
-                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">₱{formatMoney(subItem.subtotal || subItem.total || item.amount)}</td>
-                                          <td className="py-2.5 px-3 text-right font-mono text-slate-500">₱{formatMoney(subItem.vat || 0)}</td>
-                                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">₱{formatMoney(subItem.total || subItem.subtotal || item.amount)}</td>
-                                        </tr>
-                                      ))}
+                                      {(item.items || []).map((subItem, sIdx) => {
+                                        const subItemDate = subItem.date_cheque_issued || extractDateFromText(subItem.description);
+                                        return (
+                                          <tr key={sIdx} className="hover:bg-slate-50/70 transition-colors">
+                                            <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{sIdx + 1}</td>
+                                            <td className="py-2.5 px-3 font-semibold text-slate-800">
+                                              {subItem.description || item.purpose_usage || 'Standard Disbursement Item'}
+                                            </td>
+                                            <td className="py-2.5 px-3 whitespace-nowrap font-mono text-[11px]">
+                                              {subItemDate ? (
+                                                <span className="inline-flex items-center gap-1 text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-[10px]">
+                                                  <CreditCard className="w-2.5 h-2.5 text-blue-500" />
+                                                  <span>{subItemDate}</span>
+                                                </span>
+                                              ) : (
+                                                <span className="text-slate-400 text-[11px]">—</span>
+                                              )}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-600">
+                                              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                                                {subItem.expense_category || item.category || 'Disbursement'}
+                                              </span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right font-mono text-slate-700">{subItem.quantity || 1}</td>
+                                            <td className="py-2.5 px-3 text-right font-mono text-slate-700">₱{formatMoney(subItem.cost || subItem.subtotal || item.amount)}</td>
+                                            <td className="py-2.5 px-3 text-right font-mono text-slate-700">₱{formatMoney(subItem.subtotal || subItem.total || item.amount)}</td>
+                                            <td className="py-2.5 px-3 text-right font-mono text-slate-500">₱{formatMoney(subItem.vat || 0)}</td>
+                                            <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">₱{formatMoney(subItem.total || subItem.subtotal || item.amount)}</td>
+                                          </tr>
+                                        );
+                                      })}
                                     </tbody>
                                     <tfoot>
                                       <tr className="bg-slate-50 font-bold text-slate-800 border-t border-slate-200 text-xs">
-                                        <td colSpan={5} className="py-2.5 px-3 text-right">Summary Total:</td>
+                                        <td colSpan={6} className="py-2.5 px-3 text-right">Summary Total:</td>
                                         <td className="py-2.5 px-3 text-right font-mono">₱{formatMoney(item.amount || item.total)}</td>
                                         <td className="py-2.5 px-3 text-right font-mono text-slate-500">₱{formatMoney(item.vat || 0)}</td>
                                         <td className="py-2.5 px-3 text-right font-mono text-blue-700 font-extrabold text-sm">₱{formatMoney(item.amount_due || item.amount || item.total)}</td>
@@ -1607,7 +1713,19 @@ export function PayableApprovalsPage() {
                                   </div>
                                   <div className="flex justify-between py-0.5 text-slate-600">
                                     <span>Date Cheque Issued:</span>
-                                    <span className="font-mono font-semibold text-blue-700">{item.date_cheque_issued || item.cheque_date || '—'}</span>
+                                    {(() => {
+                                      const info = getChequeDateInfo(item);
+                                      return (
+                                        <div className="flex items-center gap-1">
+                                          <span className="font-mono font-semibold text-blue-700">{info.date || '—'}</span>
+                                          {info.isFromDesc && (
+                                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200" title="Parsed directly from Description / particulars">
+                                              From Desc
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="flex justify-between py-0.5 text-slate-600">
                                     <span>Bank & Account:</span>

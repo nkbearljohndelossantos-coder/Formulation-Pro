@@ -326,6 +326,27 @@ export async function authenticatePayablesAccess(req, res, next) {
 }
 
 /**
+ * Extracts normalized YYYY-MM-DD date from text / description (e.g., '10/8/2026', 'OCTOBER 1, 2026', '2026-10-09')
+ */
+export function extractDateFromText(text) {
+  if (!text || typeof text !== 'string') return null;
+  // 1. YYYY-MM-DD
+  const isoMatch = text.match(/\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+  // 2. MM/DD/YYYY or M/D/YYYY
+  const slashMatch = text.match(/\b(0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])[-/.](20\d{2})\b/);
+  if (slashMatch) return `${slashMatch[3]}-${slashMatch[1].padStart(2, '0')}-${slashMatch[2].padStart(2, '0')}`;
+  // 3. Month Name DD, YYYY
+  const monthNames = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+  const namedMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+([0-2]?\d|3[01])(?:st|nd|rd|th)?,?\s+(20\d{2})\b/i);
+  if (namedMatch) {
+    const m = monthNames[namedMatch[1].toLowerCase().slice(0, 3)] || '01';
+    return `${namedMatch[3]}-${m}-${namedMatch[2].padStart(2, '0')}`;
+  }
+  return null;
+}
+
+/**
  * Normalizes payable items from either my.nkbmanufacturing.com or pc.nkbmanufacturing.com
  */
 export function formatPayableItem(p, defaultSource = null) {
@@ -394,6 +415,27 @@ export function formatPayableItem(p, defaultSource = null) {
     ];
   }
 
+  // Extract Date Cheque Issued from Description, Purpose, Comments, Remarks, or Line Items
+  let extractedChequeDate = extractDateFromText(p.description) ||
+    extractDateFromText(p.purpose_usage) ||
+    extractDateFromText(p.purpose) ||
+    extractDateFromText(p.comments) ||
+    extractDateFromText(p.remarks);
+
+  // Tag line items with individual extracted dates if present
+  for (const itm of itemsList) {
+    const lineDate = extractDateFromText(itm.description);
+    if (lineDate) {
+      itm.date = lineDate;
+      itm.date_cheque_issued = lineDate;
+      if (!extractedChequeDate) extractedChequeDate = lineDate;
+    }
+  }
+
+  // Prioritize date found in Description, falling back to cheque_date or date
+  const dateChequeIssued = extractedChequeDate || p.date_cheque_issued || p.cheque_date || p.check_date || p.cheque_issued_date || (p.cheque_number ? dateVal : '') || dateVal;
+  const datePrepared = p.date_prepared || p.prepared_date || p.date_created || p.created_at || dateVal;
+
   return {
     ...p,
     id: p.id,
@@ -408,10 +450,11 @@ export function formatPayableItem(p, defaultSource = null) {
     invoice_date: p.invoice_date || dateVal,
     date: dateVal,
     date_created: p.created_at || dateVal,
-    date_cheque_issued: p.date_cheque_issued || p.cheque_date || p.check_date || p.cheque_issued_date || (p.cheque_number ? dateVal : '') || dateVal,
-    date_prepared: p.date_prepared || p.prepared_date || p.date_created || p.created_at || dateVal,
-    cheque_date: p.cheque_date || p.date_cheque_issued || p.check_date || (p.cheque_number ? dateVal : '') || dateVal,
-    prepared_date: p.date_prepared || p.prepared_date || p.date_created || p.created_at || dateVal,
+    date_cheque_issued: dateChequeIssued,
+    date_cheque_issued_from_desc: extractedChequeDate || null,
+    date_prepared: datePrepared,
+    cheque_date: dateChequeIssued,
+    prepared_date: datePrepared,
     cheque_number: p.cheque_number || p.check_number || p.check_no || '',
     prepared_by: p.prepared_by || p.requested_by_name || p.requestor_name || p.created_by || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com'),
     due_date: p.due_date || dateVal,
@@ -1005,12 +1048,26 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
       );
     }
 
-    // Filter by Date Cheque Issued
+    // Filter by Date Cheque Issued (checks date_cheque_issued, dates in description, or line items)
     if (date_cheque_from) {
-      records = records.filter(p => (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10) >= date_cheque_from);
+      records = records.filter(p => {
+        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
+        const lineMatch = (p.items || []).some(itm => {
+          const idate = (itm.date_cheque_issued || itm.date || '').slice(0, 10);
+          return idate && idate >= date_cheque_from;
+        });
+        return (d && d >= date_cheque_from) || lineMatch;
+      });
     }
     if (date_cheque_to) {
-      records = records.filter(p => (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10) <= date_cheque_to);
+      records = records.filter(p => {
+        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
+        const lineMatch = (p.items || []).some(itm => {
+          const idate = (itm.date_cheque_issued || itm.date || '').slice(0, 10);
+          return idate && idate <= date_cheque_to;
+        });
+        return (d && d <= date_cheque_to) || lineMatch;
+      });
     }
 
     // Filter by Date Prepared
