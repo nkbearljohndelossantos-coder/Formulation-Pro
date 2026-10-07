@@ -12,5 +12,27 @@
   RewriteRule . /index.html [L]
 </IfModule>
 
-# Disable directory listing to avoid HTTP 403
+# Disable directory listing to avoid HTTP 403 on directory paths
 Options -Indexes
+
+# Explicitly grant access to static assets and favicons
+<FilesMatch "\.(ico|png|svg|jpg|jpeg|gif|webp|json|css|js|woff|woff2|ttf|eot)$">
+  <IfModule mod_authz_core.c>
+    Require all granted
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order Allow,Deny
+    Allow from all
+  </IfModule>
+</FilesMatch>
+
+# Special rule for favicon.ico specifically
+<Files "favicon.ico">
+  <IfModule mod_authz_core.c>
+    Require all granted
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order Allow,Deny
+    Allow from all
+  </IfModule>
+</Files>

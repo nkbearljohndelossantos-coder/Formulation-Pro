@@ -150,20 +150,58 @@ app.get('/api/v1/ready', async (req, res) => {
   }
 });
 
-// Serve favicon.ico explicitly with open headers to prevent 403 / CORS errors
+// Serve favicon.ico and logo explicitly with open headers to prevent 403 / CORS errors
 app.get('/favicon.ico', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.type('image/x-icon');
+
+  const rootFaviconPath = path.join(__dirname, '../favicon.ico');
   const distFaviconPath = path.join(__dirname, '../dist/favicon.ico');
   const publicFaviconPath = path.join(__dirname, '../public/favicon.ico');
+
+  if (fs.existsSync(rootFaviconPath)) {
+    return res.sendFile(rootFaviconPath);
+  }
   if (fs.existsSync(distFaviconPath)) {
     return res.sendFile(distFaviconPath);
   }
   if (fs.existsSync(publicFaviconPath)) {
     return res.sendFile(publicFaviconPath);
   }
-  return res.status(204).end();
+
+  // 16x16 transparent ICO fallback so browser never gets 403 or 404
+  const emptyIco = Buffer.from([
+    0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x30, 0x00,
+    0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00,
+    0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  ]);
+  return res.status(200).send(emptyIco);
 });
+
+app.get('/nkb-logo.png', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.type('image/png');
+
+  const rootLogoPath = path.join(__dirname, '../nkb-logo.png');
+  const distLogoPath = path.join(__dirname, '../dist/nkb-logo.png');
+  const publicLogoPath = path.join(__dirname, '../public/nkb-logo.png');
+
+  if (fs.existsSync(rootLogoPath)) {
+    return res.sendFile(rootLogoPath);
+  }
+  if (fs.existsSync(distLogoPath)) {
+    return res.sendFile(distLogoPath);
+  }
+  if (fs.existsSync(publicLogoPath)) {
+    return res.sendFile(publicLogoPath);
+  }
+  return res.status(404).end();
+});
+
 
 // Single Process Production Static File Serving for compiled React SPA
 const clientDistPath = path.join(__dirname, '../dist');
