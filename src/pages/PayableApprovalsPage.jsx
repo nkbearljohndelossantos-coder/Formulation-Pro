@@ -40,7 +40,8 @@ import {
   Hash,
   Maximize2,
   Minimize2,
-  Receipt
+  Receipt,
+  Download
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -82,6 +83,9 @@ export function PayableApprovalsPage() {
   const [quickActionType, setQuickActionType] = useState(null); // 'APPROVE' | 'REJECT'
   const [quickCheckNumber, setQuickCheckNumber] = useState('');
   const [quickNotes, setQuickNotes] = useState('');
+
+  // Interactive Attachment Viewer Modal state
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   // API Key config modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -551,6 +555,54 @@ export function PayableApprovalsPage() {
     return { date: fallback, isFromDesc: false };
   };
 
+  // Resolves full accessible URL for attachments from portals
+  const resolveAttachmentUrl = (rawUrl, item = null) => {
+    if (!rawUrl || typeof rawUrl !== 'string') return null;
+    let url = rawUrl.trim();
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://');
+    } else if (url.startsWith('/')) {
+      const host = (item && item.source_portal) || 'my.nkbmanufacturing.com';
+      url = `https://${host}${url}`;
+    } else if (!url.startsWith('https://') && !url.startsWith('data:')) {
+      const host = (item && item.source_portal) || 'my.nkbmanufacturing.com';
+      url = `https://${host}/${url.replace(/^\/+/, '')}`;
+    }
+    return url;
+  };
+
+  const getFileNameFromUrl = (url) => {
+    if (!url || typeof url !== 'string') return 'attachment';
+    try {
+      const clean = url.split('?')[0].split('#')[0];
+      const parts = clean.split('/');
+      return parts[parts.length - 1] || 'attachment';
+    } catch (_) {
+      return 'attachment';
+    }
+  };
+
+  const handleOpenAttachment = (item, specificUrl = null) => {
+    if (!item) return;
+    const raw = specificUrl || item.attachment_url || item.attachment || (item.files && item.files[0]);
+    if (!raw) return;
+    const resolved = resolveAttachmentUrl(raw, item);
+    const fileName = getFileNameFromUrl(raw);
+    const isPdf = fileName.toLowerCase().endsWith('.pdf') || resolved.toLowerCase().includes('.pdf');
+    const isImage = /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(resolved);
+
+    setPreviewAttachment({
+      url: resolved,
+      proxyUrl: `/api/v1/payables/attachment-proxy?url=${encodeURIComponent(resolved)}`,
+      name: fileName,
+      payableNo: item.req_cheque_no || item.payable_number || 'Payable',
+      payee: item.payee_beneficiary || item.vendor || 'NKB Payee',
+      portal: item.source_portal || 'my.nkbmanufacturing.com',
+      isPdf,
+      isImage
+    });
+  };
+
   const activeDateFilterCount = (dateChequeFrom ? 1 : 0) + (dateChequeTo ? 1 : 0) + (datePreparedFrom ? 1 : 0) + (datePreparedTo ? 1 : 0);
 
   // Search, portal, status, and date filters
@@ -954,20 +1006,47 @@ export function PayableApprovalsPage() {
                 <div className="space-y-1">
                   <label className="block text-slate-700 font-semibold text-xs">Attachment / Files</label>
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-500">
-                    {(p.files && p.files.length > 0) || p.attachment ? (
-                      <div className="flex flex-wrap gap-2">
-                        {p.attachment && (
-                          <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-md text-slate-700 font-medium shadow-2xs">
-                            <Paperclip className="w-3.5 h-3.5 text-blue-500" />
-                            <span>{p.attachment}</span>
-                          </div>
-                        )}
-                        {(p.files || []).filter(f => f !== p.attachment).map((file, fIdx) => (
-                          <div key={fIdx} className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-md text-slate-700 font-medium shadow-2xs">
-                            <Paperclip className="w-3.5 h-3.5 text-blue-500" />
-                            <span>{file}</span>
-                          </div>
-                        ))}
+                    {(p.files && p.files.length > 0) || p.attachment || p.attachment_url ? (
+                      <div className="flex flex-wrap gap-2.5">
+                        {(() => {
+                          const allFiles = Array.from(new Set([
+                            p.attachment_url,
+                            p.attachment,
+                            ...(p.files || [])
+                          ])).filter(Boolean);
+
+                          return allFiles.map((file, fIdx) => {
+                            const resolved = resolveAttachmentUrl(file, p);
+                            const fileName = getFileNameFromUrl(file);
+                            return (
+                              <div
+                                key={fIdx}
+                                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-blue-400 p-2 px-3 rounded-lg text-slate-800 shadow-2xs transition group"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAttachment(p, file)}
+                                  className="flex items-center gap-2 text-left font-semibold text-blue-700 hover:text-blue-900"
+                                  title="Preview file in interactive popup viewer"
+                                >
+                                  <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <span className="truncate max-w-[240px] text-xs font-mono">{fileName}</span>
+                                  <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 shrink-0" />
+                                </button>
+                                <span className="text-slate-300">|</span>
+                                <a
+                                  href={resolved}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-slate-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"
+                                  title="Open directly in browser tab"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
                     ) : (
                       <span className="italic text-slate-400">No attached files provided.</span>
@@ -1585,14 +1664,19 @@ export function PayableApprovalsPage() {
 
                         {/* 9. Attachment */}
                         <td className="py-3 px-3 text-center whitespace-nowrap">
-                          {item.attachment || (item.files && item.files.length > 0) ? (
+                          {item.attachment || item.attachment_url || (item.files && item.files.length > 0) ? (
                             <button
-                              onClick={() => handleOpenDetail(item)}
-                              className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded"
-                              title="View attachment"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAttachment(item);
+                              }}
+                              className="inline-flex items-center gap-1.5 text-[11px] text-blue-700 hover:text-white font-bold bg-blue-50 hover:bg-blue-600 px-2.5 py-1 rounded-md border border-blue-200 hover:border-blue-600 transition shadow-2xs group"
+                              title="Click to view and open attachment document"
                             >
-                              <Paperclip className="w-3 h-3" />
+                              <Paperclip className="w-3 h-3 text-blue-600 group-hover:text-white" />
                               <span>View</span>
+                              <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
                             </button>
                           ) : (
                             <span className="text-slate-300 font-mono">—</span>
@@ -1683,6 +1767,18 @@ export function PayableApprovalsPage() {
                                     <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
                                       Invoice: {item.invoice_number}
                                     </span>
+                                  )}
+                                  {(item.attachment || item.attachment_url || (item.files && item.files.length > 0)) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenAttachment(item)}
+                                      className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition"
+                                      title="Open and preview attached file"
+                                    >
+                                      <Paperclip className="w-2.5 h-2.5 text-blue-600" />
+                                      <span>Attached File</span>
+                                      <ExternalLink className="w-2 h-2 text-blue-400" />
+                                    </button>
                                   )}
                                 </div>
 
@@ -1824,6 +1920,22 @@ export function PayableApprovalsPage() {
                                   <div className="flex justify-between py-0.5 text-slate-600">
                                     <span>Invoice Reference:</span>
                                     <span className="font-mono text-slate-700">{item.invoice_number ? `${item.invoice_number} (${item.invoice_date || 'N/A'})` : 'N/A'}</span>
+                                  </div>
+                                  <div className="flex justify-between py-0.5 text-slate-600 items-center">
+                                    <span>Attached File:</span>
+                                    {item.attachment || item.attachment_url || (item.files && item.files.length > 0) ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenAttachment(item)}
+                                        className="inline-flex items-center gap-1 font-bold text-[11px] text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition"
+                                      >
+                                        <Paperclip className="w-3 h-3 text-blue-600" />
+                                        <span>View Document</span>
+                                        <ExternalLink className="w-2.5 h-2.5" />
+                                      </button>
+                                    ) : (
+                                      <span className="text-slate-400 font-mono">None</span>
+                                    )}
                                   </div>
                                 </div>
 
@@ -2799,6 +2911,119 @@ console.log("Payable submitted:", result);`}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Interactive Attachment Viewer (PDF / Image Preview) */}
+      {previewAttachment && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="p-3.5 sm:p-4 px-4 sm:px-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/90 gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 shrink-0 shadow-2xs">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-slate-900 text-sm truncate max-w-xs sm:max-w-md font-mono" title={previewAttachment.name}>
+                      {previewAttachment.name}
+                    </h3>
+                    <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
+                      {previewAttachment.payableNo}
+                    </span>
+                    <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">
+                      {previewAttachment.portal}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                    Payee: <span className="font-semibold text-slate-800">{previewAttachment.payee}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewAttachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition flex items-center gap-1.5 border border-blue-200"
+                  title="Open directly in new browser tab"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Open in Tab</span>
+                </a>
+                <a
+                  href={previewAttachment.url}
+                  download={previewAttachment.name}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 shadow-2xs"
+                  title="Download file"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Download</span>
+                </a>
+                <button
+                  onClick={() => setPreviewAttachment(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition ml-1"
+                  title="Close viewer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer Body */}
+            <div className="flex-1 bg-slate-100/70 p-2 sm:p-4 overflow-auto flex items-center justify-center">
+              {previewAttachment.isImage ? (
+                <div className="max-w-full max-h-full flex items-center justify-center p-2">
+                  <img
+                    src={previewAttachment.url}
+                    alt={previewAttachment.name}
+                    className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-md border border-slate-200 bg-white"
+                  />
+                </div>
+              ) : previewAttachment.isPdf ? (
+                <div className="w-full h-full flex flex-col">
+                  <iframe
+                    src={previewAttachment.url}
+                    title={previewAttachment.name}
+                    className="w-full h-full rounded-xl border border-slate-300 shadow-inner bg-white"
+                  />
+                </div>
+              ) : (
+                <div className="text-center p-8 bg-white rounded-xl border border-slate-200 shadow-sm max-w-md">
+                  <FileText className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+                  <h4 className="font-bold text-slate-800 text-sm mb-1">{previewAttachment.name}</h4>
+                  <p className="text-xs text-slate-500 mb-4">
+                    This file format is ready to view or download.
+                  </p>
+                  <a
+                    href={previewAttachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-xs"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Open in New Tab / Download</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 px-4 sm:px-6 bg-white border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <span className="truncate max-w-md font-mono text-[11px]" title={previewAttachment.url}>
+                {previewAttachment.url}
+              </span>
+              <button
+                onClick={() => setPreviewAttachment(null)}
+                className="px-3.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-md transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

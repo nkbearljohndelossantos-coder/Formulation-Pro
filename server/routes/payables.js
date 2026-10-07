@@ -377,10 +377,29 @@ export function formatPayableItem(p, defaultSource = null) {
   const purposeVal = p.purpose || p.purpose_usage || p.usage || p.description || (p.items && p.items[0]?.description) || (isPc ? 'Petty Cash Disbursement' : 'Disbursement');
   const amountVal = parseFloat(p.amount || p.total || p.amount_due || 0);
 
-  // Attachments: if relative URL, prepend with host
+  // Attachments: normalize to secure HTTPS and absolute portal URL
   let attachmentVal = p.attachment_url || p.attachment || (p.files && p.files.length ? p.files[0] : null);
-  if (attachmentVal && attachmentVal.startsWith('/')) {
-    attachmentVal = `http://${sourcePortal}${attachmentVal}`;
+  if (attachmentVal && typeof attachmentVal === 'string') {
+    if (attachmentVal.startsWith('http://')) {
+      attachmentVal = attachmentVal.replace('http://', 'https://');
+    } else if (attachmentVal.startsWith('/')) {
+      attachmentVal = `https://${sourcePortal}${attachmentVal}`;
+    } else if (!attachmentVal.startsWith('https://') && !attachmentVal.startsWith('data:')) {
+      attachmentVal = `https://${sourcePortal}/${attachmentVal.replace(/^\/+/, '')}`;
+    }
+  }
+
+  let filesList = [];
+  if (Array.isArray(p.files) && p.files.length > 0) {
+    filesList = p.files.map(f => {
+      if (typeof f !== 'string') return f;
+      if (f.startsWith('http://')) return f.replace('http://', 'https://');
+      if (f.startsWith('/')) return `https://${sourcePortal}${f}`;
+      if (!f.startsWith('https://')) return `https://${sourcePortal}/${f.replace(/^\/+/, '')}`;
+      return f;
+    });
+  } else if (attachmentVal) {
+    filesList = [attachmentVal];
   }
 
   const approvalVal = p.status || p.coo_approval || 'PENDING_COO_APPROVAL';
@@ -475,7 +494,7 @@ export function formatPayableItem(p, defaultSource = null) {
     withheld: 0.00,
     attachment: attachmentVal,
     attachment_url: attachmentVal,
-    files: attachmentVal ? [attachmentVal] : (p.files || []),
+    files: filesList,
     status: approvalVal,
     coo_approval: approvalVal,
     created_by: p.requested_by_name || p.requestor_name || p.created_by || (isPc ? 'pc.nkbmanufacturing.com (Petty Cash)' : 'my.nkbmanufacturing.com'),
@@ -638,6 +657,42 @@ let localPayableRecords = [
     ]
   }
 ];
+
+/**
+ * GET /api/v1/payables/attachment-proxy
+ * Streams or proxies an attachment file inline (PDFs, images)
+ */
+router.get('/attachment-proxy', async (req, res) => {
+  try {
+    const fileUrl = req.query.url;
+    if (!fileUrl) {
+      return res.status(400).json({ success: false, error: 'File URL is required' });
+    }
+
+    const parsed = new URL(fileUrl);
+    // Allow proxying from nkb domains
+    if (!parsed.hostname.includes('nkbmanufacturing.com')) {
+      return res.status(403).json({ success: false, error: 'Unauthorized host for attachment proxy' });
+    }
+
+    const client = parsed.protocol === 'http:' ? http : https;
+    client.get(fileUrl, (proxyRes) => {
+      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+        return res.redirect(proxyRes.headers.location);
+      }
+      res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+      if (proxyRes.headers['content-length']) {
+        res.setHeader('Content-Length', proxyRes.headers['content-length']);
+      }
+      proxyRes.pipe(res);
+    }).on('error', (err) => {
+      res.status(502).json({ success: false, error: err.message });
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * GET /api/v1/payables/config
