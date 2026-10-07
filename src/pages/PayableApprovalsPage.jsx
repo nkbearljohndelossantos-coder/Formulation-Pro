@@ -52,6 +52,7 @@ export function PayableApprovalsPage() {
   const [selectedPayable, setSelectedPayable] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -223,8 +224,16 @@ export function PayableApprovalsPage() {
   // Fetch payables list & config
   const fetchPayables = async (isManualSync = false) => {
     try {
-      if (isManualSync) setSyncing(true);
-      else setLoading(true);
+      if (isManualSync) {
+        setSyncing(true);
+      } else {
+        // If payables already loaded, silently refresh in background without flickering or wiping the table
+        setPayables(prev => {
+          if (prev.length === 0) setLoading(true);
+          else setIsBackgroundRefreshing(true);
+          return prev;
+        });
+      }
       setError(null);
 
       const portalParam = portalFilter !== 'ALL' ? `&portal=${encodeURIComponent(portalFilter)}` : '';
@@ -248,6 +257,7 @@ export function PayableApprovalsPage() {
     } finally {
       setLoading(false);
       setSyncing(false);
+      setIsBackgroundRefreshing(false);
     }
   };
 
@@ -1126,9 +1136,9 @@ export function PayableApprovalsPage() {
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Payable Approvals</h1>
               {autoSync && (
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  <Radio className="w-3 h-3 animate-pulse" />
-                  Live Polling (30s)
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 transition-all">
+                  <Radio className={`w-3 h-3 ${isBackgroundRefreshing ? 'animate-ping text-blue-500' : 'animate-pulse text-emerald-500'}`} />
+                  <span>{isBackgroundRefreshing ? 'Updating live...' : 'Live Polling (30s)'}</span>
                 </span>
               )}
             </div>
@@ -1345,6 +1355,11 @@ export function PayableApprovalsPage() {
           </div>
         )}
 
+        {/* Subtle Top Refresh Shimmer Bar (barely noticeable, smooth transition) */}
+        <div className={`h-0.5 w-full bg-slate-100 overflow-hidden transition-opacity duration-300 ${isBackgroundRefreshing || syncing ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500 w-full animate-pulse" />
+        </div>
+
         {/* Table Content with 12 COLUMNS (Includes Expand Toggle, Date Prepared, Date Cheque Issued) */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -1376,14 +1391,67 @@ export function PayableApprovalsPage() {
                 <th className="py-3 px-3.5 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {loading ? (
-                <tr>
-                  <td colSpan={12} className="py-12 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    <span>Loading payables list...</span>
-                  </td>
-                </tr>
+            <tbody className={`divide-y divide-slate-100 bg-white transition-opacity duration-300 ${isBackgroundRefreshing ? 'opacity-90' : 'opacity-100'}`}>
+              {loading && payables.length === 0 ? (
+                /* SKELETON ROWS: Seamless shimmer matching exact table layout */
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={`skel-${idx}`} className="animate-pulse border-b border-slate-100 bg-white hover:bg-slate-50/50">
+                    {/* 0. Expand trigger */}
+                    <td className="py-3 px-2 text-center">
+                      <div className="w-5 h-5 bg-slate-200/70 rounded mx-auto" />
+                    </td>
+                    {/* 1. Req / Cheque No */}
+                    <td className="py-3 px-3.5">
+                      <div className="space-y-1.5">
+                        <div className="h-3.5 w-24 bg-slate-200/80 rounded" />
+                        <div className="h-2 w-16 bg-slate-100 rounded" />
+                      </div>
+                    </td>
+                    {/* 2. Date Prepared */}
+                    <td className="py-3 px-3">
+                      <div className="h-3.5 w-20 bg-slate-200/70 rounded" />
+                    </td>
+                    {/* 3. Date Cheque Issued */}
+                    <td className="py-3 px-3">
+                      <div className="h-5 w-24 bg-blue-100/60 rounded-md" />
+                    </td>
+                    {/* 4. Payee */}
+                    <td className="py-3 px-3">
+                      <div className="h-3.5 w-28 bg-slate-200/80 rounded" />
+                    </td>
+                    {/* 5. Category */}
+                    <td className="py-3 px-3">
+                      <div className="h-5 w-20 bg-slate-100 rounded-md" />
+                    </td>
+                    {/* 6. Bank & Account */}
+                    <td className="py-3 px-3">
+                      <div className="h-3.5 w-24 bg-slate-200/70 rounded" />
+                    </td>
+                    {/* 7. Purpose / Usage */}
+                    <td className="py-3 px-3">
+                      <div className="space-y-1.5">
+                        <div className="h-3.5 w-36 bg-slate-200/80 rounded" />
+                        <div className="h-2 w-20 bg-slate-100 rounded" />
+                      </div>
+                    </td>
+                    {/* 8. Amount */}
+                    <td className="py-3 px-3 text-right">
+                      <div className="h-4 w-20 bg-slate-200/80 rounded ml-auto" />
+                    </td>
+                    {/* 9. Attachment */}
+                    <td className="py-3 px-3 text-center">
+                      <div className="h-5 w-12 bg-slate-100 rounded mx-auto" />
+                    </td>
+                    {/* 10. COO Approval */}
+                    <td className="py-3 px-3 text-center">
+                      <div className="h-5 w-24 bg-amber-100/70 rounded-full mx-auto" />
+                    </td>
+                    {/* 11. Actions */}
+                    <td className="py-3 px-3.5 text-center">
+                      <div className="h-6 w-16 bg-slate-200/80 rounded-md mx-auto" />
+                    </td>
+                  </tr>
+                ))
               ) : filteredPayables.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="py-12 text-center text-slate-400">
