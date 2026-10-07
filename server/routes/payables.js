@@ -560,59 +560,6 @@ let localPayableRecords = [
     ]
   },
   {
-    id: 902,
-    req_cheque_no: 'PC-2026-0412',
-    payable_number: 'PC-2026-0412',
-    cheque_number: 'CHK-881925',
-    date_prepared: '2026-10-03',
-    date_cheque_issued: '2026-10-05',
-    date: '2026-10-03',
-    payee_beneficiary: 'Petty Cash Custodian - Plant Operations',
-    company: 'NKB Petty Cash (pc.nkbmanufacturing.com)',
-    category: 'Petty Cash Replenishment',
-    bank_account: 'BPI - 1829-3382-19',
-    purpose_usage: 'Emergency factory maintenance tools, QC laboratory glass beakers & packaging tapes',
-    amount: 18420.00,
-    total: 18420.00,
-    amount_due: 18420.00,
-    status: 'Pending',
-    coo_approval: 'PENDING_COO_APPROVAL',
-    source_portal: 'pc.nkbmanufacturing.com',
-    source_badge: 'pc.nkb',
-    control_number: 'CTRL-PC-2026-0044',
-    invoice_number: 'OR-MKT-3381',
-    prepared_by: 'Michael Rodriguez',
-    items: [
-      {
-        description: 'Pyrex Borosilicate Glass Beakers 500ml & 1000ml Set (10 pcs)',
-        expense_category: 'Laboratory Supplies',
-        quantity: 6,
-        cost: 850.00,
-        subtotal: 5100.00,
-        vat: 0.00,
-        total: 5100.00
-      },
-      {
-        description: 'Industrial Brown Packaging Tape 2-inch (Box of 36 rolls)',
-        expense_category: 'Packaging Materials',
-        quantity: 2,
-        cost: 2400.00,
-        subtotal: 4800.00,
-        vat: 0.00,
-        total: 4800.00
-      },
-      {
-        description: 'Compounding Mixing Line Valve Calibration Wrenches & Replacement Silicone Gaskets',
-        expense_category: 'Factory Maintenance',
-        quantity: 1,
-        cost: 8520.00,
-        subtotal: 8520.00,
-        vat: 0.00,
-        total: 8520.00
-      }
-    ]
-  },
-  {
     id: 903,
     req_cheque_no: 'REQ-2026-0895',
     payable_number: 'REQ-2026-0895',
@@ -1151,6 +1098,23 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
       );
     }
 
+    // Exclude test samples sent from or tagged with pc.nkb
+    records = records.filter(p => {
+      const isPc = p.source_portal?.includes('pc.nkb') || p.source_system?.includes('pc.nkb') || String(p.req_cheque_no).startsWith('PC-');
+      const isTestSample =
+        p.id === 902 ||
+        p.req_cheque_no === 'PC-2026-0412' ||
+        p.control_number === 'CTRL-PC-2026-0044' ||
+        (isPc && (
+          String(p.purpose_usage || '').toLowerCase().includes('test') ||
+          String(p.description || '').toLowerCase().includes('test') ||
+          String(p.comments || '').toLowerCase().includes('test') ||
+          String(p.payee_beneficiary || '').toLowerCase().includes('test') ||
+          String(p.payee_beneficiary || '').toLowerCase().includes('custodian - plant operations')
+        ));
+      return !isTestSample;
+    });
+
     // Sort newest first
     records.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
@@ -1299,6 +1263,27 @@ router.post('/', authenticatePayablesAccess, async (req, res) => {
     });
   } catch (err) {
     console.error('Error creating payable request:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * DELETE /api/v1/payables/:id
+ * Remove / purge a payable record (e.g. test samples or custom tests)
+ */
+router.delete('/:id', authenticatePayablesAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    localPayableRecords = localPayableRecords.filter(p =>
+      String(p.id) !== String(id) &&
+      String(p.req_cheque_no) !== String(id) &&
+      String(p.payable_number) !== String(id)
+    );
+    return res.json({
+      success: true,
+      message: `Payable ${id} removed successfully.`
+    });
+  } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
