@@ -179,9 +179,10 @@ export function MaterialsListPage({ setCurrentPage }) {
     const headers = [
       'code',
       'name',
+      'category',
       'description',
       'uom_category',
-      'default_uom',
+      'uom',
       'cost',
       'currency_code',
       'density_kg_per_l',
@@ -194,6 +195,11 @@ export function MaterialsListPage({ setCurrentPage }) {
     for (const m of materials) {
       const values = headers.map(header => {
         let val = m[header];
+        if (header === 'uom') {
+          val = m.uom || m.default_uom || 'g';
+        } else if (header === 'is_active') {
+          val = m.is_active ? 'TRUE' : 'FALSE';
+        }
         if (val === null || val === undefined) val = '';
         // Escape double quotes and enclose in quotes
         const escaped = String(val).replace(/"/g, '""');
@@ -217,28 +223,60 @@ export function MaterialsListPage({ setCurrentPage }) {
     const headers = [
       'code',
       'name',
+      'category',
       'description',
       'uom_category',
-      'default_uom',
+      'uom',
       'cost',
       'currency_code',
       'density_kg_per_l',
       'specific_gravity',
+      'is_active',
     ];
 
-    const sampleRow = [
-      'MAT-WTR-001',
-      'Deionized Water',
-      'Pure cosmetic grade water base',
-      'MASS',
-      'g',
-      '0.150000',
-      'PHP',
-      '1.000000',
-      '1.000000',
+    const sampleRows = [
+      [
+        'MAT-WTR-001',
+        'Deionized Water',
+        'Cosmetic',
+        'Pure cosmetic grade water base',
+        'MASS',
+        'g',
+        '0.150000',
+        'PHP',
+        '1.000000',
+        '1.000000',
+        'TRUE',
+      ],
+      [
+        'MAT-ALC-002',
+        'Ethyl Alcohol 96%',
+        'Perfume',
+        'High-grade perfumery alcohol carrier',
+        'VOLUME',
+        'ml',
+        '0.850000',
+        'PHP',
+        '0.810000',
+        '0.810000',
+        'TRUE',
+      ],
+      [
+        'MAT-BTL-003',
+        'Glass Bottle 50ml Amber',
+        'Packaging',
+        '50ml Amber glass bottle packaging',
+        'COUNT',
+        'pcs',
+        '18.500000',
+        'PHP',
+        '1.000000',
+        '1.000000',
+        'TRUE',
+      ],
     ];
 
-    const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
+    const csvContent = [headers.join(','), ...sampleRows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -261,7 +299,7 @@ export function MaterialsListPage({ setCurrentPage }) {
       try {
         const parsed = parseCSV(text);
         if (parsed.length === 0) {
-          alert('CSV file is empty or has invalid headers.');
+          alert('CSV file is empty, has invalid headers, or is missing required "code" and "name" columns.\n\nPlease click "Download CSV Template" for the expected format.');
           setImporting(false);
           return;
         }
@@ -276,40 +314,56 @@ export function MaterialsListPage({ setCurrentPage }) {
         setImporting(false);
 
         if (res.ok && data.success) {
-          alert(`Import Successful!\n\n${data.message}`);
+          alert(`✅ Import Successful!\n\n${data.message}`);
           fetchMaterials();
         } else {
-          alert(`Import Error: ${data.message}`);
+          alert(`❌ Import Failed: ${data.message || 'Unknown server error.'}`);
         }
       } catch (err) {
         setImporting(false);
-        alert(`Failed to parse CSV file: ${err.message}`);
+        alert(`❌ Failed to process CSV file: ${err.message}`);
       }
     };
     reader.readAsText(file);
     e.target.value = ''; // Reset file input
   };
 
-  // CSV Parser supporting quotes escaping
+  // Robust CSV Parser supporting BOM, delimiters (,, ;, \\t), escaped quotes, and header synonyms
   const parseCSV = (text) => {
-    const lines = text.split(/\r?\n/);
+    if (!text) return [];
+    // 1. Strip UTF-8 BOM if present
+    const cleanText = text.replace(/^\uFEFF/, '').trim();
+    if (!cleanText) return [];
+
+    const lines = cleanText.split(/\r?\n/).filter(l => l.trim().length > 0);
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
-    const result = [];
+    // 2. Detect delimiter (comma, semicolon, or tab)
+    const firstLine = lines[0];
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    let delimiter = ',';
+    if (semicolonCount > commaCount && semicolonCount > tabCount) {
+      delimiter = ';';
+    } else if (tabCount > commaCount && tabCount > semicolonCount) {
+      delimiter = '\t';
+    }
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
+    const splitLine = (lineStr) => {
       const values = [];
       let currentVal = '';
       let inQuotes = false;
-      for (let j = 0; j < line.length; j++) {
-        const char = line[j];
+      for (let j = 0; j < lineStr.length; j++) {
+        const char = lineStr[j];
         if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
+          if (inQuotes && lineStr[j + 1] === '"') {
+            currentVal += '"';
+            j++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === delimiter && !inQuotes) {
           values.push(currentVal.trim().replace(/^["']|["']$/g, ''));
           currentVal = '';
         } else {
@@ -317,12 +371,48 @@ export function MaterialsListPage({ setCurrentPage }) {
         }
       }
       values.push(currentVal.trim().replace(/^["']|["']$/g, ''));
+      return values;
+    };
+
+    const normalizeHeader = (raw) => {
+      const h = String(raw || '').trim().toLowerCase().replace(/[\s_\-]+/g, '');
+      if (['code', 'materialcode', 'itemcode', 'matcode', 'sku'].includes(h)) return 'code';
+      if (['name', 'materialname', 'itemname', 'descriptionname'].includes(h)) return 'name';
+      if (['category', 'domain', 'productcategory', 'cat'].includes(h)) return 'category';
+      if (['description', 'desc', 'details', 'notes'].includes(h)) return 'description';
+      if (['uom', 'defaultuom', 'unit', 'unitofmeasure', 'uomunit'].includes(h)) return 'uom';
+      if (['uomcategory', 'uomcat', 'categoryuom', 'unittype'].includes(h)) return 'uom_category';
+      if (['cost', 'unitcost', 'price', 'standardcost'].includes(h)) return 'cost';
+      if (['currencycode', 'currency', 'curr'].includes(h)) return 'currency_code';
+      if (['densitykgperl', 'density', 'densitykgl'].includes(h)) return 'density_kg_per_l';
+      if (['specificgravity', 'sg'].includes(h)) return 'specific_gravity';
+      if (['isactive', 'active', 'status'].includes(h)) return 'is_active';
+      return String(raw || '').trim().toLowerCase().replace(/\s+/g, '_');
+    };
+
+    const rawHeaders = splitLine(lines[0]);
+    const headers = rawHeaders.map(normalizeHeader);
+
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = splitLine(lines[i]);
+      if (values.every(v => !v)) continue; // skip entirely blank rows
 
       const obj = {};
       headers.forEach((header, idx) => {
-        obj[header] = values[idx] || '';
+        if (header) {
+          obj[header] = values[idx] !== undefined ? values[idx] : '';
+        }
       });
-      result.push(obj);
+
+      // Ensure uom fallback if template used default_uom
+      if (!obj.uom && obj.default_uom) {
+        obj.uom = obj.default_uom;
+      }
+
+      if (obj.code && obj.name) {
+        result.push(obj);
+      }
     }
     return result;
   };
