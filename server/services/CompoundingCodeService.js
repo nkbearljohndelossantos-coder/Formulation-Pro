@@ -15,13 +15,17 @@ export class CompoundingCodeService {
     batchNumber = '',
     targetBatchSize = null,
     targetBatchUom = 'g',
+    soNumber = '',
     userId = null,
     userName = 'System Operator',
   }) {
     const numCopies = Math.max(1, parseInt(count, 10) || 1);
+    const cleanSoNumber = String(soNumber || '').trim();
     const generatedRecords = [];
 
     await db.transaction(async (trx) => {
+      const hasCpLogSoCol = await trx.schema.hasColumn('compounding_code_logs', 'so_number').catch(() => false);
+
       for (let i = 1; i <= numCopies; i++) {
         let code = '';
         let attempts = 0;
@@ -60,6 +64,10 @@ export class CompoundingCodeService {
           printed_by_name: userName || 'System Operator',
           created_at: db.fn.now(),
         };
+
+        if (hasCpLogSoCol && cleanSoNumber) {
+          logEntry.so_number = cleanSoNumber;
+        }
 
         const insertRes = await trx('compounding_code_logs').insert(logEntry);
         let insertedId = null;

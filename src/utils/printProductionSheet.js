@@ -96,6 +96,7 @@ export async function printProductionSheet({
   brandName: explicitBrandName,
   bottleSize: explicitBottleSize,
   bottleQty: explicitBottleQty,
+  soNumber: explicitSoNumber,
   sopTimestamps: explicitSopTimestamps = null,
 }) {
   if (!version) {
@@ -118,6 +119,7 @@ export async function printProductionSheet({
         brandName: explicitBrandName || version?.brandName || formula?.brandName,
         bottleSize: explicitBottleSize || version?.bottleSize || version?.bottle_size,
         bottleQty: explicitBottleQty || version?.bottleQty || version?.bottle_qty,
+        soNumber: explicitSoNumber || version?.soNumber || version?.so_number || formula?.soNumber || formula?.so_number,
         sopTimestamps: explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps,
       });
     });
@@ -160,6 +162,7 @@ export async function printProductionSheet({
 
   const formulaCode = formula?.code || version?.formula_code || '';
   const brandName = (explicitBrandName || version?.brandName || formula?.brandName || '').trim();
+  const soNumber = (explicitSoNumber || version?.soNumber || version?.so_number || formula?.soNumber || formula?.so_number || '').trim();
   let versionNum = version?.version || `${version?.major_version || 1}.${version?.minor_version || 0}`;
   if (!String(versionNum).toLowerCase().startsWith('v')) {
     versionNum = `V${versionNum}`;
@@ -196,7 +199,7 @@ export async function printProductionSheet({
 
   const rawFormulaName = formula?.name || version?.formula_name || 'Cosmetic Formulation';
   const formulaName = (isPerfume ? cleanPerfumeFormulaName(rawFormulaName) : rawFormulaName).toUpperCase();
-  const defaultPdfFilename = `${brandName ? `${brandName} - ` : ''}${formulaName} ${versionNum}`.trim();
+  const defaultPdfFilename = `${brandName ? `${brandName} - ` : ''}${soNumber ? `SO-${soNumber} - ` : ''}${formulaName} ${versionNum}`.trim();
 
   // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
   const formatBaseCompoundingNo = () => {
@@ -588,6 +591,8 @@ export async function printProductionSheet({
         formulaVersion: versionNum,
         targetBatchSize: targetBatchSizeNum,
         targetBatchUom: batchUom,
+        soNumber: soNumber || undefined,
+        so_number: soNumber || undefined,
       }),
     });
     const resData = await res.json();
@@ -621,6 +626,7 @@ export async function printProductionSheet({
           <div class="meta-col-left">
             <div class="meta-line"><span class="meta-bold">Compounding Code:</span> <span class="num-font" style="color: #0369a1; font-weight: 800;">${copyCompoundingNo}</span></div>
             <div class="meta-line"><span class="meta-bold">Batch Number:</span> <span class="num-font" style="color: #0f172a;">${copyBatchNo}</span></div>
+            <div class="meta-line"><span class="meta-bold">SO Number:</span> <span class="num-font" style="color: ${soNumber ? '#047857' : '#64748b'}; font-weight: 800; text-transform: uppercase;">${soNumber || '___________'}</span></div>
             <div class="meta-line"><span class="meta-bold">Target Quantity:</span> ${formattedTargetQty} ${batchUom}${isPerfume ? ` <span style="color: #047857; font-weight: 800;">(${formattedBottleQty} Bottles)</span>` : ''}</div>
             <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
           </div>
@@ -912,7 +918,7 @@ export async function printProductionSheet({
 
         <!-- Page Printable Footer -->
         <div class="print-page-footer">
-          <div>NKB Manufacturing Corporation • Production Sheet (${copyCompoundingNo}) — Batch: ${copyBatchNo}</div>
+          <div>NKB Manufacturing Corporation • Production Sheet (${copyCompoundingNo}) — Batch: ${copyBatchNo}${soNumber ? ` — SO: ${soNumber}` : ''}</div>
           ${copyFooterLabel}
         </div>
       </div>

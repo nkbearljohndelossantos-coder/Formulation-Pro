@@ -9,6 +9,7 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
   const { user } = useAuth();
   const [formulas, setFormulas] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState('');
+  const [soNumber, setSoNumber] = useState('');
   const [targetBatchQty, setTargetBatchQty] = useState('500.00');
   const [targetUom, setTargetUom] = useState('g');
   const [processLossPct, setProcessLossPct] = useState('0.00');
@@ -140,14 +141,19 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
         versionId: selectedVersionId,
         targetBatchQty,
         targetUom,
-        processLossPct,
+        processLossPct: '0.00',
+        soNumber: soNumber.trim(),
+        so_number: soNumber.trim(),
       }),
     })
       .then(r => r.json())
       .then(d => {
         setLoading(false);
-        if (d.success) {
-          setBatchResult(d.data);
+        if (d.success && d.data) {
+          setBatchResult({
+            ...d.data,
+            so_number: soNumber.trim() || d.data.so_number || '',
+          });
         } else {
           alert(`Batch Scaling Error: ${d.message}`);
         }
@@ -162,6 +168,7 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
 
   const handlePrintPdf = () => {
     if (!batchResult) return;
+    const finalSo = (soNumber || batchResult.so_number || '').trim();
     printProductionSheet({
       version: {
         compounding_code: batchResult.compounding_code,
@@ -173,11 +180,16 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
         overrideBatchSize: batchResult.target_batch_qty,
         target_batch_uom: batchResult.target_uom || 'g',
         version_status: 'APPROVED',
+        so_number: finalSo,
+        soNumber: finalSo,
       },
       formula: {
         code: batchResult.formula_code,
         name: batchResult.formula_name,
+        so_number: finalSo,
+        soNumber: finalSo,
       },
+      soNumber: finalSo,
       materials: batchResult.items || [],
       categoryDetails: batchResult.categoryDetails,
       user,
@@ -253,7 +265,7 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
       <form onSubmit={runBatchScaling} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
         <h3 className="font-bold text-slate-900 text-sm border-b border-slate-200 pb-2">Select Approved Formula & Target Batch Parameters</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs">
           <div className="md:col-span-2 relative" ref={dropdownRef}>
             <label className="block text-slate-700 font-semibold mb-1.5">Approved Formula Version *</label>
             
@@ -331,6 +343,17 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
                 </div>
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1.5">SO Number (Sales Order #)</label>
+            <input
+              type="text"
+              placeholder="e.g. SO-2026-001"
+              value={soNumber}
+              onChange={e => setSoNumber(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold uppercase focus:outline-none focus:border-blue-600 shadow-xs"
+            />
           </div>
 
           <div>
@@ -506,6 +529,12 @@ export function BatchCalculatorPage({ setCurrentPage, setSelectedBatchId }) {
                   <span className="font-bold text-slate-900">Compounding Number:</span>{' '}
                   <span className="font-mono font-extrabold text-blue-700">
                     {batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-0001')}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900">SO Number:</span>{' '}
+                  <span className="font-mono font-extrabold text-emerald-700 uppercase">
+                    {(soNumber || batchResult.so_number) ? (soNumber || batchResult.so_number) : '—'}
                   </span>
                 </div>
                 <div><span className="font-bold text-slate-900">Target Quantity:</span> <span className="font-mono font-bold text-blue-700">{Number(batchResult.target_batch_qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {batchResult.target_uom?.toUpperCase() || 'G'}</span></div>

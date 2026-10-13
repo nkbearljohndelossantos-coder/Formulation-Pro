@@ -12,7 +12,8 @@ const router = express.Router();
 // POST /api/v1/batch-calculations - Run Batch Calculator Session (Isolated scaling)
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { versionId, targetBatchQty, targetUom, processLossPct, sopTimestamps, sop_timestamps } = req.body;
+    const { versionId, targetBatchQty, targetUom, processLossPct, sopTimestamps, sop_timestamps, soNumber, so_number } = req.body;
+    const cleanSoNumber = (soNumber || so_number || '').trim();
 
     if (!versionId || !targetBatchQty || !targetUom) {
       return res.status(400).json({ success: false, message: 'Version ID, Target Batch Quantity, and Target UOM are required.' });
@@ -117,6 +118,7 @@ router.post('/', authenticateToken, async (req, res) => {
       generatedCpCode = await SequenceService.getNextSequence('COMPOUNDING_CODE', trx);
 
       const hasSopCol = await trx.schema.hasColumn('batch_calculations', 'sop_timestamps').catch(() => false);
+      const hasSoCol = await trx.schema.hasColumn('batch_calculations', 'so_number').catch(() => false);
       const insertData = {
         version_id: versionId,
         target_batch_qty: targetQtyDec.toFixed(2),
@@ -126,6 +128,9 @@ router.post('/', authenticateToken, async (req, res) => {
       };
       if (hasSopCol && sopTimestampsJson) {
         insertData.sop_timestamps = sopTimestampsJson;
+      }
+      if (hasSoCol && cleanSoNumber) {
+        insertData.so_number = cleanSoNumber;
       }
 
       const insertRes = await trx('batch_calculations').insert(insertData);
@@ -145,6 +150,7 @@ router.post('/', authenticateToken, async (req, res) => {
       }
 
       const hasCpLogSopCol = await trx.schema.hasColumn('compounding_code_logs', 'sop_timestamps').catch(() => false);
+      const hasCpLogSoCol = await trx.schema.hasColumn('compounding_code_logs', 'so_number').catch(() => false);
       const cpLogData = {
         compounding_code: generatedCpCode,
         batch_number: generatedCpCode.replace('CP-', 'BAT-'),
@@ -159,6 +165,9 @@ router.post('/', authenticateToken, async (req, res) => {
       };
       if (hasCpLogSopCol && sopTimestampsJson) {
         cpLogData.sop_timestamps = sopTimestampsJson;
+      }
+      if (hasCpLogSoCol && cleanSoNumber) {
+        cpLogData.so_number = cleanSoNumber;
       }
 
       await trx('compounding_code_logs').insert(cpLogData).catch(() => {});
@@ -210,6 +219,7 @@ router.post('/', authenticateToken, async (req, res) => {
         total_batch_cost: totalBatchCost.toFixed(2),
         items,
         categoryDetails,
+        so_number: cleanSoNumber,
       },
     });
   } catch (err) {

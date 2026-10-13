@@ -16,6 +16,8 @@ router.post('/generate', authenticateToken, async (req, res) => {
       batchNumber,
       targetBatchSize,
       targetBatchUom,
+      soNumber,
+      so_number,
     } = req.body;
 
     const userName = req.user
@@ -32,6 +34,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
       batchNumber,
       targetBatchSize,
       targetBatchUom,
+      soNumber: (soNumber || so_number || '').trim(),
       userId,
       userName,
     });

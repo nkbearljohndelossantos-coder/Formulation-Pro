@@ -93,8 +93,9 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   const [targetBatchQty, setTargetBatchQty] = useState('50.00');
   const [targetUom, setTargetUom] = useState('kg');
   const [bottleSize, setBottleSize] = useState('75');
-  const [processLossPct, setProcessLossPct] = useState('0.50');
+  const [processLossPct, setProcessLossPct] = useState('0.00');
   const [brandName, setBrandName] = useState('');
+  const [soNumber, setSoNumber] = useState('');
 
   // Bottle quantity calculation (e.g. 108,000 ÷ 75 ml = 1,440 bottles)
   const rawBatchQty = parseFloat(String(targetBatchQty).replace(/,/g, '')) || 0;
@@ -402,12 +403,13 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         formula_code: preset.code,
         formula_name: preset.name,
         brand_name: brandName.trim(),
+        so_number: soNumber.trim(),
         bottle_size: bSize,
         bottle_qty: computedBottleQty,
         version: '1.0',
         target_batch_qty: targetQty.toFixed(2),
         target_uom: targetUom,
-        process_loss_pct: lossPct.toFixed(2),
+        process_loss_pct: '0.00',
         total_batch_cost: totalBatchCost.toFixed(2),
         items,
         categoryDetails: {
@@ -432,7 +434,9 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           versionId: selectedVersionId,
           targetBatchQty,
           targetUom,
-          processLossPct,
+          processLossPct: '0.00',
+          soNumber: soNumber.trim(),
+          so_number: soNumber.trim(),
           sopTimestamps,
         }),
       });
@@ -446,6 +450,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         setBatchResult({
           ...d.data,
           brand_name: brandName.trim(),
+          so_number: soNumber.trim() || d.data.so_number || '',
           bottle_size: bSize,
           bottle_qty: computedBottleQty,
           sop_timestamps: d.data.sop_timestamps || sopTimestamps
@@ -515,12 +520,13 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           formula_code: formula.code || 'PRF-FORM',
           formula_name: formula.name || 'Perfume Formulation',
           brand_name: brandName.trim(),
+          so_number: soNumber.trim(),
           bottle_size: bSize,
           bottle_qty: computedBottleQty,
           version: `${version.major_version ?? 1}.${version.minor_version ?? 0}`,
           target_batch_qty: targetQty.toFixed(2),
           target_uom: targetUom,
-          process_loss_pct: lossPct.toFixed(2),
+          process_loss_pct: '0.00',
           total_batch_cost: totalBatchCost.toFixed(2),
           items,
           categoryDetails
@@ -549,12 +555,15 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       brandName: currentBrand,
       bottleSize: activeBottleSize,
       bottleQty: activeBottleQty,
+      soNumber: (soNumber || batchResult.so_number || '').trim(),
       sopTimestamps,
       version: {
         compounding_code: batchResult.compounding_code,
         formula_code: batchResult.formula_code,
         formula_name: cleanPerfumeFormulaName(batchResult.formula_name),
         brandName: currentBrand,
+        soNumber: (soNumber || batchResult.so_number || '').trim(),
+        so_number: (soNumber || batchResult.so_number || '').trim(),
         bottle_size: activeBottleSize,
         bottle_qty: activeBottleQty,
         bottleSize: activeBottleSize,
@@ -787,19 +796,36 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           </div>
 
           {/* Brand Name Input Field */}
-          <div className="lg:col-span-2 md:col-span-2">
+          <div className="lg:col-span-1 md:col-span-1">
             <label className="block text-slate-700 font-semibold mb-1.5 flex items-center justify-between">
-              <span>Brand Name / Tatak (Type to Add)</span>
-              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Perfume Only • Prints on Sheet
+              <span>Brand / Tatak</span>
+              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                Perfume Only
               </span>
             </label>
             <input
               type="text"
-              placeholder="e.g. MEOW KATY PERRY, Sauvage, Bvlgari, Chanel..."
+              placeholder="e.g. MEOW KATY PERRY..."
               value={brandName}
               onChange={e => setBrandName(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 shadow-xs"
+            />
+          </div>
+
+          {/* Sales Order # (SO Number) Field */}
+          <div className="lg:col-span-1 md:col-span-1">
+            <label className="block text-slate-700 font-semibold mb-1.5 flex items-center justify-between">
+              <span>SO Number (Sales Order #)</span>
+              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                Prints on Sheet
+              </span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. SO-2026-001"
+              value={soNumber}
+              onChange={e => setSoNumber(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 shadow-xs uppercase"
             />
           </div>
 
@@ -890,7 +916,7 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
           </div>
         </div>
 
-        {/* Process Loss Allowance & Quick Presets Row */}
+        {/* Quick Presets Row */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-slate-500 font-medium">Quick Target Batch Presets:</span>
@@ -912,18 +938,14 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-slate-600 font-semibold whitespace-nowrap">Process Loss Allowance (%):</label>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="10"
-              value={processLossPct}
-              onChange={e => setProcessLossPct(e.target.value)}
-              className="w-20 bg-white border border-slate-300 rounded-lg p-1.5 text-center font-mono font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
-            />
-          </div>
+          {soNumber && (
+            <div className="flex items-center gap-1.5 text-slate-600 font-medium font-mono text-[11px]">
+              <span className="text-slate-400">Assigned SO:</span>
+              <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase">
+                {soNumber}
+              </span>
+            </div>
+          )}
         </div>
 
         <button
@@ -1106,6 +1128,18 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                     <span className="font-bold text-slate-900">Compounding Number:</span>{' '}
                     <span className="font-mono font-extrabold text-emerald-700">
                       {batchResult.compounding_code || (batchResult.formula_code ? `CP-${batchResult.formula_code.replace(/[^0-9]/g, '')}` : 'CP-0001')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Batch Number:</span>{' '}
+                    <span className="font-mono font-extrabold text-slate-800">
+                      {batchResult.batch_number || (batchResult.compounding_code ? batchResult.compounding_code.replace('CP-', 'BAT-') : 'BAT-0001')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900">SO Number:</span>{' '}
+                    <span className="font-mono font-extrabold text-emerald-700 uppercase">
+                      {soNumber || batchResult.so_number || '—'}
                     </span>
                   </div>
                   <div>
