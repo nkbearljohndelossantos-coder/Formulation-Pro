@@ -5,6 +5,9 @@ import { express } from '../cjsRequire.js';
 import db from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { logAudit } from '../middleware/audit.js';
+import { PayableService, extractDateFromText, formatPayableItem } from '../services/PayableService.js';
+
+export { extractDateFromText, formatPayableItem };
 
 const router = express.Router();
 
@@ -224,13 +227,20 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
  */
 export async function authenticatePayablesAccess(req, res, next) {
   try {
-    const headerKey = req.headers['x-api-key'] || req.headers['x-nkb-api-key'] || req.headers['x-api-token'];
+    const headerKey = req.headers['x-api-key'] ||
+                      req.headers['x-nkb-api-key'] ||
+                      req.headers['x-api-token'] ||
+                      req.headers['apikey'] ||
+                      req.headers['api-key'] ||
+                      req.headers['x-token'] ||
+                      req.headers['token'];
     const authHeader = req.headers['authorization'];
     const bearerKey = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : null;
     const queryKey = req.query.api_key;
+    const webhookSecret = req.headers['x-webhook-secret'] || req.query.secret;
 
     // A JWT usually has two dots (xxx.yyy.zzz). If bearer is an API key without dots, consider it an API key.
-    const candidateApiKey = headerKey || (bearerKey && !bearerKey.includes('.') ? bearerKey : null) || queryKey;
+    const candidateApiKey = headerKey || (bearerKey && !bearerKey.includes('.') ? bearerKey : null) || queryKey || webhookSecret;
     const passedKey = candidateApiKey ? candidateApiKey.trim() : null;
 
     if (passedKey) {
@@ -294,7 +304,7 @@ export async function authenticatePayablesAccess(req, res, next) {
       if (!keyRecord) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid x-api-key provided. Authentication failed.'
+          message: 'Invalid API key or authentication token provided. Authentication failed.'
         });
       }
 
@@ -303,6 +313,33 @@ export async function authenticatePayablesAccess(req, res, next) {
           success: false,
           message: `API Key '${keyRecord.key_name}' is currently revoked or inactive.`
         });
+      }
+
+      // Scope validation
+      const scopes = (keyRecord.scopes || '').split(',').map(s => s.trim().toLowerCase());
+      const hasWildcard = scopes.includes('*');
+
+      if (req.method === 'POST') {
+        const isConfirm = req.path.includes('/confirm');
+        if (isConfirm && !hasWildcard && !scopes.includes('payables:confirm')) {
+          return res.status(403).json({
+            success: false,
+            message: `API Key '${keyRecord.key_name}' does not have 'payables:confirm' permission scope.`
+          });
+        }
+        if (!isConfirm && !hasWildcard && !scopes.includes('payables:create') && !scopes.includes('payables:confirm')) {
+          return res.status(403).json({
+            success: false,
+            message: `API Key '${keyRecord.key_name}' does not have 'payables:create' permission scope.`
+          });
+        }
+      } else if (req.method === 'GET') {
+        if (!hasWildcard && !scopes.includes('payables:read') && !scopes.includes('payables:create') && !scopes.includes('payables:confirm')) {
+          return res.status(403).json({
+            success: false,
+            message: `API Key '${keyRecord.key_name}' does not have 'payables:read' permission scope.`
+          });
+        }
       }
 
       // Asynchronously update last_used_at timestamp if existing in DB
@@ -325,285 +362,7 @@ export async function authenticatePayablesAccess(req, res, next) {
   }
 }
 
-/**
- * Extracts normalized YYYY-MM-DD date from text / description (e.g., '10/8/2026', 'OCTOBER 1, 2026', '2026-10-09')
- */
-export function extractDateFromText(text) {
-  if (!text || typeof text !== 'string') return null;
-  // 1. YYYY-MM-DD
-  const isoMatch = text.match(/\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
-  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
-  // 2. MM/DD/YYYY or M/D/YYYY
-  const slashMatch = text.match(/\b(0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])[-/.](20\d{2})\b/);
-  if (slashMatch) return `${slashMatch[3]}-${slashMatch[1].padStart(2, '0')}-${slashMatch[2].padStart(2, '0')}`;
-  // 3. Month Name DD, YYYY
-  const monthNames = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
-  const namedMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+([0-2]?\d|3[01])(?:st|nd|rd|th)?,?\s+(20\d{2})\b/i);
-  if (namedMatch) {
-    const m = monthNames[namedMatch[1].toLowerCase().slice(0, 3)] || '01';
-    return `${namedMatch[3]}-${m}-${namedMatch[2].padStart(2, '0')}`;
-  }
-  return null;
-}
 
-/**
- * Normalizes payable items from either my.nkbmanufacturing.com or pc.nkbmanufacturing.com
- */
-export function formatPayableItem(p, defaultSource = null) {
-  if (!p) return null;
-
-  const isPc = Boolean(
-    defaultSource === 'pc.nkbmanufacturing.com' ||
-    (p.source_portal && p.source_portal.includes('pc.')) ||
-    (p.source_system && p.source_system.includes('pc.')) ||
-    (p.company && p.company.toLowerCase().includes('petty')) ||
-    (p.company_name && p.company_name.toLowerCase().includes('petty')) ||
-    (p.company_code && p.company_code.includes('PC')) ||
-    (p.req_cheque_no && (p.req_cheque_no.startsWith('PC-') || p.req_cheque_no.startsWith('PETTY-'))) ||
-    (p.payable_number && (p.payable_number.startsWith('PC-') || p.payable_number.startsWith('PETTY-'))) ||
-    (p.comments && p.comments.includes('pc.nkbmanufacturing.com')) ||
-    (p.requested_by_name && p.requested_by_name.includes('pc.nkbmanufacturing.com'))
-  );
-
-  const sourcePortal = isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com';
-  const defaultCompany = isPc ? 'NKB Petty Cash (pc.nkbmanufacturing.com)' : 'NKB Manufacturing Corporation';
-  const defaultCompanyCode = isPc ? 'NKB-PC' : 'NKB';
-
-  const reqNo = p.request_number || p.req_cheque_no || p.cheque_number || p.payable_number || p.req_number || p.control_number || (isPc ? `PC-${p.id}` : `PB-${p.id}`);
-  const dateVal = p.cheque_date || p.date || p.date_created || p.invoice_date || new Date().toISOString().slice(0, 10);
-  const payeeVal = p.payee_name || p.payee_beneficiary || p.payee || p.beneficiary || p.vendor || p.company_name || p.company || (isPc ? 'Petty Cash Custodian' : 'NKB Entity');
-  const categoryVal = p.category || p.payable_category || (p.items && p.items[0]?.expense_category) || (isPc ? 'Petty Cash Replenishment' : 'Accrued expenses');
-  const bankVal = p.bank_name || p.bank_account || p.bank || (String(payeeVal).includes('BDO') ? 'BDO: NKB Manufacturing Corporation' : 'BDO - 0080-5801-0547');
-  const purposeVal = p.purpose || p.purpose_usage || p.usage || p.description || (p.items && p.items[0]?.description) || (isPc ? 'Petty Cash Disbursement' : 'Disbursement');
-  const amountVal = parseFloat(p.amount || p.total || p.amount_due || 0);
-
-  // Attachments: normalize to secure HTTPS and absolute portal URL
-  let attachmentVal = p.attachment_url || p.attachment || (p.files && p.files.length ? p.files[0] : null);
-  if (attachmentVal && typeof attachmentVal === 'string') {
-    if (attachmentVal.startsWith('http://')) {
-      attachmentVal = attachmentVal.replace('http://', 'https://');
-    } else if (attachmentVal.startsWith('/')) {
-      attachmentVal = `https://${sourcePortal}${attachmentVal}`;
-    } else if (!attachmentVal.startsWith('https://') && !attachmentVal.startsWith('data:')) {
-      attachmentVal = `https://${sourcePortal}/${attachmentVal.replace(/^\/+/, '')}`;
-    }
-  }
-
-  let filesList = [];
-  if (Array.isArray(p.files) && p.files.length > 0) {
-    filesList = p.files.map(f => {
-      if (typeof f !== 'string') return f;
-      if (f.startsWith('http://')) return f.replace('http://', 'https://');
-      if (f.startsWith('/')) return `https://${sourcePortal}${f}`;
-      if (!f.startsWith('https://')) return `https://${sourcePortal}/${f.replace(/^\/+/, '')}`;
-      return f;
-    });
-  } else if (attachmentVal) {
-    filesList = [attachmentVal];
-  }
-
-  const approvalVal = p.status || p.coo_approval || 'PENDING_COO_APPROVAL';
-
-  // Parse line_items if passed as JSON string
-  let itemsList = [];
-  if (Array.isArray(p.items)) {
-    itemsList = p.items;
-  } else if (typeof p.line_items === 'string') {
-    try {
-      itemsList = JSON.parse(p.line_items);
-    } catch (_) {}
-  } else if (Array.isArray(p.line_items)) {
-    itemsList = p.line_items;
-  }
-
-  if (itemsList.length === 0) {
-    itemsList = [
-      {
-        description: purposeVal,
-        expense_category: categoryVal,
-        quantity: 1.00,
-        cost: amountVal,
-        subtotal: amountVal,
-        inclusive: false,
-        vat: 0.00,
-        vat_zero_rated: 0.00,
-        non_vat: 0.00,
-        withheld: 0.00,
-        total: amountVal
-      }
-    ];
-  }
-
-  // Extract Date Cheque Issued from Description, Purpose, Comments, Remarks, or Line Items
-  let extractedChequeDate = extractDateFromText(p.description) ||
-    extractDateFromText(p.purpose_usage) ||
-    extractDateFromText(p.purpose) ||
-    extractDateFromText(p.comments) ||
-    extractDateFromText(p.remarks);
-
-  // Tag line items with individual extracted dates if present
-  for (const itm of itemsList) {
-    const lineDate = extractDateFromText(itm.description);
-    if (lineDate) {
-      itm.date = lineDate;
-      itm.date_cheque_issued = lineDate;
-      if (!extractedChequeDate) extractedChequeDate = lineDate;
-    }
-  }
-
-  // Prioritize date found in Description, falling back to cheque_date or date
-  const dateChequeIssued = extractedChequeDate || p.date_cheque_issued || p.cheque_date || p.check_date || p.cheque_issued_date || (p.cheque_number ? dateVal : '') || dateVal;
-  const datePrepared = p.date_prepared || p.prepared_date || p.date_created || p.created_at || dateVal;
-
-  return {
-    ...p,
-    id: p.id,
-    source_portal: sourcePortal,
-    source_system: p.source_system || (isPc ? 'https://pc.nkbmanufacturing.com/' : 'https://my.nkbmanufacturing.com/'),
-    source_badge: isPc ? 'pc.nkb' : 'my.nkb',
-    payable_number: reqNo,
-    req_cheque_no: reqNo,
-    company: p.company_name || p.company || defaultCompany,
-    company_code: p.company_code || defaultCompanyCode,
-    invoice_number: p.invoice_number || p.invoice_reference || '',
-    invoice_date: p.invoice_date || dateVal,
-    date: dateVal,
-    date_created: p.created_at || dateVal,
-    date_cheque_issued: dateChequeIssued,
-    date_cheque_issued_from_desc: extractedChequeDate || null,
-    date_prepared: datePrepared,
-    cheque_date: dateChequeIssued,
-    prepared_date: datePrepared,
-    cheque_number: p.cheque_number || p.check_number || p.check_no || '',
-    prepared_by: p.prepared_by || p.requested_by_name || p.requestor_name || p.created_by || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com'),
-    due_date: p.due_date || dateVal,
-    control_number: p.control_number || '',
-    payee_beneficiary: payeeVal,
-    vendor: payeeVal,
-    category: categoryVal,
-    bank_account: bankVal,
-    purpose_usage: purposeVal,
-    description: purposeVal,
-    amount: amountVal,
-    total: amountVal,
-    amount_due: amountVal,
-    subtotal: amountVal,
-    vat: 0.00,
-    vat_zero_rated: 0.00,
-    non_vat: 0.00,
-    withheld: 0.00,
-    attachment: attachmentVal,
-    attachment_url: attachmentVal,
-    files: filesList,
-    status: approvalVal,
-    coo_approval: approvalVal,
-    created_by: p.requested_by_name || p.requestor_name || p.created_by || (isPc ? 'pc.nkbmanufacturing.com (Petty Cash)' : 'my.nkbmanufacturing.com'),
-    term: p.terms || p.term || 'Net 30',
-    comments: p.comments || p.coo_notes || '',
-    items: itemsList
-  };
-}
-
-// In-memory local cache / tracking with rich multi-item records for nested view
-let localPayableRecords = [
-  {
-    id: 901,
-    req_cheque_no: 'REQ-2026-0891',
-    payable_number: 'REQ-2026-0891',
-    cheque_number: 'CHK-881920',
-    date_prepared: '2026-10-01',
-    date_cheque_issued: '2026-10-04',
-    date: '2026-10-01',
-    payee_beneficiary: 'Brenntag Ingredients Philippines Inc.',
-    company: 'NKB Manufacturing Corporation',
-    category: 'Raw Materials & Fragrance Oils',
-    bank_account: 'BDO - 0080-5801-0547',
-    purpose_usage: 'Q4 Compounding Aroma Raw Materials Supply (Fragrance Concentrate + Ethanol 96%)',
-    amount: 145850.00,
-    total: 145850.00,
-    amount_due: 145850.00,
-    status: 'Approved',
-    coo_approval: 'CONFIRMED',
-    source_portal: 'my.nkbmanufacturing.com',
-    source_badge: 'my.nkb',
-    control_number: 'CTRL-NKB-2026-0189',
-    invoice_number: 'INV-BRN-7892',
-    prepared_by: 'Sharmaine Santos',
-    items: [
-      {
-        description: 'Perfume Grade Pure Denatured Ethyl Alcohol 96% (200L Drum)',
-        expense_category: 'Direct Materials',
-        quantity: 5,
-        cost: 12500.00,
-        subtotal: 62500.00,
-        vat: 0.00,
-        total: 62500.00
-      },
-      {
-        description: 'French Lavender Essential Oil High Grade (25kg Pail)',
-        expense_category: 'Fragrance Concentrate',
-        quantity: 2,
-        cost: 24500.00,
-        subtotal: 49000.00,
-        vat: 0.00,
-        total: 49000.00
-      },
-      {
-        description: 'Iso E Super Fixative & Modifier (10kg Container)',
-        expense_category: 'Chemical Additives',
-        quantity: 1,
-        cost: 34350.00,
-        subtotal: 34350.00,
-        vat: 0.00,
-        total: 34350.00
-      }
-    ]
-  },
-  {
-    id: 903,
-    req_cheque_no: 'REQ-2026-0895',
-    payable_number: 'REQ-2026-0895',
-    cheque_number: 'CHK-881930',
-    date_prepared: '2026-10-04',
-    date_cheque_issued: '2026-10-06',
-    date: '2026-10-04',
-    payee_beneficiary: 'San Miguel Yamamura Packaging Corp.',
-    company: 'NKB Manufacturing Corporation',
-    category: 'Packaging Materials',
-    bank_account: 'Metrobank - 0291-8841-22',
-    purpose_usage: '50ml Amber Glass Perfume Bottles with Black Mist Sprayers (Batch #B2026-09)',
-    amount: 86500.00,
-    total: 86500.00,
-    amount_due: 86500.00,
-    status: 'Pending',
-    coo_approval: 'PENDING_COO_APPROVAL',
-    source_portal: 'my.nkbmanufacturing.com',
-    source_badge: 'my.nkb',
-    control_number: 'CTRL-NKB-2026-0195',
-    invoice_number: 'INV-SMY-44819',
-    prepared_by: 'Jessica Tan',
-    items: [
-      {
-        description: '50ml Amber Glass Perfume Bottles Crimp Neck FEA15',
-        expense_category: 'Primary Packaging',
-        quantity: 5000,
-        cost: 12.50,
-        subtotal: 62500.00,
-        vat: 0.00,
-        total: 62500.00
-      },
-      {
-        description: 'Fine Mist Black Aluminum Actuator Sprayers 18/415 with Dip Tube',
-        expense_category: 'Closure Components',
-        quantity: 5000,
-        cost: 4.80,
-        subtotal: 24000.00,
-        vat: 0.00,
-        total: 24000.00
-      }
-    ]
-  }
-];
 
 /**
  * GET /api/v1/payables/attachment-proxy
@@ -972,316 +731,114 @@ router.delete('/api-keys/:id', authenticateToken, async (req, res) => {
  */
 router.get('/', authenticatePayablesAccess, async (req, res) => {
   try {
-    const {
-      status,
-      category,
-      bank,
-      date_from,
-      date_to,
-      search,
-      portal,
-      date_cheque_from,
-      date_cheque_to,
-      date_prepared_from,
-      date_prepared_to
-    } = req.query;
-
-    const queryParams = new URLSearchParams();
-    if (status && status !== 'ALL') queryParams.set('status', status);
-    if (category) queryParams.set('category', category);
-    if (bank) queryParams.set('bank', bank);
-    if (date_from) queryParams.set('date_from', date_from);
-    if (date_to) queryParams.set('date_to', date_to);
-
-    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-
-    let pulledItems = [];
-    let remoteSuccess = false;
-
-    // 1. Try pulling from my.nkbmanufacturing.com
-    try {
-      const myKey = await getActivePortalKey('my');
-      const myRes = await nkbApiRequest('GET', `/payables${queryString}`, myKey, null, 'my.nkbmanufacturing.com');
-      if (myRes.ok && myRes.data) {
-        const rawItems = Array.isArray(myRes.data) ? myRes.data : (myRes.data.data || myRes.data.payables || []);
-        pulledItems.push(...rawItems.map(it => formatPayableItem(it, 'my.nkbmanufacturing.com')));
-        remoteSuccess = true;
-      }
-    } catch (_) {}
-
-    // 2. Try pulling from pc.nkbmanufacturing.com
-    try {
-      const pcKey = await getActivePortalKey('pc');
-      const pcRes = await nkbApiRequest('GET', `/payables${queryString}`, pcKey, null, 'pc.nkbmanufacturing.com');
-      if (pcRes.ok && pcRes.data) {
-        const rawItems = Array.isArray(pcRes.data) ? pcRes.data : (pcRes.data.data || pcRes.data.payables || []);
-        pulledItems.push(...rawItems.map(it => formatPayableItem(it, 'pc.nkbmanufacturing.com')));
-        remoteSuccess = true;
-      }
-    } catch (_) {}
-
-    if (remoteSuccess && pulledItems.length > 0) {
-      for (const item of pulledItems) {
-        const existsIdx = localPayableRecords.findIndex(p =>
-          String(p.id) === String(item.id) ||
-          String(p.req_cheque_no) === String(item.req_cheque_no)
-        );
-        if (existsIdx !== -1) {
-          localPayableRecords[existsIdx] = { ...localPayableRecords[existsIdx], ...item };
-        } else {
-          localPayableRecords.push(item);
+    // 1. Optional on-demand sync from external portals if sync=true
+    if (req.query.sync === 'true') {
+      try {
+        const myKey = await getActivePortalKey('my');
+        const myRes = await nkbApiRequest('GET', '/payables', myKey, null, 'my.nkbmanufacturing.com');
+        if (myRes.ok && myRes.data) {
+          const rawItems = Array.isArray(myRes.data) ? myRes.data : (myRes.data.data || myRes.data.payables || []);
+          for (const itm of rawItems) {
+            await PayableService.createPayable(itm).catch(() => {});
+          }
         }
-      }
+      } catch (_) {}
+
+      try {
+        const pcKey = await getActivePortalKey('pc');
+        const pcRes = await nkbApiRequest('GET', '/payables', pcKey, null, 'pc.nkbmanufacturing.com');
+        if (pcRes.ok && pcRes.data) {
+          const rawItems = Array.isArray(pcRes.data) ? pcRes.data : (pcRes.data.data || pcRes.data.payables || []);
+          for (const itm of rawItems) {
+            await PayableService.createPayable(itm).catch(() => {});
+          }
+        }
+      } catch (_) {}
     }
 
-    let records = localPayableRecords.map(it => formatPayableItem(it));
+    // 2. Fetch persistent records from SQL Database
+    let records = await PayableService.getPayables(req.query);
 
-    // Filter by Portal if selected
-    if (portal && portal !== 'ALL') {
-      records = records.filter(p => p.source_portal === portal || p.source_portal?.includes(portal));
-    }
-
-    // Filter by status
-    if (status && status !== 'ALL') {
-      const s = status.toUpperCase();
-      records = records.filter(p =>
-        (p.coo_approval || '').toUpperCase().includes(s) ||
-        (p.status || '').toUpperCase().includes(s)
-      );
-    }
-
-    // Filter by Date Cheque Issued (checks date_cheque_issued, dates in description, or line items)
-    if (date_cheque_from) {
-      records = records.filter(p => {
-        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
-        const lineMatch = (p.items || []).some(itm => {
-          const idate = (itm.date_cheque_issued || itm.date || '').slice(0, 10);
-          return idate && idate >= date_cheque_from;
-        });
-        return (d && d >= date_cheque_from) || lineMatch;
-      });
-    }
-    if (date_cheque_to) {
-      records = records.filter(p => {
-        const d = (p.date_cheque_issued || p.cheque_date || p.date || '').slice(0, 10);
-        const lineMatch = (p.items || []).some(itm => {
-          const idate = (itm.date_cheque_issued || itm.date || '').slice(0, 10);
-          return idate && idate <= date_cheque_to;
-        });
-        return (d && d <= date_cheque_to) || lineMatch;
-      });
-    }
-
-    // Filter by Date Prepared
-    if (date_prepared_from) {
-      records = records.filter(p => (p.date_prepared || p.date_created || p.date || '').slice(0, 10) >= date_prepared_from);
-    }
-    if (date_prepared_to) {
-      records = records.filter(p => (p.date_prepared || p.date_created || p.date || '').slice(0, 10) <= date_prepared_to);
-    }
-
-    // Filter by search
-    if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      records = records.filter(p =>
-        (p.req_cheque_no || '').toLowerCase().includes(q) ||
-        (p.payable_number || '').toLowerCase().includes(q) ||
-        (p.cheque_number || '').toLowerCase().includes(q) ||
-        (p.payee_beneficiary || '').toLowerCase().includes(q) ||
-        (p.company || '').toLowerCase().includes(q) ||
-        (p.category || '').toLowerCase().includes(q) ||
-        (p.bank_account || '').toLowerCase().includes(q) ||
-        (p.purpose_usage || '').toLowerCase().includes(q) ||
-        (p.control_number || '').toLowerCase().includes(q) ||
-        (p.invoice_number || '').toLowerCase().includes(q) ||
-        (p.source_portal || '').toLowerCase().includes(q)
-      );
-    }
-
-    // Exclude test samples sent from or tagged with pc.nkb
+    // 3. Exclude legacy purged test samples if matching exact legacy IDs
     records = records.filter(p => {
-      const isPc = p.source_portal?.includes('pc.nkb') || p.source_system?.includes('pc.nkb') || String(p.req_cheque_no).startsWith('PC-');
-      const isTestSample =
+      const isLegacySample =
         p.id === 902 ||
         p.req_cheque_no === 'PC-2026-0412' ||
-        p.control_number === 'CTRL-PC-2026-0044' ||
-        (isPc && (
-          String(p.purpose_usage || '').toLowerCase().includes('test') ||
-          String(p.description || '').toLowerCase().includes('test') ||
-          String(p.comments || '').toLowerCase().includes('test') ||
-          String(p.payee_beneficiary || '').toLowerCase().includes('test') ||
-          String(p.payee_beneficiary || '').toLowerCase().includes('custodian - plant operations')
-        ));
-      return !isTestSample;
+        p.control_number === 'CTRL-PC-2026-0044';
+      return !isLegacySample;
     });
 
-    // Sort newest first
-    records.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    const activeMyKey = await getActivePortalKey('my');
+    const activePcKey = await getActivePortalKey('pc');
 
     return res.json({
       success: true,
-      source: remoteSuccess ? 'REMOTE_MERGED' : 'LOCAL_DATASET',
+      source: 'DATABASE_QUEUE',
       data: records,
       totalCount: records.length,
       portalsActive: {
-        my: MY_NKB_API_KEY.slice(0, 10) + '...',
-        pc: PC_NKB_API_KEY.slice(0, 10) + '...'
+        my: activeMyKey ? activeMyKey.slice(0, 10) + '...' : '',
+        pc: activePcKey ? activePcKey.slice(0, 10) + '...' : ''
       }
     });
   } catch (err) {
+    console.error('Error fetching payables from database:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
 
 /**
  * POST /api/v1/payables
- * Allows BOTH my.nkbmanufacturing.com and pc.nkbmanufacturing.com (and custom webapps)
- * to submit a new payable request into the COO queue.
+ * Allows external websites, portals, and authorized systems to submit payable requests into the COO approval queue.
+ * Persists durably into the database with idempotency and returns 201 Created (or 200 for duplicate retries).
  */
 router.post('/', authenticatePayablesAccess, async (req, res) => {
   try {
-    const body = req.body || {};
-    const payeeName = (body.payee_name || body.payee_beneficiary || body.payee || body.vendor || '').trim();
-    const amount = parseFloat(body.amount || body.total || body.amount_due || 0);
-
-    if (!payeeName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payee / Beneficiary name (payee_name or payee_beneficiary) is required.'
-      });
-    }
-
-    if (isNaN(amount) || amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'A valid amount (amount or total) greater than 0 is required.'
-      });
-    }
-
-    // Determine whether request came from pc.nkbmanufacturing.com or my.nkbmanufacturing.com
-    const sourcePortal = req.sourcePortal || (body.company?.toLowerCase().includes('petty') ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
-    const isPc = sourcePortal === 'pc.nkbmanufacturing.com';
-
-    // Generate unique request tracking number if not supplied
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const defaultPrefix = isPc ? 'PC' : 'REQ';
-    const requestNumber = (body.request_number || body.req_cheque_no || `${defaultPrefix}-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}${randomSuffix}`).trim();
-
-    const category = body.category || body.payable_category || (isPc ? 'Petty Cash Replenishment' : 'Operational Expense');
-    const bankName = body.bank_name || body.bank_account || 'BDO - 0080-5801-0547';
-    const purpose = body.purpose || body.purpose_usage || body.description || (isPc ? 'Petty Cash Disbursement Request' : 'Payable Disbursement Request');
-    const invoiceNo = body.invoice_number || body.invoice_reference || '';
-    const dueDate = body.due_date || body.date || new Date().toISOString().slice(0, 10);
-    const requestedBy = req.apiKeyRecord
-      ? `${req.apiKeyRecord.key_name} (${req.apiKeyRecord.client_app})`
-      : (req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() : (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com'));
-
-    // Build line items
-    let lineItems = body.line_items || body.items || [];
-    if (!Array.isArray(lineItems) || lineItems.length === 0) {
-      lineItems = [
-        {
-          description: purpose,
-          expense_category: category,
-          quantity: 1,
-          cost: amount,
-          subtotal: amount,
-          total: amount
-        }
-      ];
-    }
-
-    const newPayableRecord = {
-      id: body.id || `PB-${Date.now()}`,
-      source_portal: sourcePortal,
-      source_system: isPc ? 'https://pc.nkbmanufacturing.com/' : 'https://my.nkbmanufacturing.com/',
-      request_number: requestNumber,
-      req_cheque_no: requestNumber,
-      payable_number: requestNumber,
-      company_name: body.company_name || body.company || (isPc ? 'NKB Petty Cash (pc.nkbmanufacturing.com)' : 'NKB Manufacturing Corporation'),
-      company_code: body.company_code || (isPc ? 'NKB-PC' : 'NKB'),
-      payee_name: payeeName,
-      payee_beneficiary: payeeName,
-      category: category,
-      bank_name: bankName,
-      bank_account: bankName,
-      purpose: purpose,
-      purpose_usage: purpose,
-      description: purpose,
-      amount: amount,
-      total: amount,
-      invoice_number: invoiceNo,
-      date: dueDate,
-      cheque_date: dueDate,
-      due_date: dueDate,
-      status: 'PENDING_COO_APPROVAL',
-      coo_approval: 'PENDING_COO_APPROVAL',
-      requested_by_name: requestedBy,
-      created_by: requestedBy,
-      attachment_url: body.attachment_url || body.attachment || null,
-      comments: body.comments || body.notes || `Submitted via API by ${sourcePortal}`,
-      line_items: lineItems,
-      items: lineItems,
-      created_at: new Date().toISOString()
-    };
-
-    // Forward upstream to the corresponding portal
-    let upstreamSynced = false;
-    let upstreamResult = null;
-    const targetKey = isPc ? (await getActivePortalKey('pc')) : (await getActivePortalKey('my'));
-    try {
-      const upstreamRes = await nkbApiRequest('POST', '/payables', targetKey, newPayableRecord, sourcePortal);
-      if (upstreamRes.ok && upstreamRes.data) {
-        upstreamSynced = true;
-        upstreamResult = upstreamRes.data;
-        if (upstreamResult.id) newPayableRecord.id = upstreamResult.id;
-      }
-    } catch (upstreamErr) {
-      console.warn(`Upstream sync note (${sourcePortal}):`, upstreamErr.message);
-    }
-
-    const formatted = formatPayableItem(newPayableRecord, sourcePortal);
-    localPayableRecords.unshift(formatted);
+    const result = await PayableService.createPayable(req.body, req);
 
     if (req.user) {
       await logAudit(
         req,
         'CREATE_PAYABLE_REQUEST',
         'payables',
-        formatted.id,
+        result.record.id,
         null,
-        formatted
+        result.record
       ).catch(() => {});
     }
 
-    return res.status(201).json({
+    const statusCode = result.isDuplicate ? 200 : 201;
+    return res.status(statusCode).json({
       success: true,
-      message: `Payable request from ${sourcePortal} successfully submitted for COO approval.`,
-      source_portal: sourcePortal,
-      upstream_synced: upstreamSynced,
-      data: formatted
+      message: result.message,
+      is_duplicate: result.isDuplicate,
+      source_portal: result.record.source_portal,
+      data: result.record
     });
   } catch (err) {
     console.error('Error creating payable request:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    const isValidationError = err.message.includes('required') || err.message.includes('valid payable amount');
+    return res.status(isValidationError ? 400 : 500).json({
+      success: false,
+      message: err.message
+    });
   }
 });
 
 /**
  * DELETE /api/v1/payables/:id
- * Remove / purge a payable record (e.g. test samples or custom tests)
+ * Remove / purge a payable record from the database
  */
 router.delete('/:id', authenticatePayablesAccess, async (req, res) => {
   try {
     const { id } = req.params;
-    localPayableRecords = localPayableRecords.filter(p =>
-      String(p.id) !== String(id) &&
-      String(p.req_cheque_no) !== String(id) &&
-      String(p.payable_number) !== String(id)
-    );
+    const deleted = await PayableService.deletePayable(id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: `Payable ${id} not found.` });
+    }
     return res.json({
       success: true,
-      message: `Payable ${id} removed successfully.`
+      message: `Payable ${id} removed successfully from database.`
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -1295,44 +852,42 @@ router.delete('/:id', authenticatePayablesAccess, async (req, res) => {
 router.get('/:id', authenticatePayablesAccess, async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Check local cache first
-    const found = localPayableRecords.find(p =>
-      String(p.id) === String(id) ||
-      String(p.payable_number) === String(id) ||
-      String(p.req_cheque_no) === String(id)
-    );
+    const found = await PayableService.getPayableById(id);
 
     if (found) {
       return res.json({
         success: true,
-        source: 'CACHE',
-        data: formatPayableItem(found)
+        source: 'DATABASE',
+        data: found
       });
     }
 
-    // Try my.nkb
+    // Try my.nkb remote fallback if not found in database
     try {
-      const myRes = await nkbApiRequest('GET', `/payables/${id}`, MY_NKB_API_KEY, null, 'my.nkbmanufacturing.com');
+      const myKey = await getActivePortalKey('my');
+      const myRes = await nkbApiRequest('GET', `/payables/${id}`, myKey, null, 'my.nkbmanufacturing.com');
       if (myRes.ok && myRes.data) {
         const item = myRes.data.data || myRes.data;
+        const resObj = await PayableService.createPayable(item).catch(() => null);
         return res.json({
           success: true,
           source: 'REMOTE_API',
-          data: formatPayableItem(item, 'my.nkbmanufacturing.com')
+          data: resObj?.record || formatPayableItem(item, 'my.nkbmanufacturing.com')
         });
       }
     } catch (_) {}
 
-    // Try pc.nkb
+    // Try pc.nkb remote fallback if not found in database
     try {
-      const pcRes = await nkbApiRequest('GET', `/payables/${id}`, PC_NKB_API_KEY, null, 'pc.nkbmanufacturing.com');
+      const pcKey = await getActivePortalKey('pc');
+      const pcRes = await nkbApiRequest('GET', `/payables/${id}`, pcKey, null, 'pc.nkbmanufacturing.com');
       if (pcRes.ok && pcRes.data) {
         const item = pcRes.data.data || pcRes.data;
+        const resObj = await PayableService.createPayable(item).catch(() => null);
         return res.json({
           success: true,
           source: 'REMOTE_API',
-          data: formatPayableItem(item, 'pc.nkbmanufacturing.com')
+          data: resObj?.record || formatPayableItem(item, 'pc.nkbmanufacturing.com')
         });
       }
     } catch (_) {}
@@ -1345,7 +900,7 @@ router.get('/:id', authenticatePayablesAccess, async (req, res) => {
 
 /**
  * POST /api/v1/payables/:id/confirm
- * Approves or Rejects a payable and notifies the corresponding portal
+ * Approves or Rejects a payable in the database and notifies the corresponding external portal
  */
 router.post('/:id/confirm', authenticateToken, async (req, res) => {
   try {
@@ -1369,10 +924,18 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
 
     const approverName = confirmed_by || (req.user ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() : 'COO');
 
-    const targetIdx = localPayableRecords.findIndex(p => String(p.id) === String(id) || String(p.req_cheque_no) === String(id));
-    const targetItem = targetIdx !== -1 ? localPayableRecords[targetIdx] : null;
+    const updated = await PayableService.confirmPayable(id, {
+      decision,
+      cheque_number: checkNo,
+      notes,
+      confirmed_by: approverName
+    });
 
-    const isPc = Boolean(targetItem && (targetItem.source_portal === 'pc.nkbmanufacturing.com' || targetItem.company_code === 'NKB-PC'));
+    if (!updated) {
+      return res.status(404).json({ success: false, message: `Payable ${id} not found in database.` });
+    }
+
+    const isPc = Boolean(updated.source_portal?.includes('pc.') || updated.company_code === 'NKB-PC');
     const targetPortal = isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com';
     const targetApiKey = isPc ? (await getActivePortalKey('pc')) : (await getActivePortalKey('my'));
 
@@ -1395,24 +958,12 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
       console.warn(`Notice: Remote approval API call to ${targetPortal} failed:`, apiErr.message);
     }
 
-    // Update local cache record
-    if (targetIdx !== -1) {
-      localPayableRecords[targetIdx] = {
-        ...localPayableRecords[targetIdx],
-        status: decision,
-        coo_approval: decision,
-        cheque_number: checkNo,
-        checked_by: approverName,
-        comments: `${localPayableRecords[targetIdx].comments || ''}\n[${new Date().toLocaleString()}] ${decision} by ${approverName}. Check #: ${checkNo}. Notes: ${notes || 'None'}`.trim()
-      };
-    }
-
     // Log to audit trail
     await logAudit(
       req,
       'PAYABLE_APPROVAL',
       'payables',
-      id,
+      updated.id,
       { decision, cheque_number: checkNo, approver: approverName, portal: targetPortal, remoteSuccess },
       { status: decision }
     ).catch(() => {});
@@ -1424,7 +975,8 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
       portal: targetPortal,
       remoteSuccess,
       remoteResponse,
-      message: `Payable ${id} (${targetPortal}) successfully ${decision === 'CONFIRMED' ? 'APPROVED' : 'REJECTED'}${checkNo ? ` with Check #${checkNo}` : ''}.`
+      data: updated,
+      message: `Payable ${updated.payable_number || id} (${targetPortal}) successfully ${decision === 'CONFIRMED' ? 'APPROVED' : 'REJECTED'}${checkNo ? ` with Check #${checkNo}` : ''}.`
     });
   } catch (err) {
     console.error('Error confirming payable:', err);
@@ -1434,44 +986,46 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/v1/payables/webhook
- * Receives incoming payable approval requests directly from my.nkbmanufacturing.com OR pc.nkbmanufacturing.com
+ * Receives incoming payable approval requests directly from external websites, my.nkbmanufacturing.com, or pc.nkbmanufacturing.com
+ * Persists each item transactionally into the SQL database
  */
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', authenticatePayablesAccess, async (req, res) => {
   try {
     const rawData = req.body;
     if (!rawData) {
-      return res.status(400).json({ success: false, message: 'Payload is required' });
+      return res.status(400).json({ success: false, message: 'Payload is required.' });
     }
 
-    const headerKey = req.headers['x-api-key'] || req.headers['x-nkb-api-key'];
-    const isPc = headerKey === PC_NKB_API_KEY || (rawData.source_portal && rawData.source_portal.includes('pc.'));
-    const sourcePortal = isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com';
+    const items = Array.isArray(rawData)
+      ? rawData
+      : (Array.isArray(rawData.data) ? rawData.data : (Array.isArray(rawData.payables) ? rawData.payables : [rawData]));
 
-    const items = Array.isArray(rawData) ? rawData : (rawData.data || [rawData]);
-    let count = 0;
+    const results = [];
+    let createdCount = 0;
+    let duplicateCount = 0;
 
     for (const raw of items) {
-      const formatted = formatPayableItem(raw, sourcePortal);
-      const idx = localPayableRecords.findIndex(p =>
-        String(p.id) === String(formatted.id) ||
-        String(p.req_cheque_no) === String(formatted.req_cheque_no)
-      );
-
-      if (idx !== -1) {
-        localPayableRecords[idx] = { ...localPayableRecords[idx], ...formatted };
-      } else {
-        localPayableRecords.unshift(formatted);
-        count++;
+      try {
+        const resObj = await PayableService.createPayable(raw, req);
+        if (resObj.isDuplicate) duplicateCount++;
+        else createdCount++;
+        results.push(resObj.record);
+      } catch (itemErr) {
+        console.warn('Webhook item skipped due to error:', itemErr.message);
       }
     }
 
-    return res.json({
+    const statusCode = createdCount > 0 ? 201 : 200;
+    return res.status(statusCode).json({
       success: true,
-      message: `Received ${count} new approval request(s) via Webhook from ${sourcePortal}.`,
-      source_portal: sourcePortal,
-      totalActive: localPayableRecords.length
+      message: `Processed ${items.length} payable request(s): ${createdCount} created in database, ${duplicateCount} existing/duplicates recognized.`,
+      createdCount,
+      duplicateCount,
+      totalActive: (await PayableService.getPayables()).length,
+      data: results
     });
   } catch (err) {
+    console.error('Error in payables webhook:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

@@ -608,19 +608,11 @@ export function PayableApprovalsPage() {
   // Search, portal, status, and date filters
   const filteredPayables = useMemo(() => {
     let list = payables.filter(p => {
-      const isPc = (p.source_portal || '').includes('pc.nkb') || (p.source_system || '').includes('pc.nkb') || String(p.req_cheque_no || '').startsWith('PC-');
-      const isTestSample =
+      const isLegacySample =
         p.id === 902 ||
         p.req_cheque_no === 'PC-2026-0412' ||
-        p.control_number === 'CTRL-PC-2026-0044' ||
-        (isPc && (
-          String(p.purpose_usage || '').toLowerCase().includes('test') ||
-          String(p.description || '').toLowerCase().includes('test') ||
-          String(p.comments || '').toLowerCase().includes('test') ||
-          String(p.payee_beneficiary || '').toLowerCase().includes('test') ||
-          String(p.payee_beneficiary || '').toLowerCase().includes('custodian - plant operations')
-        ));
-      return !isTestSample;
+        p.control_number === 'CTRL-PC-2026-0044';
+      return !isLegacySample;
     });
     if (portalFilter !== 'ALL') {
       list = list.filter(p => (p.source_portal || '').toLowerCase().includes(portalFilter.toLowerCase()));

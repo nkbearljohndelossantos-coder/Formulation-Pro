@@ -29,6 +29,7 @@ import { idempotencyMiddleware } from './middleware/idempotency.js';
 import { ensurePerfumeAdminAccounts } from './services/seedPerfumeAdminService.js';
 import { seedInventoryRoleAndPermissions } from './services/seedInventoryRoleService.js';
 import { ensureApiKeysTable } from './services/seedApiKeysService.js';
+import { PayableService } from './services/PayableService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -291,6 +292,12 @@ async function initDatabase() {
     await ensureApiKeysTable();
   } catch (err) {
     console.error('API keys table note:', err.message);
+  }
+
+  try {
+    await PayableService.ensurePayablesTables();
+  } catch (err) {
+    console.error('Payables table note:', err.message);
   }
 }
 
