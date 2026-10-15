@@ -44,13 +44,13 @@ export function formatPayableItem(p, defaultSource = null) {
   const defaultCompany = isPc ? 'NKB Petty Cash (pc.nkbmanufacturing.com)' : 'NKB Manufacturing Corporation';
   const defaultCompanyCode = isPc ? 'NKB-PC' : 'NKB';
 
-  const reqNo = p.request_number || p.req_cheque_no || p.cheque_number || p.payable_number || p.req_number || p.control_number || (isPc ? `PC-${p.id}` : `PB-${p.id}`);
-  const dateVal = p.cheque_date || p.date || p.date_created || p.invoice_date || new Date().toISOString().slice(0, 10);
-  const payeeVal = p.payee_name || p.payee_beneficiary || p.payee || p.beneficiary || p.vendor || p.company_name || p.company || (isPc ? 'Petty Cash Custodian' : 'NKB Entity');
-  const categoryVal = p.category || p.payable_category || (p.items && p.items[0]?.expense_category) || (isPc ? 'Petty Cash Replenishment' : 'Accrued expenses');
+  const reqNo = p.requisition_no || p.request_number || p.req_cheque_no || p.cheque_number || p.payable_number || p.req_number || p.control_number || (isPc ? `PC-${p.id}` : `PB-${p.id}`);
+  const dateVal = p.cheque_date || p.date || p.date_created || p.invoice_date || (p.created_at ? p.created_at.toString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+  const payeeVal = p.supplier_name || p.payee_name || p.payee_beneficiary || p.payee || p.beneficiary || p.vendor || p.company_name || p.company || (isPc ? 'Petty Cash Custodian' : 'NKB Entity');
+  const categoryVal = p.payable_category || p.category || (p.items && p.items[0]?.expense_category) || (isPc ? 'Petty Cash Replenishment' : 'Accrued expenses');
   const bankVal = p.bank_name || p.bank_account || p.bank || (String(payeeVal).includes('BDO') ? 'BDO: NKB Manufacturing Corporation' : 'BDO - 0080-5801-0547');
-  const purposeVal = p.purpose || p.purpose_usage || p.usage || p.description || (p.items && p.items[0]?.description) || (isPc ? 'Petty Cash Disbursement' : 'Disbursement');
-  const amountVal = parseFloat(p.amount || p.total || p.amount_due || 0);
+  const purposeVal = p.purpose || p.purpose_usage || p.usage || p.description || p.remarks || (p.items && p.items[0]?.description) || (isPc ? 'Petty Cash Disbursement' : 'Disbursement');
+  const amountVal = parseFloat(p.gross_amount || p.amount || p.net_amount || p.total || p.amount_due || 0);
 
   // Attachments: normalize to secure HTTPS and absolute portal URL
   let attachmentVal = p.attachment_url || p.attachment || (p.files && p.files.length ? p.files[0] : null);
@@ -77,7 +77,16 @@ export function formatPayableItem(p, defaultSource = null) {
     filesList = [attachmentVal];
   }
 
-  const approvalVal = p.status || p.coo_approval || 'PENDING_COO_APPROVAL';
+  const rawStatus = (p.status || p.coo_approval || 'PENDING_COO_APPROVAL').toString().trim();
+  let approvalVal = rawStatus;
+  const upperStatus = rawStatus.toUpperCase();
+  if (upperStatus === 'SUBMITTED FOR APPROVAL' || upperStatus === 'PENDING APPROVAL' || upperStatus === 'PENDING' || upperStatus === 'PENDING_COO_APPROVAL') {
+    approvalVal = 'PENDING_COO_APPROVAL';
+  } else if (upperStatus === 'APPROVED' || upperStatus === 'CONFIRMED' || upperStatus === 'PAID') {
+    approvalVal = 'CONFIRMED';
+  } else if (upperStatus === 'REJECTED' || upperStatus === 'DISAPPROVED') {
+    approvalVal = 'REJECTED';
+  }
 
   // Parse line_items if passed as JSON string
   let itemsList = [];
@@ -470,7 +479,7 @@ export class PayableService {
     ).toString().trim();
 
     // Unique payable number: preserve caller's number or generate clean standard format
-    const callerNumber = (raw.payable_number || raw.req_cheque_no || raw.request_number || raw.req_number || '').toString().trim();
+    const callerNumber = (raw.requisition_no || raw.payable_number || raw.req_cheque_no || raw.request_number || raw.req_number || raw.invoice_no || '').toString().trim();
     const defaultPrefix = isPc ? 'PC' : 'REQ';
     const generatedNumber = `${defaultPrefix}-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}${Math.floor(1000 + Math.random() * 9000)}`;
     const payableNumber = callerNumber || externalRef || generatedNumber;
@@ -480,8 +489,8 @@ export class PayableService {
     const companyCode = (raw.company_code || (isPc ? 'NKB-PC' : 'NKB')).toString().trim();
 
     // 6. Category & Purpose
-    const category = (raw.category || raw.payable_category || raw.expense_category || (isPc ? 'Petty Cash Replenishment' : 'Operational Expense')).toString().trim();
-    const purpose = (raw.purpose || raw.purpose_usage || raw.description || raw.particulars || raw.usage || raw.memo || (isPc ? 'Petty Cash Disbursement Request' : 'Payable Disbursement Request')).toString().trim();
+    const category = (raw.payable_category || raw.category || raw.expense_category || (isPc ? 'Petty Cash Replenishment' : 'Operational Expense')).toString().trim();
+    const purpose = (raw.purpose || raw.purpose_usage || raw.description || raw.particulars || raw.remarks || raw.usage || raw.memo || (isPc ? 'Petty Cash Disbursement Request' : 'Payable Disbursement Request')).toString().trim();
     const bankAccount = (raw.bank_account || raw.bank_name || raw.bank || 'BDO - 0080-5801-0547').toString().trim();
 
     // 7. Dates
@@ -597,6 +606,25 @@ export class PayableService {
       };
     }
 
+    // Determine true initial status (preserve already-approved or already-rejected records if migrating/syncing)
+    let statusToSave = 'PENDING_COO_APPROVAL';
+    let cooApprovalToSave = 'PENDING_COO_APPROVAL';
+    const rawStatus = (norm.raw.status || norm.raw.coo_approval || '').toString().trim();
+    const upper = rawStatus.toUpperCase();
+    if (upper === 'APPROVED' || upper === 'CONFIRMED' || upper === 'PAID') {
+      statusToSave = 'Approved';
+      cooApprovalToSave = 'CONFIRMED';
+    } else if (upper === 'REJECTED' || upper === 'DISAPPROVED') {
+      statusToSave = 'Rejected';
+      cooApprovalToSave = 'REJECTED';
+    } else if (upper.includes('SUBMIT') || upper.includes('PENDING')) {
+      statusToSave = rawStatus || 'PENDING_COO_APPROVAL';
+      cooApprovalToSave = 'PENDING_COO_APPROVAL';
+    } else if (rawStatus) {
+      statusToSave = rawStatus;
+      cooApprovalToSave = rawStatus;
+    }
+
     // Insert new record transactionally
     const insertData = {
       payable_number: norm.payableNumber,
@@ -630,8 +658,8 @@ export class PayableService {
       invoice_date: norm.raw.invoice_date || norm.dateVal,
       due_date: norm.raw.due_date || norm.dateVal,
       term: norm.raw.term || norm.raw.terms || 'Net 30',
-      status: 'PENDING_COO_APPROVAL',
-      coo_approval: 'PENDING_COO_APPROVAL',
+      status: statusToSave,
+      coo_approval: cooApprovalToSave,
       prepared_by: norm.raw.prepared_by || norm.createdBy,
       created_by: norm.createdBy,
       attachment_url: norm.attachmentVal,
@@ -738,8 +766,23 @@ export class PayableService {
     if (status && status !== 'ALL') {
       const s = status.toUpperCase();
       qb = qb.where(function () {
-        this.where('status', 'like', `%${s}%`)
-          .orWhere('coo_approval', 'like', `%${s}%`);
+        if (s.includes('PENDING') || s.includes('SUBMIT')) {
+          this.where('status', 'like', '%PENDING%')
+            .orWhere('status', 'like', '%Submitted%')
+            .orWhere('coo_approval', 'like', '%PENDING%');
+        } else if (s.includes('CONFIRM') || s.includes('APPROV')) {
+          this.where('status', 'like', '%CONFIRM%')
+            .orWhere('status', 'like', '%Approved%')
+            .orWhere('status', 'like', '%Paid%')
+            .orWhere('coo_approval', 'like', '%CONFIRM%');
+        } else if (s.includes('REJECT')) {
+          this.where('status', 'like', '%REJECT%')
+            .orWhere('status', 'like', '%Disapproved%')
+            .orWhere('coo_approval', 'like', '%REJECT%');
+        } else {
+          this.where('status', 'like', `%${s}%`)
+            .orWhere('coo_approval', 'like', `%${s}%`);
+        }
       });
     }
 

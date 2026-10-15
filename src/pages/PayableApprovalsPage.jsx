@@ -245,7 +245,8 @@ export function PayableApprovalsPage() {
       const chkTo = dateChequeTo ? `&date_cheque_to=${encodeURIComponent(dateChequeTo)}` : '';
       const prepFrom = datePreparedFrom ? `&date_prepared_from=${encodeURIComponent(datePreparedFrom)}` : '';
       const prepTo = datePreparedTo ? `&date_prepared_to=${encodeURIComponent(datePreparedTo)}` : '';
-      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}${portalParam}${chkFrom}${chkTo}${prepFrom}${prepTo}`);
+      const syncParam = isManualSync ? '&sync=true' : '';
+      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}${portalParam}${chkFrom}${chkTo}${prepFrom}${prepTo}${syncParam}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPayables(data.data);
@@ -619,10 +620,20 @@ export function PayableApprovalsPage() {
     }
     if (statusFilter !== 'ALL') {
       const s = statusFilter.toUpperCase();
-      list = list.filter(p =>
-        (p.coo_approval || '').toUpperCase().includes(s) ||
-        (p.status || '').toUpperCase().includes(s)
-      );
+      list = list.filter(p => {
+        const approval = (p.coo_approval || '').toUpperCase();
+        const stat = (p.status || '').toUpperCase();
+        if (s.includes('PENDING') || s.includes('SUBMIT')) {
+          return approval.includes('PENDING') || stat.includes('PENDING') || stat.includes('SUBMIT');
+        }
+        if (s.includes('CONFIRM') || s.includes('APPROV')) {
+          return approval.includes('CONFIRM') || approval.includes('APPROV') || stat.includes('CONFIRM') || stat.includes('APPROV') || stat.includes('PAID');
+        }
+        if (s.includes('REJECT')) {
+          return approval.includes('REJECT') || stat.includes('REJECT') || stat.includes('DISAPPROV');
+        }
+        return approval.includes(s) || stat.includes(s);
+      });
     }
     if (dateChequeFrom) {
       list = list.filter(p => {

@@ -23,8 +23,8 @@ export let dynamicPortalKeys = {
 };
 
 export let dynamicPortalUrls = {
-  my: 'http://my.nkbmanufacturing.com/api/v1',
-  pc: 'https://pc.nkbmanufacturing.com/api/v1'
+  my: 'http://my.nkbmanufacturing.com/api',
+  pc: 'https://pc.nkbmanufacturing.com/api'
 };
 
 export async function getActivePortalKey(portalId) {
@@ -130,24 +130,26 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
       isPc = apiKey.includes('f1d0') || apiKey === PC_NKB_API_KEY;
     }
 
-    let defaultBaseUrl = isPc ? dynamicPortalUrls.pc : dynamicPortalUrls.my;
     let urlObj;
     try {
       if (targetHost && targetHost.startsWith('http')) {
         urlObj = new URL(endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath, targetHost);
       } else {
-        const base = defaultBaseUrl.endsWith('/') ? defaultBaseUrl.slice(0, -1) : defaultBaseUrl;
-        const cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
-        const baseWithoutApi = base.includes('/api/v1') ? base.replace('/api/v1', '') : base;
-        urlObj = new URL(cleanPath, baseWithoutApi);
-        if (!urlObj.pathname.startsWith('/api/v1')) {
-          urlObj.pathname = `/api/v1${urlObj.pathname}`;
+        const rawHost = targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
+        const proto = (isPc || (typeof rawHost === 'string' && rawHost.includes('pc.'))) ? 'https:' : 'http:';
+        let hostName = rawHost.replace(/^https?:\/\//, '').split('/')[0];
+        let cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
+        if (!cleanPath.startsWith('/api')) {
+          cleanPath = `/api${cleanPath}`;
         }
+        urlObj = new URL(`${proto}//${hostName}${cleanPath}`);
       }
     } catch (_) {
-      const host = targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
+      const host = (targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com')).replace(/^https?:\/\//, '').split('/')[0];
       const proto = (isPc || host.includes('pc.')) ? 'https:' : 'http:';
-      urlObj = new URL(`${proto}//${host}/api/v1${endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath}`);
+      let cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
+      if (!cleanPath.startsWith('/api')) cleanPath = `/api${cleanPath}`;
+      urlObj = new URL(`${proto}//${host}${cleanPath}`);
     }
 
     const effectiveKey = apiKey || (isPc ? dynamicPortalKeys.pc : dynamicPortalKeys.my);
@@ -725,35 +727,116 @@ router.delete('/api-keys/:id', authenticateToken, async (req, res) => {
  * ============================================================================
  */
 
+let lastBackgroundSyncTime = 0;
+const BACKGROUND_SYNC_INTERVAL_MS = 60000; // 1 minute auto-sync throttle
+
+/**
+ * Robustly synchronizes external portal payables into the persistent database.
+ * 1. Queries local MySQL u335953510_pc_db if on Hostinger (instant, 100% resilient)
+ * 2. Queries pc.nkbmanufacturing.com HTTP API (/payables)
+ * 3. Queries my.nkbmanufacturing.com HTTP API (/cheque-payables, /payables)
+ */
+export async function syncExternalPortalsSafe() {
+  lastBackgroundSyncTime = Date.now();
+  const syncResults = { pc: 0, my: 0, errors: [] };
+
+  // 1. Direct MySQL cross-database ingestion if on Hostinger production
+  try {
+    const isMysql = db.client?.config?.client === 'mysql2';
+    if (isMysql) {
+      const [pcDbRows] = await db.raw(`
+        SELECT * FROM u335953510_pc_db.payables
+        WHERE (supplier_name IS NULL OR supplier_name NOT LIKE '%TEST PROBE%')
+          AND (remarks IS NULL OR remarks NOT LIKE '%TEST PROBE%')
+        ORDER BY id DESC LIMIT 500
+      `).catch(() => [null]);
+
+      if (Array.isArray(pcDbRows) && pcDbRows.length > 0) {
+        for (const row of pcDbRows) {
+          try {
+            await PayableService.createPayable({
+              ...row,
+              source_portal: 'pc.nkbmanufacturing.com',
+              source_system: 'https://pc.nkbmanufacturing.com/'
+            });
+            syncResults.pc++;
+          } catch (_) {}
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. HTTP Pull from pc.nkbmanufacturing.com
+  try {
+    const pcKey = await getActivePortalKey('pc');
+    const pcRes = await nkbApiRequest('GET', '/payables', pcKey, null, 'pc.nkbmanufacturing.com').catch(() => null);
+    if (pcRes && pcRes.ok && pcRes.data) {
+      const rawItems = Array.isArray(pcRes.data) ? pcRes.data : (pcRes.data.data || pcRes.data.payables || []);
+      for (const itm of rawItems) {
+        if (
+          itm.supplier_name?.includes('TEST PROBE') ||
+          itm.supplier_name?.includes('System Connection') ||
+          itm.payee_beneficiary?.includes('TEST PROBE')
+        ) {
+          continue;
+        }
+        await PayableService.createPayable(itm).catch(() => {});
+        syncResults.pc++;
+      }
+    }
+  } catch (err) {
+    syncResults.errors.push(`pc: ${err.message}`);
+  }
+
+  // 3. HTTP Pull from my.nkbmanufacturing.com
+  try {
+    const myKey = await getActivePortalKey('my');
+    let myRes = await nkbApiRequest('GET', '/cheque-payables', myKey, null, 'my.nkbmanufacturing.com').catch(() => null);
+    if (!myRes || !myRes.ok) {
+      myRes = await nkbApiRequest('GET', '/payables', myKey, null, 'my.nkbmanufacturing.com').catch(() => null);
+    }
+    if (myRes && myRes.ok && myRes.data) {
+      const rawItems = Array.isArray(myRes.data) ? myRes.data : (myRes.data.data || myRes.data.payables || []);
+      for (const itm of rawItems) {
+        if (
+          itm.supplier_name?.includes('TEST PROBE') ||
+          itm.supplier_name?.includes('System Connection') ||
+          itm.payee_beneficiary?.includes('TEST PROBE')
+        ) {
+          continue;
+        }
+        await PayableService.createPayable(itm).catch(() => {});
+        syncResults.my++;
+      }
+    }
+  } catch (err) {
+    syncResults.errors.push(`my: ${err.message}`);
+  }
+
+  return syncResults;
+}
+
 /**
  * GET /api/v1/payables
- * List cheque payables from both portals and local queue
+ * List cheque payables from database queue with automatic portal synchronization
  */
 router.get('/', authenticatePayablesAccess, async (req, res) => {
   try {
-    // 1. Optional on-demand sync from external portals if sync=true
-    if (req.query.sync === 'true') {
-      try {
-        const myKey = await getActivePortalKey('my');
-        const myRes = await nkbApiRequest('GET', '/payables', myKey, null, 'my.nkbmanufacturing.com');
-        if (myRes.ok && myRes.data) {
-          const rawItems = Array.isArray(myRes.data) ? myRes.data : (myRes.data.data || myRes.data.payables || []);
-          for (const itm of rawItems) {
-            await PayableService.createPayable(itm).catch(() => {});
-          }
-        }
-      } catch (_) {}
+    // 1. Opportunistic sync from external portals:
+    // If sync=true, or if database has <= 2 records (initial state), or throttle interval passed:
+    const countRes = await db('payables').count('id as cnt').first().catch(() => ({ cnt: 0 }));
+    const currentCount = Number(countRes?.cnt || countRes?.['count(*)'] || 0);
 
-      try {
-        const pcKey = await getActivePortalKey('pc');
-        const pcRes = await nkbApiRequest('GET', '/payables', pcKey, null, 'pc.nkbmanufacturing.com');
-        if (pcRes.ok && pcRes.data) {
-          const rawItems = Array.isArray(pcRes.data) ? pcRes.data : (pcRes.data.data || pcRes.data.payables || []);
-          for (const itm of rawItems) {
-            await PayableService.createPayable(itm).catch(() => {});
-          }
-        }
-      } catch (_) {}
+    const isExplicitSync = req.query.sync === 'true';
+    const isInitialEmpty = currentCount <= 2;
+    const isIntervalElapsed = (Date.now() - lastBackgroundSyncTime) > BACKGROUND_SYNC_INTERVAL_MS;
+
+    if (isExplicitSync || isInitialEmpty) {
+      // Blocking sync so response contains newly imported records immediately
+      await syncExternalPortalsSafe().catch(err => console.warn('Sync notice:', err.message));
+    } else if (isIntervalElapsed) {
+      // Non-blocking background sync for real-time freshness
+      syncExternalPortalsSafe().catch(() => {});
     }
 
     // 2. Fetch persistent records from SQL Database
@@ -783,6 +866,26 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching payables from database:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/payables/sync
+ * Manually triggers a complete synchronization of external portal records
+ */
+router.post('/sync', authenticatePayablesAccess, async (req, res) => {
+  try {
+    const results = await syncExternalPortalsSafe();
+    const records = await PayableService.getPayables(req.query);
+    return res.json({
+      success: true,
+      message: `Synchronized payables: ${results.pc} Petty Cash records, ${results.my} Main Portal records.`,
+      results,
+      totalCount: records.length,
+      data: records
+    });
+  } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
