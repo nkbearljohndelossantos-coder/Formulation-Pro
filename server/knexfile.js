@@ -3,11 +3,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
-const dotenv = require('dotenv');
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const dotenv = require('dotenv');
+dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '../.env.production') });
 
 const config = {
   development: process.env.DB_CLIENT === 'mysql2' ? {
@@ -16,7 +18,7 @@ const config = {
       host: process.env.DB_HOST || '127.0.0.1',
       port: Number(process.env.DB_PORT || 3306),
       user: process.env.DB_USER || 'u335953510_fms',
-      password: process.env.DB_PASSWORD || '',
+      password: process.env.DB_PASSWORD || 'NkbManufacturing2026',
       database: process.env.DB_NAME || 'u335953510_fms_db',
     },
     migrations: {
@@ -69,7 +71,7 @@ const config = {
       host: process.env.DB_HOST || '127.0.0.1',
       port: Number(process.env.DB_PORT || 3306),
       user: process.env.DB_USER || 'u335953510_fms',
-      password: process.env.DB_PASSWORD || '',
+      password: process.env.DB_PASSWORD || 'NkbManufacturing2026',
       database: process.env.DB_NAME || 'u335953510_fms_db',
     },
     migrations: {
