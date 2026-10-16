@@ -767,6 +767,20 @@ export class PayableService {
 
     let qb = db('payables').select('*');
 
+    // Exclude synthetic test data unless explicitly requested
+    if (query.include_test !== 'true' && query.include_test !== true) {
+      qb = qb.where(function () {
+        this.whereNull('payee_beneficiary')
+          .orWhere(function () {
+            this.whereNot('payee_beneficiary', 'like', '%FMS SYNC TEST%')
+              .andWhereNot('payee_beneficiary', 'like', '%TEST PROBE%');
+          });
+      }).andWhere(function () {
+        this.whereNull('payable_number')
+          .orWhereNot('payable_number', 'like', 'PB-202610-%');
+      });
+    }
+
     if (portal && portal !== 'ALL') {
       qb = qb.where(function () {
         this.where('source_portal', 'like', `%${portal}%`)

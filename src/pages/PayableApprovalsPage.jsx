@@ -613,7 +613,12 @@ export function PayableApprovalsPage() {
         p.id === 902 ||
         p.req_cheque_no === 'PC-2026-0412' ||
         p.control_number === 'CTRL-PC-2026-0044';
-      return !isLegacySample;
+      const isSyntheticTest =
+        (p.payable_number && p.payable_number.startsWith('PB-202610-')) ||
+        (p.req_cheque_no && p.req_cheque_no.startsWith('PB-202610-')) ||
+        (p.payee_beneficiary && (p.payee_beneficiary.includes('FMS SYNC TEST') || p.payee_beneficiary.includes('TEST PROBE'))) ||
+        (p.purpose_usage && p.purpose_usage.includes('Test FMS Bi-directional Sync Integration'));
+      return !isLegacySample && !isSyntheticTest;
     });
     if (portalFilter !== 'ALL') {
       list = list.filter(p => (p.source_portal || '').toLowerCase().includes(portalFilter.toLowerCase()));
