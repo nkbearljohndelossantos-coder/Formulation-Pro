@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import { printProductionSheet } from '../utils/printProductionSheet';
+import { printFormulaCompoundingSop } from '../utils/printSopDocument';
 import ExcelProductionSheetTable from '../components/ExcelProductionSheetTable';
 
 // Standard Perfume Formulations Ratios (Presets)
@@ -601,6 +602,33 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
     });
   };
 
+  const handlePrintSop = () => {
+    if (!batchResult) return;
+    const currentBrand = (brandName || batchResult.brand_name || '').trim();
+    printFormulaCompoundingSop({
+      formula: {
+        code: batchResult.formula_code,
+        name: cleanPerfumeFormulaName(batchResult.formula_name),
+      },
+      version: {
+        formula_code: batchResult.formula_code,
+        formula_name: cleanPerfumeFormulaName(batchResult.formula_name),
+        major_version: batchResult.version?.split('.')[0] || 1,
+        minor_version: batchResult.version?.split('.')[1] || 0,
+      },
+      materials: (batchResult.items || []).map(i => ({
+        material_name_snapshot: i.material_name_snapshot,
+        material_code_snapshot: i.material_code_snapshot,
+        phase_name: i.phase_name,
+        percentage: i.percentage,
+        function_name: i.role || 'Active / Solvent'
+      })),
+      preparedByName: user?.name || user?.username || 'Elena Rostova (Chemist)',
+      isPerfume: true,
+      brandName: currentBrand
+    });
+  };
+
   // Group items by phase for Production Sheet layout (Phase A, Phase B, Phase C...)
   const phaseMap = {};
   if (batchResult && Array.isArray(batchResult.items)) {
@@ -1100,6 +1128,14 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                 )}
                 <button
                   type="button"
+                  onClick={handlePrintSop}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
+                  title="Print Official Controlled Standard Operating Procedure Document (SOP-PRD-001)"
+                >
+                  <Printer className="w-4 h-4" /> Print Official SOP
+                </button>
+                <button
+                  type="button"
                   onClick={handlePrintPdf}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs transition"
                 >
@@ -1344,23 +1380,33 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                   <div className="font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
                     <Droplet className="w-4 h-4 text-emerald-600" /> Standard Operating Procedure (Perfume Compounding Protocol)
                   </div>
-                  {batchResult?.batch_calculation_id && (
-                    <div className="flex items-center gap-2">
-                      {sopSaveStatus && (
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {sopSaveStatus}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleSaveSopTimestamps()}
-                        disabled={savingSop}
-                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1"
-                      >
-                        <Clock className="w-3 h-3" /> {savingSop ? 'Saving...' : 'Save Timestamps'}
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePrintSop}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1 shadow-xs"
+                      title="Print Official Controlled Standard Operating Procedure Document (SOP-PRD-001)"
+                    >
+                      <Printer className="w-3 h-3" /> Print Official SOP Document
+                    </button>
+                    {batchResult?.batch_calculation_id && (
+                      <div className="flex items-center gap-2">
+                        {sopSaveStatus && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {sopSaveStatus}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleSaveSopTimestamps()}
+                          disabled={savingSop}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition flex items-center gap-1"
+                        >
+                          <Clock className="w-3 h-3" /> {savingSop ? 'Saving...' : 'Save Timestamps'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
