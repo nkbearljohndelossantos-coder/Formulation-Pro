@@ -23,7 +23,7 @@ export let dynamicPortalKeys = {
 };
 
 export let dynamicPortalUrls = {
-  my: 'http://my.nkbmanufacturing.com/api',
+  my: 'https://my.nkbmanufacturing.com/api/v1',
   pc: 'https://pc.nkbmanufacturing.com/api'
 };
 
@@ -99,8 +99,8 @@ export const NKB_PORTALS = {
     name: 'my.nkbmanufacturing.com (Main Portal)',
     host: 'my.nkbmanufacturing.com',
     apiKey: MY_NKB_API_KEY,
-    protocol: 'http',
-    port: 80
+    protocol: 'https',
+    port: 443
   },
   pc: {
     id: 'pc.nkbmanufacturing.com',
@@ -136,19 +136,31 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
         urlObj = new URL(endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath, targetHost);
       } else {
         const rawHost = targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
-        const proto = (isPc || (typeof rawHost === 'string' && rawHost.includes('pc.'))) ? 'https:' : 'http:';
+        const proto = 'https:';
         let hostName = rawHost.replace(/^https?:\/\//, '').split('/')[0];
         let cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
-        if (!cleanPath.startsWith('/api')) {
+        const isMyHost = !isPc && (rawHost.includes('my.') || !targetHost);
+        if (isMyHost) {
+          if (!cleanPath.startsWith('/api/v1')) {
+            cleanPath = cleanPath.startsWith('/api') ? cleanPath.replace(/^\/api/, '/api/v1') : `/api/v1${cleanPath}`;
+          }
+        } else if (!cleanPath.startsWith('/api')) {
           cleanPath = `/api${cleanPath}`;
         }
         urlObj = new URL(`${proto}//${hostName}${cleanPath}`);
       }
     } catch (_) {
       const host = (targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com')).replace(/^https?:\/\//, '').split('/')[0];
-      const proto = (isPc || host.includes('pc.')) ? 'https:' : 'http:';
+      const proto = 'https:';
       let cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
-      if (!cleanPath.startsWith('/api')) cleanPath = `/api${cleanPath}`;
+      const isMyHost = !isPc && (host.includes('my.') || !targetHost);
+      if (isMyHost) {
+        if (!cleanPath.startsWith('/api/v1')) {
+          cleanPath = cleanPath.startsWith('/api') ? cleanPath.replace(/^\/api/, '/api/v1') : `/api/v1${cleanPath}`;
+        }
+      } else if (!cleanPath.startsWith('/api')) {
+        cleanPath = `/api${cleanPath}`;
+      }
       urlObj = new URL(`${proto}//${host}${cleanPath}`);
     }
 
@@ -746,13 +758,14 @@ export async function syncExternalPortalsSafe() {
     if (isMysql) {
       const [pcDbRows] = await db.raw(`
         SELECT * FROM u335953510_pc_db.payables
-        WHERE (supplier_name IS NULL OR supplier_name NOT LIKE '%TEST PROBE%')
-          AND (remarks IS NULL OR remarks NOT LIKE '%TEST PROBE%')
+        WHERE (supplier_name IS NULL OR (supplier_name NOT LIKE '%TEST PROBE%' AND supplier_name NOT LIKE '%FMS SYNC TEST%'))
+          AND (remarks IS NULL OR (remarks NOT LIKE '%TEST PROBE%' AND remarks NOT LIKE '%FMS SYNC TEST%'))
         ORDER BY id DESC LIMIT 500
       `).catch(() => [null]);
 
       if (Array.isArray(pcDbRows) && pcDbRows.length > 0) {
         for (const row of pcDbRows) {
+          if (row.supplier_name?.includes('FMS SYNC TEST') || row.payee_beneficiary?.includes('FMS SYNC TEST')) continue;
           try {
             await PayableService.createPayable({
               ...row,
@@ -791,9 +804,9 @@ export async function syncExternalPortalsSafe() {
   // 3. HTTP Pull from my.nkbmanufacturing.com
   try {
     const myKey = await getActivePortalKey('my');
-    let myRes = await nkbApiRequest('GET', '/cheque-payables', myKey, null, 'my.nkbmanufacturing.com').catch(() => null);
+    let myRes = await nkbApiRequest('GET', '/payables?limit=1000', myKey, null, 'my.nkbmanufacturing.com').catch(() => null);
     if (!myRes || !myRes.ok) {
-      myRes = await nkbApiRequest('GET', '/payables', myKey, null, 'my.nkbmanufacturing.com').catch(() => null);
+      myRes = await nkbApiRequest('GET', '/cheque-payables', myKey, null, 'my.nkbmanufacturing.com').catch(() => null);
     }
     if (myRes && myRes.ok && myRes.data) {
       const rawItems = Array.isArray(myRes.data) ? myRes.data : (myRes.data.data || myRes.data.payables || []);
@@ -801,7 +814,9 @@ export async function syncExternalPortalsSafe() {
         if (
           itm.supplier_name?.includes('TEST PROBE') ||
           itm.supplier_name?.includes('System Connection') ||
-          itm.payee_beneficiary?.includes('TEST PROBE')
+          itm.supplier_name?.includes('FMS SYNC TEST') ||
+          itm.payee_beneficiary?.includes('TEST PROBE') ||
+          itm.payee_beneficiary?.includes('FMS SYNC TEST')
         ) {
           continue;
         }

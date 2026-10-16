@@ -16,7 +16,7 @@ const config = {
       host: process.env.DB_HOST || '127.0.0.1',
       port: Number(process.env.DB_PORT || 3306),
       user: process.env.DB_USER || 'u335953510_fms',
-      password: process.env.DB_PASSWORD || 'NkbManufacturing2026',
+      password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'u335953510_fms_db',
     },
     migrations: {
@@ -69,7 +69,7 @@ const config = {
       host: process.env.DB_HOST || '127.0.0.1',
       port: Number(process.env.DB_PORT || 3306),
       user: process.env.DB_USER || 'u335953510_fms',
-      password: process.env.DB_PASSWORD || 'NkbManufacturing2026',
+      password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'u335953510_fms_db',
     },
     migrations: {

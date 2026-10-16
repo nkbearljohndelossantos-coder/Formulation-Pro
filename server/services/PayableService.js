@@ -233,6 +233,7 @@ export class PayableService {
           table.string('status', 50).defaultTo('PENDING_COO_APPROVAL');
           table.string('coo_approval', 50).defaultTo('PENDING_COO_APPROVAL');
           table.string('checked_by', 150).nullable();
+          table.string('coo_confirmed_at', 50).nullable().index();
           table.string('prepared_by', 150).nullable();
           table.string('created_by', 150).nullable();
           table.text('attachment_url').nullable();
@@ -244,6 +245,14 @@ export class PayableService {
           table.timestamps(true, true);
         });
         console.log('✅ Created table "payables" in database.');
+      } else {
+        const hasConfirmedAtCol = await db.schema.hasColumn('payables', 'coo_confirmed_at');
+        if (!hasConfirmedAtCol) {
+          await db.schema.alterTable('payables', (table) => {
+            table.string('coo_confirmed_at', 50).nullable().index();
+          });
+          console.log('✅ Added column "coo_confirmed_at" to existing table "payables".');
+        }
       }
 
       const hasPayableItems = await db.schema.hasTable('payable_items');
@@ -660,6 +669,8 @@ export class PayableService {
       term: norm.raw.term || norm.raw.terms || 'Net 30',
       status: statusToSave,
       coo_approval: cooApprovalToSave,
+      checked_by: norm.raw.coo_confirmed_by || norm.raw.checked_by || (statusToSave === 'Approved' ? 'Norvin Bella' : null),
+      coo_confirmed_at: norm.raw.coo_confirmed_at || null,
       prepared_by: norm.raw.prepared_by || norm.createdBy,
       created_by: norm.createdBy,
       attachment_url: norm.attachmentVal,
@@ -882,6 +893,7 @@ export class PayableService {
         coo_approval: decision,
         cheque_number: checkNo || row.cheque_number,
         checked_by: approver,
+        coo_confirmed_at: decision === 'CONFIRMED' ? db.fn.now() : row.coo_confirmed_at,
         comments: updatedComments,
         updated_at: db.fn.now()
       });
