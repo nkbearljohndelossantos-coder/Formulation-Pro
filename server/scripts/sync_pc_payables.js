@@ -33,15 +33,29 @@ async function runPayablesReconciliation() {
 
     // 3. Strategy A: Direct local MySQL cross-database query (when running on Hostinger production)
     if (isMysql) {
-      console.log('Detected MySQL environment. Checking cross-database table u335953510_pc_db.payables...');
+      console.log('Detected MySQL environment. Checking cross-database tables (u335953510_pettycash_db / u335953510_pc_db)...');
       try {
-        const [rows] = await db.raw(`
-          SELECT * FROM u335953510_pc_db.payables
-          ORDER BY id ASC
-        `);
+        let rows = null;
+        try {
+          const [res] = await db.raw(`
+            SELECT * FROM u335953510_pettycash_db.payables
+            ORDER BY id ASC
+          `);
+          if (Array.isArray(res) && res.length > 0) rows = res;
+        } catch (_) {}
+
+        if (!rows) {
+          try {
+            const [res] = await db.raw(`
+              SELECT * FROM u335953510_pc_db.payables
+              ORDER BY id ASC
+            `);
+            if (Array.isArray(res) && res.length > 0) rows = res;
+          } catch (_) {}
+        }
 
         if (Array.isArray(rows) && rows.length > 0) {
-          console.log(`Found ${rows.length} total records in u335953510_pc_db.payables.`);
+          console.log(`Found ${rows.length} total records in Petty Cash database.`);
           totalDiscovered += rows.length;
 
           for (const row of rows) {

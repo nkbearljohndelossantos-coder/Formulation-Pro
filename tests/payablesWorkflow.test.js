@@ -263,5 +263,76 @@ describe('Payables External Integration and Approval Queue Tests', () => {
     expect(dbRowAfterRetry.coo_approval).toBe('CONFIRMED');
     expect(dbRowAfterRetry.cheque_number).toBe('CHK-2026-88771');
   });
+
+  it('guarantees genuine PB-202610- records from Petty Cash backend are visible and NOT filtered out as synthetic probes', async () => {
+    // Simulating exact payload sent by Petty-Cash-main/backend/src/services/fmsService.js
+    const realPcPayload = {
+      id: 'PB-42',
+      request_number: 'PB-202610-0042',
+      req_cheque_no: 'PB-202610-0042',
+      company_name: 'NKB Manufacturing Corporation',
+      company_code: 'NKB',
+      payee_name: 'National Logistics Express Delivery Services',
+      category: 'Transportation and Delivery',
+      amount: 4650.00,
+      total: 4650.00,
+      bank_name: 'BDO - 0080-5801-0547',
+      purpose: 'Urgent warehouse-to-plant transfer of raw materials',
+      invoice_number: 'INV-2026-9812',
+      control_number: 'CTRL-PC-0042',
+      due_date: '2026-10-25',
+      terms: 'Net 30',
+      status: 'PENDING_COO_APPROVAL',
+      coo_approval: 'PENDING_COO_APPROVAL',
+      requested_by_name: 'Petty Cash System',
+      comments: 'Submitted from Petty Cash System',
+      items: [
+        {
+          description: 'Special courier dispatch Cavite to Manila',
+          expense_category: 'Transportation',
+          quantity: 1,
+          cost: 4650.00,
+          subtotal: 4650.00
+        }
+      ]
+    };
+
+    const res = await PayableService.createPayable(realPcPayload);
+    expect(res.isDuplicate).toBe(false);
+    expect(res.record.payable_number).toBe('PB-202610-0042');
+    expect(res.record.source_portal).toBe('pc.nkbmanufacturing.com');
+    expect(res.record.source_badge).toBe('pc.nkb');
+
+    // Also insert a known synthetic test probe to verify that ONLY the probe is filtered out
+    await db('payables').insert({
+      payable_number: 'PB-202610-5099',
+      req_cheque_no: 'PB-202610-5099',
+      company: 'NKB Manufacturing Corporation',
+      payee_beneficiary: 'FMS SYNC TEST CHEMICAL CORP',
+      amount: 75500.00,
+      total: 75500.00,
+      status: 'PENDING_COO_APPROVAL',
+      purpose_usage: 'Test FMS Bi-directional Sync Integration probe',
+      source_portal: 'pc.nkbmanufacturing.com',
+      date: '2026-10-15',
+      date_prepared: '2026-10-15',
+      created_at: new Date(),
+      updated_at: new Date()
+    }).catch(() => {});
+
+    // Query list through PayableService.getPayables
+    const visibleList = await PayableService.getPayables({ portal: 'pc' });
+
+    // The genuine PB-202610-0042 MUST be present
+    const foundReal = visibleList.find(p => p.payable_number === 'PB-202610-0042');
+    expect(foundReal).toBeDefined();
+    expect(foundReal.payee_beneficiary).toBe('National Logistics Express Delivery Services');
+    expect(foundReal.source_portal).toBe('pc.nkbmanufacturing.com');
+
+    // The synthetic probe PB-202610-5099 MUST be excluded
+    const foundProbe = visibleList.find(p => p.payee_beneficiary?.includes('FMS SYNC TEST'));
+    expect(foundProbe).toBeUndefined();
+  });
 });
+
 

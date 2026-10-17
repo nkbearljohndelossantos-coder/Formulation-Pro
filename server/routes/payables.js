@@ -367,7 +367,12 @@ export async function authenticatePayablesAccess(req, res, next) {
         db('api_keys').where({ id: keyRecord.id }).update({ last_used_at: db.fn.now() }).catch(() => {});
       }
 
-      const isPc = passedKey.includes('f1d0') || (keyRecord.client_app && keyRecord.client_app.includes('pc.'));
+      const keyName = (keyRecord.key_name || '').toLowerCase();
+      const appName = (keyRecord.client_app || '').toLowerCase();
+      const isPc = passedKey.includes('f1d0') ||
+                   appName.includes('pc.') ||
+                   appName.includes('petty') ||
+                   keyName.includes('petty');
       req.apiAuthType = 'API_KEY';
       req.apiKeyRecord = keyRecord;
       req.clientApp = keyRecord.client_app;
@@ -762,12 +767,28 @@ export async function syncExternalPortalsSafe() {
   try {
     const isMysql = db.client?.config?.client === 'mysql2';
     if (isMysql) {
-      const [pcDbRows] = await db.raw(`
-        SELECT * FROM u335953510_pc_db.payables
-        WHERE (supplier_name IS NULL OR (supplier_name NOT LIKE '%TEST PROBE%' AND supplier_name NOT LIKE '%FMS SYNC TEST%'))
-          AND (remarks IS NULL OR (remarks NOT LIKE '%TEST PROBE%' AND remarks NOT LIKE '%FMS SYNC TEST%'))
-        ORDER BY id DESC LIMIT 500
-      `).catch(() => [null]);
+      let pcDbRows = null;
+      try {
+        const [res] = await db.raw(`
+          SELECT * FROM u335953510_pettycash_db.payables
+          WHERE (supplier_name IS NULL OR (supplier_name NOT LIKE '%TEST PROBE%' AND supplier_name NOT LIKE '%FMS SYNC TEST%'))
+            AND (remarks IS NULL OR (remarks NOT LIKE '%TEST PROBE%' AND remarks NOT LIKE '%FMS SYNC TEST%'))
+          ORDER BY id DESC LIMIT 500
+        `);
+        if (Array.isArray(res) && res.length > 0) pcDbRows = res;
+      } catch (_) {}
+
+      if (!pcDbRows) {
+        try {
+          const [res] = await db.raw(`
+            SELECT * FROM u335953510_pc_db.payables
+            WHERE (supplier_name IS NULL OR (supplier_name NOT LIKE '%TEST PROBE%' AND supplier_name NOT LIKE '%FMS SYNC TEST%'))
+              AND (remarks IS NULL OR (remarks NOT LIKE '%TEST PROBE%' AND remarks NOT LIKE '%FMS SYNC TEST%'))
+            ORDER BY id DESC LIMIT 500
+          `);
+          if (Array.isArray(res) && res.length > 0) pcDbRows = res;
+        } catch (_) {}
+      }
 
       if (Array.isArray(pcDbRows) && pcDbRows.length > 0) {
         for (const row of pcDbRows) {
@@ -857,12 +878,16 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
         this.whereNull('payee_beneficiary')
           .orWhere(function() {
             this.whereNot('payee_beneficiary', 'like', '%FMS SYNC TEST%')
-              .andWhereNot('payee_beneficiary', 'like', '%TEST PROBE%');
+              .andWhereNot('payee_beneficiary', 'like', '%TEST PROBE%')
+              .andWhereNot('payee_beneficiary', 'like', '%System Connection Diagnostic%');
           });
       })
       .andWhere(function() {
-        this.whereNull('payable_number')
-          .orWhereNot('payable_number', 'like', 'PB-202610-%');
+        this.whereNull('purpose_usage')
+          .orWhere(function() {
+            this.whereNot('purpose_usage', 'like', '%Test FMS Bi-directional Sync%')
+              .andWhereNot('purpose_usage', 'like', '%Diagnostic Test%');
+          });
       })
       .count('id as cnt').first().catch(() => ({ cnt: 0 }));
     const currentCount = Number(countRes?.cnt || countRes?.['count(*)'] || 0);
@@ -889,10 +914,8 @@ router.get('/', authenticatePayablesAccess, async (req, res) => {
         p.req_cheque_no === 'PC-2026-0412' ||
         p.control_number === 'CTRL-PC-2026-0044';
       const isSyntheticTest =
-        (p.payable_number && p.payable_number.startsWith('PB-202610-')) ||
-        (p.req_cheque_no && p.req_cheque_no.startsWith('PB-202610-')) ||
-        (p.payee_beneficiary && (p.payee_beneficiary.includes('FMS SYNC TEST') || p.payee_beneficiary.includes('TEST PROBE'))) ||
-        (p.purpose_usage && p.purpose_usage.includes('Test FMS Bi-directional Sync Integration'));
+        (p.payee_beneficiary && (p.payee_beneficiary.includes('FMS SYNC TEST') || p.payee_beneficiary.includes('TEST PROBE') || p.payee_beneficiary.includes('System Connection Diagnostic'))) ||
+        (p.purpose_usage && (p.purpose_usage.includes('Test FMS Bi-directional Sync Integration') || p.purpose_usage.includes('Diagnostic Test')));
       return !isLegacySample && !isSyntheticTest;
     });
 

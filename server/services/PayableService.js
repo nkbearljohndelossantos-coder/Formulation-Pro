@@ -36,8 +36,10 @@ export function formatPayableItem(p, defaultSource = null) {
     (p.company_code && p.company_code.includes('PC')) ||
     (p.req_cheque_no && (p.req_cheque_no.startsWith('PC-') || p.req_cheque_no.startsWith('PETTY-'))) ||
     (p.payable_number && (p.payable_number.startsWith('PC-') || p.payable_number.startsWith('PETTY-'))) ||
-    (p.comments && p.comments.includes('pc.nkbmanufacturing.com')) ||
-    (p.requested_by_name && p.requested_by_name.includes('pc.nkbmanufacturing.com'))
+    (p.comments && (p.comments.includes('pc.nkbmanufacturing.com') || p.comments.toLowerCase().includes('petty cash'))) ||
+    (p.remarks && p.remarks.toLowerCase().includes('petty cash')) ||
+    (p.requested_by_name && (p.requested_by_name.includes('pc.nkbmanufacturing.com') || p.requested_by_name.toLowerCase().includes('petty cash'))) ||
+    (p.created_by && p.created_by.toLowerCase().includes('petty'))
   );
 
   const sourcePortal = isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com';
@@ -456,13 +458,19 @@ export class PayableService {
 
     // 3. Source Portal & System identification
     const clientApp = req?.clientApp || req?.apiKeyRecord?.client_app || '';
+    const keyName = req?.apiKeyRecord?.key_name || '';
     const isPc = Boolean(
       (req?.sourcePortal && req.sourcePortal.includes('pc.')) ||
       (raw.source_portal && raw.source_portal.includes('pc.')) ||
       (raw.source_system && raw.source_system.includes('pc.')) ||
       clientApp.includes('pc.') ||
+      clientApp.toLowerCase().includes('petty') ||
+      keyName.toLowerCase().includes('petty') ||
       (raw.company && raw.company.toLowerCase().includes('petty')) ||
-      (raw.category && raw.category.toLowerCase().includes('petty'))
+      (raw.category && raw.category.toLowerCase().includes('petty')) ||
+      (raw.comments && raw.comments.toLowerCase().includes('petty cash')) ||
+      (raw.remarks && raw.remarks.toLowerCase().includes('petty cash')) ||
+      (raw.requested_by_name && raw.requested_by_name.toLowerCase().includes('petty cash'))
     );
 
     const sourcePortal = isPc ? 'pc.nkbmanufacturing.com' : (req?.sourcePortal || raw.source_portal || 'my.nkbmanufacturing.com');
@@ -787,11 +795,15 @@ export class PayableService {
         this.whereNull('payee_beneficiary')
           .orWhere(function () {
             this.whereNot('payee_beneficiary', 'like', '%FMS SYNC TEST%')
-              .andWhereNot('payee_beneficiary', 'like', '%TEST PROBE%');
+              .andWhereNot('payee_beneficiary', 'like', '%TEST PROBE%')
+              .andWhereNot('payee_beneficiary', 'like', '%System Connection Diagnostic%');
           });
       }).andWhere(function () {
-        this.whereNull('payable_number')
-          .orWhereNot('payable_number', 'like', 'PB-202610-%');
+        this.whereNull('purpose_usage')
+          .orWhere(function () {
+            this.whereNot('purpose_usage', 'like', '%Test FMS Bi-directional Sync%')
+              .andWhereNot('purpose_usage', 'like', '%Diagnostic Test%');
+          });
       });
     }
 
