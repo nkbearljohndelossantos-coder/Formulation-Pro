@@ -488,7 +488,21 @@ export class PayableService {
     ).toString().trim();
 
     // Unique payable number: preserve caller's number or generate clean standard format
-    const callerNumber = (raw.requisition_no || raw.payable_number || raw.req_cheque_no || raw.request_number || raw.req_number || raw.invoice_no || '').toString().trim();
+    const callerNumber = (
+      raw.requisition_no ||
+      raw.payable_number ||
+      raw.req_cheque_no ||
+      raw.request_number ||
+      raw.request_no ||
+      raw.req_number ||
+      raw.cheque_number ||
+      raw.cheque_no ||
+      raw.check_no ||
+      raw.check_number ||
+      raw.invoice_no ||
+      (raw.id ? `${defaultPrefix}-${raw.id}` : '') ||
+      ''
+    ).toString().trim();
     const defaultPrefix = isPc ? 'PC' : 'REQ';
     const generatedNumber = `${defaultPrefix}-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}${Math.floor(1000 + Math.random() * 9000)}`;
     const payableNumber = callerNumber || externalRef || generatedNumber;
@@ -670,7 +684,7 @@ export class PayableService {
       status: statusToSave,
       coo_approval: cooApprovalToSave,
       checked_by: norm.raw.coo_confirmed_by || norm.raw.checked_by || (statusToSave === 'Approved' ? 'Norvin Bella' : null),
-      coo_confirmed_at: norm.raw.coo_confirmed_at || null,
+      coo_confirmed_at: norm.raw.coo_confirmed_at || norm.raw.confirmed_at || norm.raw.approved_at || norm.raw.coo_approved_at || norm.raw.date_approved || null,
       prepared_by: norm.raw.prepared_by || norm.createdBy,
       created_by: norm.createdBy,
       attachment_url: norm.attachmentVal,
@@ -900,10 +914,11 @@ export class PayableService {
     const newComment = `[${new Date().toLocaleString()}] ${decision} by ${approver}.${checkNo ? ` Check #: ${checkNo}.` : ''}${notes ? ` Notes: ${notes}` : ''}`;
     const updatedComments = existingComments ? `${existingComments}\n${newComment}` : newComment;
 
+    const statusText = decision === 'CONFIRMED' ? 'Approved' : 'Rejected';
     await db('payables')
       .where({ id: row.id })
       .update({
-        status: decision,
+        status: statusText,
         coo_approval: decision,
         cheque_number: checkNo || row.cheque_number,
         checked_by: approver,

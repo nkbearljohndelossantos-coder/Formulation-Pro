@@ -133,7 +133,13 @@ export function nkbApiRequest(method, endpointPath, apiKey, bodyData = null, tar
     let urlObj;
     try {
       if (targetHost && targetHost.startsWith('http')) {
-        urlObj = new URL(endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath, targetHost);
+        const base = new URL(targetHost);
+        const basePath = base.pathname.replace(/\/+$/, '');
+        let cleanPath = endpointPath.startsWith('/') ? endpointPath : '/' + endpointPath;
+        if (basePath && !cleanPath.startsWith(basePath)) {
+          cleanPath = `${basePath}${cleanPath}`.replace(/\/+/g, '/');
+        }
+        urlObj = new URL(`${base.protocol}//${base.host}${cleanPath}`);
       } else {
         const rawHost = targetHost || (isPc ? 'pc.nkbmanufacturing.com' : 'my.nkbmanufacturing.com');
         const proto = 'https:';
@@ -793,7 +799,11 @@ export async function syncExternalPortalsSafe() {
         ) {
           continue;
         }
-        await PayableService.createPayable(itm).catch(() => {});
+        await PayableService.createPayable({
+          ...itm,
+          source_portal: 'pc.nkbmanufacturing.com',
+          source_system: 'https://pc.nkbmanufacturing.com/'
+        }).catch(() => {});
         syncResults.pc++;
       }
     }
@@ -820,7 +830,11 @@ export async function syncExternalPortalsSafe() {
         ) {
           continue;
         }
-        await PayableService.createPayable(itm).catch(() => {});
+        await PayableService.createPayable({
+          ...itm,
+          source_portal: 'my.nkbmanufacturing.com',
+          source_system: 'https://my.nkbmanufacturing.com/'
+        }).catch(() => {});
         syncResults.my++;
       }
     }
@@ -837,9 +851,20 @@ export async function syncExternalPortalsSafe() {
  */
 router.get('/', authenticatePayablesAccess, async (req, res) => {
   try {
-    // 1. Opportunistic sync from external portals:
-    // If sync=true, or if database has <= 2 records (initial state), or throttle interval passed:
-    const countRes = await db('payables').count('id as cnt').first().catch(() => ({ cnt: 0 }));
+    // If sync=true, or if database has <= 2 genuine records (initial state), or throttle interval passed:
+    const countRes = await db('payables')
+      .where(function() {
+        this.whereNull('payee_beneficiary')
+          .orWhere(function() {
+            this.whereNot('payee_beneficiary', 'like', '%FMS SYNC TEST%')
+              .andWhereNot('payee_beneficiary', 'like', '%TEST PROBE%');
+          });
+      })
+      .andWhere(function() {
+        this.whereNull('payable_number')
+          .orWhereNot('payable_number', 'like', 'PB-202610-%');
+      })
+      .count('id as cnt').first().catch(() => ({ cnt: 0 }));
     const currentCount = Number(countRes?.cnt || countRes?.['count(*)'] || 0);
 
     const isExplicitSync = req.query.sync === 'true';
@@ -1065,12 +1090,18 @@ router.post('/:id/confirm', authenticateToken, async (req, res) => {
     let remoteSuccess = false;
     let remoteResponse = null;
 
+    const remoteId = updated.external_reference || updated.req_cheque_no || updated.payable_number || id;
+
     try {
-      const response = await nkbApiRequest('POST', `/payables/${id}/confirm`, targetApiKey, {
+      const response = await nkbApiRequest('POST', `/payables/${remoteId}/confirm`, targetApiKey, {
         decision,
         cheque_number: checkNo,
         notes: notes || '',
-        confirmed_by: approverName
+        confirmed_by: approverName,
+        id: remoteId,
+        payable_number: updated.payable_number,
+        req_cheque_no: updated.req_cheque_no,
+        external_reference: updated.external_reference || undefined
       }, targetPortal);
 
       remoteResponse = response.data;

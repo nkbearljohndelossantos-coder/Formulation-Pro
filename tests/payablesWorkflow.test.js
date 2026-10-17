@@ -83,4 +83,185 @@ describe('Payables External Integration and Approval Queue Tests', () => {
     const confirmed = await PayableService.getPayables({ status: 'CONFIRMED' });
     expect(confirmed.every(p => p.status?.includes('Approved') || p.status?.includes('CONFIRM') || p.coo_approval?.includes('CONFIRM'))).toBe(true);
   });
+
+  it('correctly ingests genuine PO payable from my.nkbmanufacturing.com with line items into payable_items', async () => {
+    const myNkbPayload = {
+      id: 88101,
+      requisition_no: 'PO-NKB-2026-0881',
+      supplier_name: 'ChemSource Philippines Industrial Inc',
+      amount: 145000.00,
+      payable_category: 'Raw Materials - Chemical Surfactants',
+      purpose: 'Batch 4001 Surfactant Precursors',
+      source_portal: 'my.nkbmanufacturing.com',
+      source_system: 'https://my.nkbmanufacturing.com/',
+      line_items: [
+        {
+          description: 'Sodium Laureth Sulfate 70% 200kg Drum',
+          expense_category: 'Direct Raw Materials',
+          quantity: 10,
+          cost: 9500.00,
+          subtotal: 95000.00,
+          total: 95000.00
+        },
+        {
+          description: 'Cocamidopropyl Betaine 30% 200kg Drum',
+          expense_category: 'Direct Raw Materials',
+          quantity: 10,
+          cost: 5000.00,
+          subtotal: 50000.00,
+          total: 50000.00
+        }
+      ]
+    };
+
+    const res = await PayableService.createPayable(myNkbPayload);
+    expect(res.isDuplicate).toBe(false);
+    expect(res.record.payable_number).toBe('PO-NKB-2026-0881');
+    expect(res.record.source_portal).toBe('my.nkbmanufacturing.com');
+    expect(res.record.company_code).toBe('NKB');
+    expect(res.record.amount).toBe(145000.00);
+
+    // Verify child items inserted into payable_items table
+    const childItems = await db('payable_items').where({ payable_number: 'PO-NKB-2026-0881' });
+    expect(childItems.length).toBe(2);
+    expect(childItems[0].description).toBe('Sodium Laureth Sulfate 70% 200kg Drum');
+    expect(childItems[0].subtotal).toBe(95000.00);
+    expect(childItems[1].description).toBe('Cocamidopropyl Betaine 30% 200kg Drum');
+    expect(childItems[1].subtotal).toBe(50000.00);
+
+    // Idempotent retry test
+    const retryRes = await PayableService.createPayable(myNkbPayload);
+    expect(retryRes.isDuplicate).toBe(true);
+    expect(retryRes.record.payable_number).toBe('PO-NKB-2026-0881');
+  });
+
+  it('correctly ingests genuine Petty Cash payable from pc.nkbmanufacturing.com with NKB-PC tags', async () => {
+    const pcNkbPayload = {
+      id: 99202,
+      requisition_no: 'PC-MNL-2026-0992',
+      supplier_name: 'Metro Manila Branch Petty Cash Custodian',
+      amount: 18750.25,
+      payable_category: 'Petty Cash Replenishment',
+      purpose: 'Branch Logistics & Factory Floor Incidentals',
+      source_portal: 'pc.nkbmanufacturing.com',
+      source_system: 'https://pc.nkbmanufacturing.com/',
+      line_items: [
+        {
+          description: 'Emergency Laboratory Reagents and Distilled Water',
+          expense_category: 'Lab Supplies',
+          quantity: 1,
+          cost: 8250.25,
+          subtotal: 8250.25,
+          total: 8250.25
+        },
+        {
+          description: 'Local Delivery Couriers and Transport Tokens',
+          expense_category: 'Transportation',
+          quantity: 1,
+          cost: 10500.00,
+          subtotal: 10500.00,
+          total: 10500.00
+        }
+      ]
+    };
+
+    const res = await PayableService.createPayable(pcNkbPayload);
+    expect(res.isDuplicate).toBe(false);
+    expect(res.record.payable_number).toBe('PC-MNL-2026-0992');
+    expect(res.record.source_portal).toBe('pc.nkbmanufacturing.com');
+    expect(res.record.source_badge).toBe('pc.nkb');
+    expect(res.record.company_code).toBe('NKB-PC');
+    expect(res.record.amount).toBe(18750.25);
+
+    // Verify child items inserted into payable_items table
+    const childItems = await db('payable_items').where({ payable_number: 'PC-MNL-2026-0992' });
+    expect(childItems.length).toBe(2);
+    expect(childItems[0].expense_category).toBe('Lab Supplies');
+    expect(childItems[1].expense_category).toBe('Transportation');
+
+    // Idempotent retry test
+    const retryRes = await PayableService.createPayable(pcNkbPayload);
+    expect(retryRes.isDuplicate).toBe(true);
+    expect(retryRes.record.payable_number).toBe('PC-MNL-2026-0992');
+  });
+
+  it('guarantees portal isolation: a malformed or failing payload from one portal does not break the other', async () => {
+    // Malformed payload from one portal (missing supplier name and 0 amount)
+    const malformedMyPayload = {
+      requisition_no: 'PO-FAIL-001',
+      supplier_name: '',
+      amount: 0,
+      source_portal: 'my.nkbmanufacturing.com'
+    };
+
+    // Valid payload from pc portal
+    const validPcPayload = {
+      requisition_no: 'PC-OK-2026-001',
+      supplier_name: 'Cavite Plant Petty Cash Fund',
+      amount: 12400.00,
+      purpose: 'Plant maintenance emergency consumables',
+      source_portal: 'pc.nkbmanufacturing.com'
+    };
+
+    // First, verify malformed payload fails with validation error as expected
+    let myErrorCaught = false;
+    try {
+      await PayableService.createPayable(malformedMyPayload);
+    } catch (err) {
+      myErrorCaught = true;
+      expect(err.message).toContain('required');
+    }
+    expect(myErrorCaught).toBe(true);
+
+    // Second, verify that subsequent pc portal transaction succeeds completely independently
+    const pcRes = await PayableService.createPayable(validPcPayload);
+    expect(pcRes.isDuplicate).toBe(false);
+    expect(pcRes.record.payable_number).toBe('PC-OK-2026-001');
+    expect(pcRes.record.source_portal).toBe('pc.nkbmanufacturing.com');
+    expect(pcRes.record.amount).toBe(12400.00);
+  });
+
+  it('executes COO confirmation workflow setting status, cheque_number, and coo_confirmed_at', async () => {
+    // Create a pending payable
+    const pendingItem = {
+      requisition_no: 'PB-COO-WORKFLOW-01',
+      supplier_name: 'Packaging Solutions Hub Inc',
+      amount: 67300.00,
+      status: 'PENDING_COO_APPROVAL',
+      purpose: 'Amber glass bottle batch'
+    };
+
+    const created = await PayableService.createPayable(pendingItem);
+    expect(created.record.status).toBe('PENDING_COO_APPROVAL');
+
+    // Perform COO confirmation
+    const confirmed = await PayableService.confirmPayable(created.record.id, {
+      decision: 'CONFIRMED',
+      cheque_number: 'CHK-2026-88771',
+      notes: 'Approved for disbursement after QA release',
+      confirmed_by: 'Norvin Bella (COO)'
+    });
+
+    expect(confirmed).toBeDefined();
+    expect(confirmed.status).toBe('CONFIRMED');
+    expect(confirmed.coo_approval).toBe('CONFIRMED');
+    expect(confirmed.cheque_number).toBe('CHK-2026-88771');
+    expect(confirmed.comments).toContain('Approved for disbursement after QA release');
+
+    // Verify persisted directly in database
+    const dbRow = await db('payables').where({ id: created.record.id }).first();
+    expect(dbRow.status).toBe('Approved');
+    expect(dbRow.coo_approval).toBe('CONFIRMED');
+    expect(dbRow.cheque_number).toBe('CHK-2026-88771');
+    expect(dbRow.coo_confirmed_at).not.toBeNull();
+
+    // Verify retry of confirmed record does not revert it to pending
+    const retryOfConfirmed = await PayableService.createPayable(pendingItem);
+    expect(retryOfConfirmed.isDuplicate).toBe(true);
+    const dbRowAfterRetry = await db('payables').where({ id: created.record.id }).first();
+    expect(dbRowAfterRetry.status).toBe('Approved');
+    expect(dbRowAfterRetry.coo_approval).toBe('CONFIRMED');
+    expect(dbRowAfterRetry.cheque_number).toBe('CHK-2026-88771');
+  });
 });
+
