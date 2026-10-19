@@ -89,7 +89,7 @@ export function PayableApprovalsPage() {
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('PENDING');
   const [portalFilter, setPortalFilter] = useState('ALL'); // 'ALL' | 'my.nkbmanufacturing.com' | 'pc.nkbmanufacturing.com'
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [autoSync, setAutoSync] = useState(true);
@@ -1308,49 +1308,8 @@ export function PayableApprovalsPage() {
           </div>
 
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-            {/* Portal Source Filter Tabs */}
+            {/* 1. Primary Filter: Authoritative Status Filter Tabs (Pending is Default View) */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
-              <button
-                onClick={() => { setPortalFilter('ALL'); setCurrentPageNum(1); }}
-                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
-              >
-                All Portals
-              </button>
-              <button
-                onClick={() => { setPortalFilter('my.nkbmanufacturing.com'); setCurrentPageNum(1); }}
-                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'my.nkbmanufacturing.com' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
-              >
-                my.nkb
-              </button>
-              <button
-                onClick={() => { setPortalFilter('pc.nkbmanufacturing.com'); setCurrentPageNum(1); }}
-                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'pc.nkbmanufacturing.com' ? 'bg-white text-purple-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
-              >
-                pc.nkb
-              </button>
-            </div>
-
-            {/* Status Filter Tabs with Dynamic Authoritative Counts */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
-              <button
-                type="button"
-                onClick={() => { setStatusFilter('ALL'); setCurrentPageNum(1); }}
-                className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
-                  statusFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'hover:text-slate-900'
-                }`}
-                title="View all payable requests across all approval statuses"
-              >
-                <span>All</span>
-                <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
-                  statusFilter === 'ALL'
-                    ? 'bg-slate-200 text-slate-900 font-bold'
-                    : 'bg-slate-200/70 text-slate-600'
-                }`}>
-                  {statusCounts.all}
-                </span>
-              </button>
               <button
                 type="button"
                 onClick={() => { setStatusFilter('PENDING'); setCurrentPageNum(1); }}
@@ -1359,7 +1318,7 @@ export function PayableApprovalsPage() {
                     ? 'bg-white text-amber-700 shadow-2xs font-bold'
                     : 'hover:text-slate-900'
                 }`}
-                title="View payable requests awaiting approval (strictly excludes approved and rejected)"
+                title="View payable requests awaiting approval (Default View — strictly excludes approved and rejected)"
               >
                 <span>Pending</span>
                 <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
@@ -1407,6 +1366,50 @@ export function PayableApprovalsPage() {
                 }`}>
                   {statusCounts.rejected}
                 </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('ALL'); setCurrentPageNum(1); }}
+                className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+                  statusFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+                title="View all payable requests across all approval statuses"
+              >
+                <span>All</span>
+                <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'ALL'
+                    ? 'bg-slate-200 text-slate-900 font-bold'
+                    : 'bg-slate-200/70 text-slate-600'
+                }`}>
+                  {statusCounts.all}
+                </span>
+              </button>
+            </div>
+
+            {/* 2. Secondary Filter: Portal Source Filter Tabs */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
+              <button
+                onClick={() => { setPortalFilter('ALL'); setCurrentPageNum(1); }}
+                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                title="Show requests from both my.nkb and pc.nkb portals"
+              >
+                All Portals
+              </button>
+              <button
+                onClick={() => { setPortalFilter('my.nkbmanufacturing.com'); setCurrentPageNum(1); }}
+                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'my.nkbmanufacturing.com' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                title="Filter by my.nkbmanufacturing.com portal only"
+              >
+                my.nkb
+              </button>
+              <button
+                onClick={() => { setPortalFilter('pc.nkbmanufacturing.com'); setCurrentPageNum(1); }}
+                className={`px-2.5 py-1.5 rounded-md transition ${portalFilter === 'pc.nkbmanufacturing.com' ? 'bg-white text-purple-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                title="Filter by pc.nkbmanufacturing.com portal only"
+              >
+                pc.nkb
               </button>
             </div>
 

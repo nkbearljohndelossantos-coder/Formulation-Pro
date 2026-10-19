@@ -451,6 +451,29 @@ describe('Payables External Integration and Approval Queue Tests', () => {
 
     expect(computedPendingCount + computedApprovedCount + computedRejectedCount).toBe(allCount);
   });
+
+  it('verifies default view priority: PENDING is initial view showing genuine pending records across both portals', async () => {
+    // Default load: status is PENDING, portal is ALL
+    const defaultPendingPayables = await PayableService.getPayables({ status: 'PENDING', portal: 'ALL' });
+
+    // 1. Must only contain records whose authoritative status is PENDING
+    expect(defaultPendingPayables.length).toBeGreaterThan(0);
+    expect(defaultPendingPayables.every(p => getAuthoritativeApprovalStatus(p) === 'PENDING')).toBe(true);
+
+    // 2. Both portals are represented in default view if they have pending records
+    const hasMyPortal = defaultPendingPayables.some(p => p.source_portal === 'my.nkbmanufacturing.com');
+    const hasPcPortal = defaultPendingPayables.some(p => p.source_portal === 'pc.nkbmanufacturing.com');
+    expect(hasMyPortal || hasPcPortal).toBe(true);
+
+    // 3. Filtering by specific portal preserves PENDING status without leaking other statuses
+    const myPending = await PayableService.getPayables({ status: 'PENDING', portal: 'my' });
+    expect(myPending.every(p => getAuthoritativeApprovalStatus(p) === 'PENDING')).toBe(true);
+    expect(myPending.every(p => p.source_portal.includes('my.'))).toBe(true);
+
+    const pcPending = await PayableService.getPayables({ status: 'PENDING', portal: 'pc' });
+    expect(pcPending.every(p => getAuthoritativeApprovalStatus(p) === 'PENDING')).toBe(true);
+    expect(pcPending.every(p => p.source_portal.includes('pc.'))).toBe(true);
+  });
 });
 
 
