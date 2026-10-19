@@ -84,6 +84,18 @@ function showCopySelectorModal(onConfirm) {
   };
 }
 
+export const resolveClassification = (cat) => {
+  if (!cat) return '';
+  const s = String(cat).trim().toLowerCase();
+  if ((s.includes('no') && s.includes('brand')) || s.includes('no-brand') || s.includes('nobrand') || s.includes('unbrand')) {
+    return 'No Brand';
+  }
+  if (s.includes('brand')) {
+    return 'Brand';
+  }
+  return cat;
+};
+
 export async function printProductionSheet({
   version,
   formula,
@@ -98,6 +110,8 @@ export async function printProductionSheet({
   bottleQty: explicitBottleQty,
   soNumber: explicitSoNumber,
   sopTimestamps: explicitSopTimestamps = null,
+  classification: explicitClassification,
+  productCategory: explicitProductCategory,
 }) {
   if (!version) {
     alert('Invalid formula version selected.');
@@ -121,6 +135,8 @@ export async function printProductionSheet({
         bottleQty: explicitBottleQty || version?.bottleQty || version?.bottle_qty,
         soNumber: explicitSoNumber || version?.soNumber || version?.so_number || formula?.soNumber || formula?.so_number,
         sopTimestamps: explicitSopTimestamps || version?.sop_timestamps || version?.sopTimestamps,
+        classification: explicitClassification || version?.classification || formula?.classification,
+        productCategory: explicitProductCategory || version?.product_category || formula?.product_category,
       });
     });
     return;
@@ -199,7 +215,23 @@ export async function printProductionSheet({
 
   const rawFormulaName = formula?.name || version?.formula_name || 'Cosmetic Formulation';
   const formulaName = (isPerfume ? cleanPerfumeFormulaName(rawFormulaName) : rawFormulaName).toUpperCase();
-  const defaultPdfFilename = `${brandName ? `${brandName} - ` : ''}${soNumber ? `SO-${soNumber} - ` : ''}${formulaName} ${versionNum}`.trim();
+
+  const rawClassification = (
+    explicitClassification ||
+    explicitProductCategory ||
+    formula?.classification ||
+    formula?.product_category ||
+    formula?.category ||
+    formula?.brand_type ||
+    version?.classification ||
+    version?.product_category ||
+    version?.category ||
+    version?.brand_type ||
+    ''
+  );
+  const classification = resolveClassification(rawClassification) || (isPerfume ? 'Brand' : '');
+
+  const defaultPdfFilename = `${isPerfume && classification === 'No Brand' ? 'No Brand - ' : (brandName ? `${brandName} - ` : '')}${soNumber ? `SO-${soNumber} - ` : ''}${formulaName} ${versionNum}`.trim();
 
   // Base Compounding Control Number (Strict CP-xxxx format with exactly 4 digits)
   const formatBaseCompoundingNo = () => {
@@ -618,7 +650,13 @@ export async function printProductionSheet({
         <div class="doc-header">
           <h1>NKB Manufacturing Corporation</h1>
           <h2>${isPerfume ? 'PERFUME PRODUCTION SHEET' : 'PRODUCTION SHEET'} ${copyBadgeLabel}</h2>
-          ${isPerfume && brandName ? `<div style="font-size: 13px; font-weight: 800; color: #047857; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px;">BRAND: ${brandName}</div>` : ''}
+          ${isPerfume ? `
+            <div style="font-size: 13px; font-weight: 800; color: ${classification === 'No Brand' ? '#6b21a8' : '#047857'}; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px;">
+              ${classification === 'No Brand'
+                ? (brandName ? `NO BRAND: ${brandName}` : 'NO BRAND')
+                : (brandName ? `BRAND: ${brandName}` : 'BRAND')}
+            </div>
+          ` : ''}
         </div>
 
         <!-- Meta Info -->
@@ -631,7 +669,8 @@ export async function printProductionSheet({
             <div class="meta-line"><span class="meta-bold">Formulation:</span> ${formulaName}</div>
           </div>
           <div class="meta-col-right">
-            ${isPerfume && brandName ? `<div class="meta-line"><span class="meta-bold">Brand Name:</span> <span style="font-weight: 800; color: #047857; text-transform: uppercase;">${brandName}</span></div>` : ''}
+            ${isPerfume ? `<div class="meta-line"><span class="meta-bold">Classification:</span> <strong style="color: ${classification === 'No Brand' ? '#6b21a8' : '#047857'}; text-transform: uppercase;">${classification}</strong></div>` : ''}
+            ${isPerfume && brandName ? `<div class="meta-line"><span class="meta-bold">${classification === 'No Brand' ? 'Brand / Tatak:' : 'Brand Name:'}</span> <span style="font-weight: 800; color: ${classification === 'No Brand' ? '#6b21a8' : '#047857'}; text-transform: uppercase;">${brandName}</span></div>` : ''}
             ${isPerfume ? `<div class="meta-line"><span class="meta-bold">Bottle Size:</span> <strong>${bSize} ml</strong> &nbsp;|&nbsp; <span class="meta-bold">Bottle Qty:</span> <strong style="color: #047857;">${formattedBottleQty} pcs</strong></div>` : ''}
             <div class="meta-line"><span class="meta-bold">Version:</span> ${versionNum}</div>
             <div class="meta-line"><span class="meta-bold">Date:</span> ${dateStr}</div>
@@ -1278,10 +1317,25 @@ export async function printProductionSheet({
     </html>
   `;
 
-  // Attach global helper to opener for copy count re-generation
   if (typeof window !== 'undefined') {
     window.__PRINT_WITH_COPIES__ = function(newCopies) {
-      printProductionSheet({ version, formula, materials, categoryDetails, user, copies: newCopies });
+      printProductionSheet({
+        version,
+        formula,
+        materials,
+        categoryDetails,
+        user,
+        copies: newCopies,
+        layoutConfig,
+        isPerfume,
+        brandName,
+        bottleSize: explicitBottleSize,
+        bottleQty: explicitBottleQty,
+        soNumber: explicitSoNumber,
+        sopTimestamps: explicitSopTimestamps,
+        classification,
+        productCategory: rawClassification,
+      });
     };
   }
 

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
-import { printProductionSheet } from '../utils/printProductionSheet';
+import { printProductionSheet, resolveClassification } from '../utils/printProductionSheet';
 import { printFormulaCompoundingSop } from '../utils/printSopDocument';
 import ExcelProductionSheetTable from '../components/ExcelProductionSheetTable';
 
@@ -278,6 +278,9 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         status: 'APPROVED',
         displayText: `${f.code} — ${f.name} (V${v.major_version}.${v.minor_version} APPROVED)`,
         categoryTag: f.product_category || 'Perfume',
+        product_category: f.product_category,
+        brand_type: f.brand_type,
+        classification: resolveClassification(f.product_category || f.brand_type),
         isPerfume: true,
       });
     });
@@ -294,6 +297,9 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       status: 'APPROVED',
       displayText: `Standard Preset: ${p.name}${p.description ? ` (${p.description})` : ''}`,
       categoryTag: p.category,
+      product_category: p.category,
+      brand_type: p.category?.includes('No-Brand') ? 'No Brand' : 'Brand',
+      classification: resolveClassification(p.category),
       isPerfume: true,
     });
   });
@@ -336,6 +342,15 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
   });
 
   const selectedOption = formulaOptions.find(opt => String(opt.id) === String(selectedVersionId));
+
+  const resolvedClassification = resolveClassification(
+    batchResult?.classification ||
+    batchResult?.product_category ||
+    selectedOption?.classification ||
+    selectedOption?.product_category ||
+    selectedOption?.categoryTag ||
+    'Brand'
+  );
 
   // Helper to rank phases (Phase A = 65, Phase B = 66, Phase C = 67, etc.)
   const getPhaseRank = (phaseStr) => {
@@ -398,12 +413,15 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
       items.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
 
       const cpCode = `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
+      const presetClassification = resolveClassification(preset.category);
       setBatchResult({
         compounding_code: cpCode,
         batch_number: cpCode.replace('CP-', 'BAT-'),
         formula_code: preset.code,
         formula_name: preset.name,
-        brand_name: brandName.trim(),
+        product_category: preset.category,
+        classification: presetClassification,
+        brand_name: presetClassification === 'No Brand' ? '' : brandName.trim(),
         so_number: soNumber.trim(),
         bottle_size: bSize,
         bottle_qty: computedBottleQty,
@@ -448,9 +466,13 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         if (Array.isArray(d.data.items)) {
           d.data.items.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
         }
+        const rawCat = d.data.product_category || selectedOption?.product_category || selectedOption?.categoryTag;
+        const calcClassification = resolveClassification(rawCat);
         setBatchResult({
           ...d.data,
-          brand_name: brandName.trim(),
+          product_category: rawCat,
+          classification: calcClassification,
+          brand_name: brandName.trim() || d.data.brand_name || '',
           so_number: soNumber.trim() || d.data.so_number || '',
           bottle_size: bSize,
           bottle_qty: computedBottleQty,
@@ -515,11 +537,15 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         items.sort((a, b) => getPhaseRank(a.phase_name) - getPhaseRank(b.phase_name));
 
         const cpCode = version.compounding_code || `CP-PRF-${Math.floor(1000 + Math.random() * 9000)}`;
+        const rawCat = formula.product_category || selectedOption?.product_category || selectedOption?.categoryTag;
+        const calcClassification = resolveClassification(rawCat);
         setBatchResult({
           compounding_code: cpCode,
           batch_number: cpCode.replace('CP-', 'BAT-'),
           formula_code: formula.code || 'PRF-FORM',
           formula_name: formula.name || 'Perfume Formulation',
+          product_category: rawCat,
+          classification: calcClassification,
           brand_name: brandName.trim(),
           so_number: soNumber.trim(),
           bottle_size: bSize,
@@ -548,11 +574,16 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
 
   const handlePrintPdf = () => {
     if (!batchResult) return;
+    const activeClassification = batchResult.classification || resolveClassification(batchResult.product_category || selectedOption?.product_category || selectedOption?.categoryTag);
     const currentBrand = (brandName || batchResult.brand_name || '').trim();
     const activeBottleSize = batchResult.bottle_size || bSize;
     const activeBottleQty = batchResult.bottle_qty || computedBottleQty;
+    const activeCategory = batchResult.product_category || selectedOption?.product_category || selectedOption?.categoryTag || (activeClassification === 'No Brand' ? 'Perfume No Brand' : 'Perfume Brand');
+
     printProductionSheet({
       isPerfume: true,
+      classification: activeClassification,
+      productCategory: activeCategory,
       brandName: currentBrand,
       bottleSize: activeBottleSize,
       bottleQty: activeBottleQty,
@@ -563,6 +594,9 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         formula_code: batchResult.formula_code,
         formula_name: cleanPerfumeFormulaName(batchResult.formula_name),
         brandName: currentBrand,
+        classification: activeClassification,
+        product_category: activeCategory,
+        brand_type: activeClassification,
         soNumber: (soNumber || batchResult.so_number || '').trim(),
         so_number: (soNumber || batchResult.so_number || '').trim(),
         bottle_size: activeBottleSize,
@@ -582,11 +616,13 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
         code: batchResult.formula_code,
         name: cleanPerfumeFormulaName(batchResult.formula_name),
         brandName: currentBrand,
+        classification: activeClassification,
+        product_category: activeCategory,
+        brand_type: activeClassification,
         bottle_size: activeBottleSize,
         bottle_qty: activeBottleQty,
         bottleSize: activeBottleSize,
         bottleQty: activeBottleQty,
-        product_category: 'Perfume Brand',
         isPerfume: true,
       },
       materials: (batchResult.items || []).map(i => ({
@@ -788,7 +824,10 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                           setSelectedVersionId(opt.id);
                           setDropdownOpen(false);
                           setSearchQuery('');
-                          if (!opt.isPreset && opt.formulaName && !brandName) {
+                          const optClass = resolveClassification(opt.product_category || opt.categoryTag);
+                          if (optClass === 'No Brand') {
+                            setBrandName('');
+                          } else if (!opt.isPreset && opt.formulaName && !brandName) {
                             setBrandName(opt.formulaName);
                           }
                         }}
@@ -1101,11 +1140,15 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                 </span>
                 <h2 className="text-base font-extrabold text-slate-900 mt-1 flex flex-wrap items-center gap-2">
                   <span>{batchResult.formula_code} — {batchResult.formula_name}</span>
-                  {(brandName || batchResult.brand_name) && (
-                    <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wide">
-                      Brand: {brandName || batchResult.brand_name}
-                    </span>
-                  )}
+                  <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wide ${
+                    resolvedClassification === 'No Brand'
+                      ? 'text-purple-800 bg-purple-50 border-purple-200'
+                      : 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                  }`}>
+                    {resolvedClassification === 'No Brand'
+                      ? `NO BRAND${(brandName || batchResult.brand_name) ? ` • ${brandName || batchResult.brand_name}` : ''}`
+                      : `BRAND${(brandName || batchResult.brand_name) ? `: ${brandName || batchResult.brand_name}` : ''}`}
+                  </span>
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -1150,11 +1193,11 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
               <div className="text-center space-y-1">
                 <h1 className="text-xl font-extrabold tracking-tight text-slate-900">NKB Manufacturing Corporation</h1>
                 <h2 className="text-sm font-extrabold tracking-widest text-slate-900 uppercase">PERFUME PRODUCTION SHEET</h2>
-                {(brandName || batchResult.brand_name) && (
-                  <div className="text-xs font-black text-emerald-800 uppercase tracking-wider">
-                    BRAND: {brandName || batchResult.brand_name}
-                  </div>
-                )}
+                <div className={`text-xs font-black uppercase tracking-wider ${resolvedClassification === 'No Brand' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                  {resolvedClassification === 'No Brand'
+                    ? ((brandName || batchResult.brand_name) ? `NO BRAND: ${brandName || batchResult.brand_name}` : 'NO BRAND')
+                    : ((brandName || batchResult.brand_name) ? `BRAND: ${brandName || batchResult.brand_name}` : 'BRAND')}
+                </div>
               </div>
 
               {/* Meta Section */}
@@ -1197,10 +1240,20 @@ export function PerfumeBatchCalculator({ setCurrentPage, setSelectedBatchId, ini
                   <div>
                     <span className="font-bold text-slate-900">Formulation:</span> {cleanPerfumeFormulaName(batchResult.formula_name)?.toUpperCase()}
                   </div>
+                  <div>
+                    <span className="font-bold text-slate-900">Classification:</span>{' '}
+                    <span className={`font-extrabold uppercase ${resolvedClassification === 'No Brand' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                      {resolvedClassification}
+                    </span>
+                  </div>
                   {(brandName || batchResult.brand_name) && (
                     <div>
-                      <span className="font-bold text-slate-900">Brand Name:</span>{' '}
-                      <span className="font-extrabold text-emerald-800 uppercase">{brandName || batchResult.brand_name}</span>
+                      <span className="font-bold text-slate-900">
+                        {resolvedClassification === 'No Brand' ? 'Brand / Tatak:' : 'Brand Name:'}
+                      </span>{' '}
+                      <span className={`font-extrabold uppercase ${resolvedClassification === 'No Brand' ? 'text-purple-800' : 'text-emerald-800'}`}>
+                        {brandName || batchResult.brand_name}
+                      </span>
                     </div>
                   )}
                   <div>

@@ -211,6 +211,7 @@ router.post('/', authenticateToken, async (req, res) => {
         sop_timestamps: activeSopTimestamps,
         formula_code: version.formula_code,
         formula_name: version.formula_name,
+        product_category: version.product_category,
         version: `${version.major_version}.${version.minor_version}`,
         target_batch_qty: targetQtyDec.toFixed(2),
         target_uom: targetUom,
