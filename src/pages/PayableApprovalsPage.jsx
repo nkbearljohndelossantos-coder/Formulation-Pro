@@ -46,6 +46,39 @@ import {
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+/**
+ * Canonical authoritative approval classifier across FMS.
+ * Strictly mutually exclusive:
+ * 1. 'REJECTED' — explicit rejection (status or coo_approval is REJECTED/DISAPPROVED)
+ * 2. 'APPROVED' — explicit confirmation/approval (status or coo_approval is CONFIRMED/APPROVED, or coo_confirmed_at timestamp when not pending/rejected)
+ * 3. 'PENDING'  — awaiting approval (default state)
+ * NOTE: Cheque numbers, PAID status, or sync flags alone DO NOT constitute approval.
+ */
+export function getAuthoritativeApprovalStatus(p) {
+  if (!p) return 'PENDING';
+  const approval = (p.coo_approval || '').toString().trim().toUpperCase();
+  const stat = (p.status || '').toString().trim().toUpperCase();
+
+  // 1. REJECTED: Any explicit rejection takes precedence
+  if (approval === 'REJECTED' || stat === 'REJECTED' || stat.includes('DISAPPROV') || approval.includes('DISAPPROV')) {
+    return 'REJECTED';
+  }
+
+  // 2. APPROVED: Explicit confirmation/approval, or coo_confirmed_at timestamp when not pending/rejected
+  if (
+    approval === 'CONFIRMED' ||
+    approval === 'APPROVED' ||
+    stat === 'APPROVED' ||
+    stat === 'CONFIRMED' ||
+    (p.coo_confirmed_at && !approval.includes('PENDING') && !stat.includes('PENDING'))
+  ) {
+    return 'APPROVED';
+  }
+
+  // 3. PENDING: Default awaiting approval
+  return 'PENDING';
+}
+
 export function PayableApprovalsPage() {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'detail'
@@ -246,7 +279,7 @@ export function PayableApprovalsPage() {
       const prepFrom = datePreparedFrom ? `&date_prepared_from=${encodeURIComponent(datePreparedFrom)}` : '';
       const prepTo = datePreparedTo ? `&date_prepared_to=${encodeURIComponent(datePreparedTo)}` : '';
       const syncParam = isManualSync ? '&sync=true' : '';
-      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}${portalParam}${chkFrom}${chkTo}${prepFrom}${prepTo}${syncParam}`);
+      const res = await apiFetch(`/api/v1/payables?search=${encodeURIComponent(searchTerm)}&status=ALL${portalParam}${chkFrom}${chkTo}${prepFrom}${prepTo}${syncParam}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPayables(data.data);
@@ -285,7 +318,7 @@ export function PayableApprovalsPage() {
   useEffect(() => {
     fetchPayables();
     fetchConfig();
-  }, [statusFilter, portalFilter, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
+  }, [portalFilter, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
 
   // Periodic Auto-Sync (polling every 30 seconds if enabled)
   useEffect(() => {
@@ -294,7 +327,7 @@ export function PayableApprovalsPage() {
       fetchPayables();
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoSync, statusFilter, portalFilter, searchTerm, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
+  }, [autoSync, portalFilter, searchTerm, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
 
   // Handle save Portal API keys & URLs
   const handleSaveApiKey = async (e) => {
@@ -606,8 +639,8 @@ export function PayableApprovalsPage() {
 
   const activeDateFilterCount = (dateChequeFrom ? 1 : 0) + (dateChequeTo ? 1 : 0) + (datePreparedFrom ? 1 : 0) + (datePreparedTo ? 1 : 0);
 
-  // Search, portal, status, and date filters
-  const filteredPayables = useMemo(() => {
+  // 1. Authoritative base list after applying legacy purge, synthetic filters, portal, dates, and search
+  const baseList = useMemo(() => {
     let list = payables.filter(p => {
       const isLegacySample =
         p.id === 902 ||
@@ -618,26 +651,11 @@ export function PayableApprovalsPage() {
         (p.purpose_usage && (p.purpose_usage.includes('Test FMS Bi-directional Sync Integration') || p.purpose_usage.includes('Diagnostic Test')));
       return !isLegacySample && !isSyntheticTest;
     });
+
     if (portalFilter !== 'ALL') {
       list = list.filter(p => (p.source_portal || '').toLowerCase().includes(portalFilter.toLowerCase()));
     }
-    if (statusFilter !== 'ALL') {
-      const s = statusFilter.toUpperCase();
-      list = list.filter(p => {
-        const approval = (p.coo_approval || '').toUpperCase();
-        const stat = (p.status || '').toUpperCase();
-        if (s.includes('PENDING') || s.includes('SUBMIT')) {
-          return approval.includes('PENDING') || stat.includes('PENDING') || stat.includes('SUBMIT');
-        }
-        if (s.includes('CONFIRM') || s.includes('APPROV')) {
-          return approval.includes('CONFIRM') || approval.includes('APPROV') || stat.includes('CONFIRM') || stat.includes('APPROV') || stat.includes('PAID');
-        }
-        if (s.includes('REJECT')) {
-          return approval.includes('REJECT') || stat.includes('REJECT') || stat.includes('DISAPPROV');
-        }
-        return approval.includes(s) || stat.includes(s);
-      });
-    }
+
     if (dateChequeFrom) {
       list = list.filter(p => {
         const info = getChequeDateInfo(p);
@@ -649,6 +667,7 @@ export function PayableApprovalsPage() {
         return (d && d >= dateChequeFrom) || lineMatch;
       });
     }
+
     if (dateChequeTo) {
       list = list.filter(p => {
         const info = getChequeDateInfo(p);
@@ -660,18 +679,21 @@ export function PayableApprovalsPage() {
         return (d && d <= dateChequeTo) || lineMatch;
       });
     }
+
     if (datePreparedFrom) {
       list = list.filter(p => {
         const d = (p.date_prepared || p.date_created || p.date || '').slice(0, 10);
         return d && d >= datePreparedFrom;
       });
     }
+
     if (datePreparedTo) {
       list = list.filter(p => {
         const d = (p.date_prepared || p.date_created || p.date || '').slice(0, 10);
         return d && d <= datePreparedTo;
       });
     }
+
     if (!searchTerm.trim()) return list;
     const q = searchTerm.trim().toLowerCase();
     return list.filter(p =>
@@ -689,7 +711,44 @@ export function PayableApprovalsPage() {
       (p.vendor || '').toLowerCase().includes(q) ||
       (p.source_portal || '').toLowerCase().includes(q)
     );
-  }, [payables, searchTerm, portalFilter, statusFilter, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
+  }, [payables, portalFilter, searchTerm, dateChequeFrom, dateChequeTo, datePreparedFrom, datePreparedTo]);
+
+  // 2. Dynamic status counts strictly reflecting the active portal, search, and date filters
+  const statusCounts = useMemo(() => {
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+
+    for (const p of baseList) {
+      const auth = getAuthoritativeApprovalStatus(p);
+      if (auth === 'APPROVED') approved++;
+      else if (auth === 'REJECTED') rejected++;
+      else pending++;
+    }
+
+    return {
+      all: baseList.length,
+      pending,
+      approved,
+      rejected
+    };
+  }, [baseList]);
+
+  // 3. Strictly mutually exclusive filtered dataset according to active status tab
+  const filteredPayables = useMemo(() => {
+    const s = (statusFilter || 'ALL').toUpperCase();
+    if (s === 'ALL') return baseList;
+    if (s.includes('PENDING') || s.includes('SUBMIT')) {
+      return baseList.filter(p => getAuthoritativeApprovalStatus(p) === 'PENDING');
+    }
+    if (s.includes('CONFIRM') || s.includes('APPROV')) {
+      return baseList.filter(p => getAuthoritativeApprovalStatus(p) === 'APPROVED');
+    }
+    if (s.includes('REJECT')) {
+      return baseList.filter(p => getAuthoritativeApprovalStatus(p) === 'REJECTED');
+    }
+    return baseList;
+  }, [baseList, statusFilter]);
 
   // Total entries & amount calculation for continuous list view (no pagination)
   const totalEntries = filteredPayables.length;
@@ -713,8 +772,10 @@ export function PayableApprovalsPage() {
   // =========================================================================
   if (viewMode === 'detail' && selectedPayable) {
     const p = selectedPayable;
-    const isApproved = p.coo_approval === 'CONFIRMED' || p.status === 'Approved';
-    const isRejected = p.coo_approval === 'REJECTED' || p.status === 'Rejected';
+    const authStatus = getAuthoritativeApprovalStatus(p);
+    const isApproved = authStatus === 'APPROVED';
+    const isRejected = authStatus === 'REJECTED';
+    const isPending = authStatus === 'PENDING';
 
     return (
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -1269,31 +1330,83 @@ export function PayableApprovalsPage() {
               </button>
             </div>
 
-            {/* Status Filter Tabs */}
+            {/* Status Filter Tabs with Dynamic Authoritative Counts */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold text-slate-600">
               <button
+                type="button"
                 onClick={() => { setStatusFilter('ALL'); setCurrentPageNum(1); }}
-                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+                  statusFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+                title="View all payable requests across all approval statuses"
               >
-                All
+                <span>All</span>
+                <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'ALL'
+                    ? 'bg-slate-200 text-slate-900 font-bold'
+                    : 'bg-slate-200/70 text-slate-600'
+                }`}>
+                  {statusCounts.all}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => { setStatusFilter('PENDING'); setCurrentPageNum(1); }}
-                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'PENDING' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+                  statusFilter === 'PENDING'
+                    ? 'bg-white text-amber-700 shadow-2xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+                title="View payable requests awaiting approval (strictly excludes approved and rejected)"
               >
-                Pending
+                <span>Pending</span>
+                <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'PENDING'
+                    ? 'bg-amber-100 text-amber-800 font-bold'
+                    : 'bg-slate-200/70 text-slate-600'
+                }`}>
+                  {statusCounts.pending}
+                </span>
               </button>
               <button
-                onClick={() => { setStatusFilter('CONFIRMED'); setCurrentPageNum(1); }}
-                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                type="button"
+                onClick={() => { setStatusFilter('APPROVED'); setCurrentPageNum(1); }}
+                className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+                  statusFilter === 'APPROVED' || statusFilter === 'CONFIRMED'
+                    ? 'bg-white text-emerald-700 shadow-2xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+                title="View approved payable requests (strictly excludes pending and rejected)"
               >
-                Approved
+                <span>Approved</span>
+                <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'APPROVED' || statusFilter === 'CONFIRMED'
+                    ? 'bg-emerald-100 text-emerald-800 font-bold'
+                    : 'bg-slate-200/70 text-slate-600'
+                }`}>
+                  {statusCounts.approved}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => { setStatusFilter('REJECTED'); setCurrentPageNum(1); }}
-                className={`px-3 py-1.5 rounded-md transition ${statusFilter === 'REJECTED' ? 'bg-white text-rose-600 shadow-2xs font-bold' : 'hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+                  statusFilter === 'REJECTED'
+                    ? 'bg-white text-rose-700 shadow-2xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+                title="View rejected payable requests (strictly excludes pending and approved)"
               >
-                Rejected
+                <span>Rejected</span>
+                <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded-full ${
+                  statusFilter === 'REJECTED'
+                    ? 'bg-rose-100 text-rose-800 font-bold'
+                    : 'bg-slate-200/70 text-slate-600'
+                }`}>
+                  {statusCounts.rejected}
+                </span>
               </button>
             </div>
 
@@ -1553,18 +1666,48 @@ export function PayableApprovalsPage() {
                 ))
               ) : filteredPayables.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-slate-400">
-                    <Info className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                    <span>No payable entries found.</span>
+                  <td colSpan={12} className="py-14 text-center">
+                    <div className="max-w-md mx-auto space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                        {statusFilter === 'PENDING' ? (
+                          <Clock className="w-6 h-6 text-amber-500" />
+                        ) : statusFilter === 'APPROVED' || statusFilter === 'CONFIRMED' ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                        ) : statusFilter === 'REJECTED' ? (
+                          <XCircle className="w-6 h-6 text-rose-500" />
+                        ) : (
+                          <Info className="w-6 h-6 text-slate-400" />
+                        )}
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-800">
+                        {statusFilter === 'PENDING'
+                          ? 'No Pending Payable Requests'
+                          : statusFilter === 'APPROVED' || statusFilter === 'CONFIRMED'
+                          ? 'No Approved Payable Requests'
+                          : statusFilter === 'REJECTED'
+                          ? 'No Rejected Payable Requests'
+                          : 'No Payable Requests Found'}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {statusFilter === 'PENDING'
+                          ? 'There are currently no payable requests awaiting approval under the selected filters.'
+                          : statusFilter === 'APPROVED' || statusFilter === 'CONFIRMED'
+                          ? 'There are no approved payable requests matching the selected portal, search, or date criteria.'
+                          : statusFilter === 'REJECTED'
+                          ? 'There are no rejected payable requests under the current filter selection.'
+                          : 'No payable entries match your active portal, search keyword, or date filters.'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredPayables.map((item, idx) => {
                   const itemKey = item.id || item.req_cheque_no || item.payable_number || idx;
                   const isExpanded = Boolean(expandedRows[itemKey]);
-                  const isApproved = item.coo_approval === 'CONFIRMED' || item.status === 'Approved';
-                  const isRejected = item.coo_approval === 'REJECTED' || item.status === 'Rejected';
-                  const isPending = !isApproved && !isRejected;
+                  const authStatus = getAuthoritativeApprovalStatus(item);
+                  const isApproved = authStatus === 'APPROVED';
+                  const isRejected = authStatus === 'REJECTED';
+                  const isPending = authStatus === 'PENDING';
 
                   return (
                     <React.Fragment key={itemKey}>
@@ -1710,7 +1853,7 @@ export function PayableApprovalsPage() {
                             isRejected ? 'bg-rose-100 text-rose-800 border border-rose-200' :
                             'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
                           }`}>
-                            {item.coo_approval || item.status || 'PENDING_COO_APPROVAL'}
+                            {isApproved ? 'APPROVED' : isRejected ? 'REJECTED' : 'PENDING'}
                           </span>
                         </td>
 

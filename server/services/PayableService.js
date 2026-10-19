@@ -22,6 +22,39 @@ export function extractDateFromText(text) {
 }
 
 /**
+ * Canonical authoritative approval classifier across FMS.
+ * Strictly mutually exclusive:
+ * 1. 'REJECTED' — explicit rejection (status or coo_approval is REJECTED/DISAPPROVED)
+ * 2. 'APPROVED' — explicit confirmation/approval (status or coo_approval is CONFIRMED/APPROVED, or coo_confirmed_at timestamp when not pending/rejected)
+ * 3. 'PENDING'  — awaiting approval (default state)
+ * NOTE: Cheque numbers, PAID status, or sync flags alone DO NOT constitute approval.
+ */
+export function getAuthoritativeApprovalStatus(p) {
+  if (!p) return 'PENDING';
+  const approval = (p.coo_approval || '').toString().trim().toUpperCase();
+  const stat = (p.status || '').toString().trim().toUpperCase();
+
+  // 1. REJECTED: Any explicit rejection takes precedence
+  if (approval === 'REJECTED' || stat === 'REJECTED' || stat.includes('DISAPPROV') || approval.includes('DISAPPROV')) {
+    return 'REJECTED';
+  }
+
+  // 2. APPROVED: Explicit confirmation/approval, or coo_confirmed_at timestamp when not pending/rejected
+  if (
+    approval === 'CONFIRMED' ||
+    approval === 'APPROVED' ||
+    stat === 'APPROVED' ||
+    stat === 'CONFIRMED' ||
+    (p.coo_confirmed_at && !approval.includes('PENDING') && !stat.includes('PENDING'))
+  ) {
+    return 'APPROVED';
+  }
+
+  // 3. PENDING: Default awaiting approval
+  return 'PENDING';
+}
+
+/**
  * Normalizes payable items from either my.nkbmanufacturing.com or pc.nkbmanufacturing.com
  */
 export function formatPayableItem(p, defaultSource = null) {
@@ -79,16 +112,8 @@ export function formatPayableItem(p, defaultSource = null) {
     filesList = [attachmentVal];
   }
 
-  const rawStatus = (p.status || p.coo_approval || 'PENDING_COO_APPROVAL').toString().trim();
-  let approvalVal = rawStatus;
-  const upperStatus = rawStatus.toUpperCase();
-  if (upperStatus === 'SUBMITTED FOR APPROVAL' || upperStatus === 'PENDING APPROVAL' || upperStatus === 'PENDING' || upperStatus === 'PENDING_COO_APPROVAL') {
-    approvalVal = 'PENDING_COO_APPROVAL';
-  } else if (upperStatus === 'APPROVED' || upperStatus === 'CONFIRMED' || upperStatus === 'PAID') {
-    approvalVal = 'CONFIRMED';
-  } else if (upperStatus === 'REJECTED' || upperStatus === 'DISAPPROVED') {
-    approvalVal = 'REJECTED';
-  }
+  const authStatus = getAuthoritativeApprovalStatus(p);
+  const approvalVal = authStatus === 'APPROVED' ? 'CONFIRMED' : (authStatus === 'REJECTED' ? 'REJECTED' : 'PENDING_COO_APPROVAL');
 
   // Parse line_items if passed as JSON string
   let itemsList = [];
@@ -642,7 +667,7 @@ export class PayableService {
     let cooApprovalToSave = 'PENDING_COO_APPROVAL';
     const rawStatus = (norm.raw.status || norm.raw.coo_approval || '').toString().trim();
     const upper = rawStatus.toUpperCase();
-    if (upper === 'APPROVED' || upper === 'CONFIRMED' || upper === 'PAID') {
+    if (upper === 'APPROVED' || upper === 'CONFIRMED') {
       statusToSave = 'Approved';
       cooApprovalToSave = 'CONFIRMED';
     } else if (upper === 'REJECTED' || upper === 'DISAPPROVED') {
@@ -818,18 +843,43 @@ export class PayableService {
       const s = status.toUpperCase();
       qb = qb.where(function () {
         if (s.includes('PENDING') || s.includes('SUBMIT')) {
-          this.where('status', 'like', '%PENDING%')
-            .orWhere('status', 'like', '%Submitted%')
-            .orWhere('coo_approval', 'like', '%PENDING%');
+          this.where(function () {
+            this.where('status', 'like', '%PENDING%')
+              .orWhere('status', 'like', '%Submitted%')
+              .orWhere('coo_approval', 'like', '%PENDING%')
+              .orWhereNull('coo_approval')
+              .orWhere('coo_approval', '');
+          })
+          .andWhere(function () {
+            this.whereNot('status', 'like', '%Approved%')
+              .andWhereNot('status', 'like', '%CONFIRM%')
+              .andWhereNot('status', 'like', '%REJECT%')
+              .andWhereNot('status', 'like', '%Disapproved%');
+          })
+          .andWhere(function () {
+            this.whereNot('coo_approval', 'like', '%CONFIRM%')
+              .andWhereNot('coo_approval', '=', 'APPROVED')
+              .andWhereNot('coo_approval', 'like', '%REJECT%')
+              .andWhereNot('coo_approval', 'like', '%DISAPPROV%');
+          });
         } else if (s.includes('CONFIRM') || s.includes('APPROV')) {
-          this.where('status', 'like', '%CONFIRM%')
-            .orWhere('status', 'like', '%Approved%')
-            .orWhere('status', 'like', '%Paid%')
-            .orWhere('coo_approval', 'like', '%CONFIRM%');
+          this.where(function () {
+            this.where('coo_approval', 'like', '%CONFIRM%')
+              .orWhere('coo_approval', '=', 'APPROVED')
+              .orWhere('status', 'like', '%Approved%')
+              .orWhere('status', 'like', '%CONFIRM%')
+              .orWhereNotNull('coo_confirmed_at');
+          }).andWhere(function () {
+            this.whereNot('status', 'like', '%REJECT%')
+              .andWhereNot('status', 'like', '%Disapproved%')
+              .andWhereNot('coo_approval', 'like', '%REJECT%')
+              .andWhereNot('coo_approval', 'like', '%DISAPPROV%');
+          });
         } else if (s.includes('REJECT')) {
           this.where('status', 'like', '%REJECT%')
             .orWhere('status', 'like', '%Disapproved%')
-            .orWhere('coo_approval', 'like', '%REJECT%');
+            .orWhere('coo_approval', 'like', '%REJECT%')
+            .orWhere('coo_approval', 'like', '%DISAPPROV%');
         } else {
           this.where('status', 'like', `%${s}%`)
             .orWhere('coo_approval', 'like', `%${s}%`);
@@ -890,7 +940,22 @@ export class PayableService {
     qb = qb.orderBy('id', 'desc');
 
     const rows = await qb;
-    return rows.map(r => formatPayableItem(this.formatDbRow(r), r.source_portal));
+    const mapped = rows.map(r => formatPayableItem(this.formatDbRow(r), r.source_portal));
+
+    if (status && status !== 'ALL') {
+      const s = status.toUpperCase();
+      if (s.includes('PENDING') || s.includes('SUBMIT')) {
+        return mapped.filter(p => getAuthoritativeApprovalStatus(p) === 'PENDING');
+      }
+      if (s.includes('CONFIRM') || s.includes('APPROV')) {
+        return mapped.filter(p => getAuthoritativeApprovalStatus(p) === 'APPROVED');
+      }
+      if (s.includes('REJECT')) {
+        return mapped.filter(p => getAuthoritativeApprovalStatus(p) === 'REJECTED');
+      }
+    }
+
+    return mapped;
   }
 
   /**

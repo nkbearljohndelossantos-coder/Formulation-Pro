@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import db from '../server/db.js';
-import { PayableService, formatPayableItem } from '../server/services/PayableService.js';
+import { PayableService, formatPayableItem, getAuthoritativeApprovalStatus } from '../server/services/PayableService.js';
+import { getAuthoritativeApprovalStatus as frontendGetAuthoritativeApprovalStatus } from '../src/pages/PayableApprovalsPage.jsx';
 
 describe('Payables External Integration and Approval Queue Tests', () => {
   beforeAll(async () => {
@@ -332,6 +333,123 @@ describe('Payables External Integration and Approval Queue Tests', () => {
     // The synthetic probe PB-202610-5099 MUST be excluded
     const foundProbe = visibleList.find(p => p.payee_beneficiary?.includes('FMS SYNC TEST'));
     expect(foundProbe).toBeUndefined();
+  });
+
+  it('guarantees authoritative status classification logic is identical and strictly mutually exclusive', () => {
+    const testCases = [
+      // Pending variants
+      { input: { status: 'Submitted For Approval', coo_approval: 'PENDING_COO_APPROVAL' }, expected: 'PENDING' },
+      { input: { status: 'PENDING_COO_APPROVAL', coo_approval: 'PENDING_COO_APPROVAL' }, expected: 'PENDING' },
+      { input: { status: 'Pending', coo_approval: '' }, expected: 'PENDING' },
+      { input: { status: null, coo_approval: null }, expected: 'PENDING' },
+      // Cheque issuance or payment completion ALONE does NOT count as approved
+      { input: { status: 'Paid', cheque_number: 'CHK-99120', coo_approval: null }, expected: 'PENDING' },
+      { input: { status: 'Submitted For Approval', cheque_number: 'CHK-12345' }, expected: 'PENDING' },
+      // Approved variants
+      { input: { status: 'Approved', coo_approval: 'CONFIRMED' }, expected: 'APPROVED' },
+      { input: { status: 'CONFIRMED', coo_approval: 'CONFIRMED' }, expected: 'APPROVED' },
+      { input: { status: 'Approved', coo_confirmed_at: '2026-10-18T10:00:00Z' }, expected: 'APPROVED' },
+      { input: { status: 'Submitted For Approval', coo_approval: 'CONFIRMED' }, expected: 'APPROVED' },
+      // Rejected variants
+      { input: { status: 'Rejected', coo_approval: 'REJECTED' }, expected: 'REJECTED' },
+      { input: { status: 'Disapproved', coo_approval: 'REJECTED' }, expected: 'REJECTED' },
+      { input: { status: 'Submitted For Approval', coo_approval: 'REJECTED' }, expected: 'REJECTED' },
+      // Explicit rejection wins over conflicting approval indicators
+      { input: { status: 'Approved', coo_approval: 'REJECTED' }, expected: 'REJECTED' },
+      { input: { status: 'Rejected', coo_approval: 'CONFIRMED' }, expected: 'REJECTED' }
+    ];
+
+    for (const { input, expected } of testCases) {
+      const backendResult = getAuthoritativeApprovalStatus(input);
+      const frontendResult = frontendGetAuthoritativeApprovalStatus(input);
+      expect(backendResult).toBe(expected);
+      expect(frontendResult).toBe(expected);
+    }
+  });
+
+  it('strictly segregates records by approval status with zero leakage across Pending, Approved, and Rejected views', async () => {
+    // 1. Create a distinct genuine Pending payable from pc.nkb
+    const pendingItem = await PayableService.createPayable({
+      requisition_no: 'PC-SEG-PENDING-001',
+      supplier_name: 'Metro Chemical Supplies Co',
+      amount: 35000.00,
+      status: 'Submitted For Approval',
+      coo_approval: 'PENDING_COO_APPROVAL',
+      source_portal: 'pc.nkbmanufacturing.com'
+    });
+
+    // 2. Create a distinct genuine Approved payable from my.nkb
+    const approvedItem = await PayableService.createPayable({
+      requisition_no: 'PO-SEG-APPROVED-002',
+      supplier_name: 'Pacific Industrial Solvents Inc',
+      amount: 88500.00,
+      status: 'Approved',
+      coo_approval: 'CONFIRMED',
+      cheque_number: 'CHK-2026-9901',
+      source_portal: 'my.nkbmanufacturing.com'
+    });
+
+    // 3. Create a distinct genuine Rejected payable from my.nkb
+    const rejectedItem = await PayableService.createPayable({
+      requisition_no: 'PO-SEG-REJECTED-003',
+      supplier_name: 'Defective Batch Container Ltd',
+      amount: 19200.00,
+      status: 'Rejected',
+      coo_approval: 'REJECTED',
+      source_portal: 'my.nkbmanufacturing.com'
+    });
+
+    expect(pendingItem.record.payable_number).toBe('PC-SEG-PENDING-001');
+    expect(approvedItem.record.payable_number).toBe('PO-SEG-APPROVED-002');
+    expect(rejectedItem.record.payable_number).toBe('PO-SEG-REJECTED-003');
+
+    // 4. Query PENDING view
+    const pendingView = await PayableService.getPayables({ status: 'PENDING' });
+    const hasPendingInPending = pendingView.some(p => p.payable_number === 'PC-SEG-PENDING-001');
+    const hasApprovedInPending = pendingView.some(p => p.payable_number === 'PO-SEG-APPROVED-002');
+    const hasRejectedInPending = pendingView.some(p => p.payable_number === 'PO-SEG-REJECTED-003');
+
+    expect(hasPendingInPending).toBe(true);
+    expect(hasApprovedInPending).toBe(false); // ZERO LEAK of Approved into Pending
+    expect(hasRejectedInPending).toBe(false); // ZERO LEAK of Rejected into Pending
+    expect(pendingView.every(p => getAuthoritativeApprovalStatus(p) === 'PENDING')).toBe(true);
+
+    // 5. Query APPROVED view
+    const approvedView = await PayableService.getPayables({ status: 'CONFIRMED' });
+    const hasPendingInApproved = approvedView.some(p => p.payable_number === 'PC-SEG-PENDING-001');
+    const hasApprovedInApproved = approvedView.some(p => p.payable_number === 'PO-SEG-APPROVED-002');
+    const hasRejectedInApproved = approvedView.some(p => p.payable_number === 'PO-SEG-REJECTED-003');
+
+    expect(hasApprovedInApproved).toBe(true);
+    expect(hasPendingInApproved).toBe(false); // ZERO LEAK of Pending into Approved
+    expect(hasRejectedInApproved).toBe(false); // ZERO LEAK of Rejected into Approved
+    expect(approvedView.every(p => getAuthoritativeApprovalStatus(p) === 'APPROVED')).toBe(true);
+
+    // 6. Query REJECTED view
+    const rejectedView = await PayableService.getPayables({ status: 'REJECTED' });
+    const hasPendingInRejected = rejectedView.some(p => p.payable_number === 'PC-SEG-PENDING-001');
+    const hasApprovedInRejected = rejectedView.some(p => p.payable_number === 'PO-SEG-APPROVED-002');
+    const hasRejectedInRejected = rejectedView.some(p => p.payable_number === 'PO-SEG-REJECTED-003');
+
+    expect(hasRejectedInRejected).toBe(true);
+    expect(hasPendingInRejected).toBe(false); // ZERO LEAK of Pending into Rejected
+    expect(hasApprovedInRejected).toBe(false); // ZERO LEAK of Approved into Rejected
+    expect(rejectedView.every(p => getAuthoritativeApprovalStatus(p) === 'REJECTED')).toBe(true);
+
+    // 7. Query ALL view
+    const allView = await PayableService.getPayables({ status: 'ALL' });
+    expect(allView.some(p => p.payable_number === 'PC-SEG-PENDING-001')).toBe(true);
+    expect(allView.some(p => p.payable_number === 'PO-SEG-APPROVED-002')).toBe(true);
+    expect(allView.some(p => p.payable_number === 'PO-SEG-REJECTED-003')).toBe(true);
+
+    // Verify mathematical mutual exclusivity and collective exhaustiveness:
+    // Every single record in ALL view falls into exactly one status bucket
+    const allCount = allView.length;
+    const computedPendingCount = allView.filter(p => getAuthoritativeApprovalStatus(p) === 'PENDING').length;
+    const computedApprovedCount = allView.filter(p => getAuthoritativeApprovalStatus(p) === 'APPROVED').length;
+    const computedRejectedCount = allView.filter(p => getAuthoritativeApprovalStatus(p) === 'REJECTED').length;
+
+    expect(computedPendingCount + computedApprovedCount + computedRejectedCount).toBe(allCount);
   });
 });
 
